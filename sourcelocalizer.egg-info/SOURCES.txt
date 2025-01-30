@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+setup.py
+sourcelocalizer/__init__.py
+sourcelocalizer.egg-info/PKG-INFO
+sourcelocalizer.egg-info/SOURCES.txt
+sourcelocalizer.egg-info/dependency_links.txt
+sourcelocalizer.egg-info/top_level.txt

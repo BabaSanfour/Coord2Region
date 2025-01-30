@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sourcelocalizer"
+dynamic = ["version"]  # Automatically fetch version from Git tags
+authors = [
+  { name = "Hamza Abdelhedi", email = "hamza.abdelhedii@gmail.com" }
+]
+description = "Find region name for a given MNI coordinate in a selected atlas"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+license = { text = "MIT" }
+
+dependencies = [
+    "nibabel",  # Add any dependencies here
+]
+
+[project.urls]
+Homepage = "https://github.com/pypa/SourceLocalizer"
+Issues = "https://github.com/pypa/SourceLocalizer/issues"
+
+[tool.setuptools_scm]
+write_to = "sourcelocalizer/_version.py"  
