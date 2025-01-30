@@ -77,7 +77,7 @@ def fetch_atlas(atlas_input, data_dir=None, version=None, **kwargs):
             labels = arch['labels'] if 'labels' in arch else None
             index = arch['index'] if 'index' in arch else None
             labels = {idx: name for idx, name in zip(index, labels)} if labels is not None else None
-            return {'vol': vol_data, 'hdr': hdr_matrix, 'labels': labels, 'index': index, "description": desc, "file": fname}        
+            return {'vol': vol_data, 'hdr': hdr_matrix, 'labels': labels, "description": desc, "file": fname}        
         else:
             raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
 
