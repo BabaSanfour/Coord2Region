@@ -1,6 +1,5 @@
 import os
 import logging
-from pydoc import Helper
 import requests
 import numpy as np
 import nibabel as nib
@@ -55,12 +54,7 @@ def fetch_atlas(atlas_input, data_dir=None, version=None, **kwargs):
     else:
         data_dir = data_dir or os.getcwd()
 
-    @Helper
-    def _fetch_labels():
-        labels = None
-        return labels
-    @Helper
-    def _pack_output(fname, labels=None, desc=None):
+    def _pack_output(fname, desc=None):
         """
         Load the file into a nibabel image and return
         a dictionary like Nilearn's fetchers do.
@@ -135,14 +129,7 @@ def fetch_atlas(atlas_input, data_dir=None, version=None, **kwargs):
         from nilearn.datasets import fetch_atlas_aal
         version_ = version or "SPM12"  # default
         fetched = fetch_atlas_aal(version=version_, data_dir=data_dir, **kwargs)
-        atlas_dict = {
-            'maps': nib.load(fetched['maps']),
-            'labels': fetched['labels'],
-            'description': 'AAL atlas',
-            'file': fetched['maps']
-        }
-        return atlas_dict
-
+        return _pack_output(fetched["maps"], desc="AAL")
     # (b) Example: 'destrieux' (surface atlas)
     if atlas_input.lower() == "destrieux":
         from nilearn.datasets import fetch_atlas_surf_destrieux
@@ -193,4 +180,3 @@ def fetch_atlas(atlas_input, data_dir=None, version=None, **kwargs):
                      f"- Not a recognized URL.\n"
                      f"- Not in known fetchers or ATLAS_URLS.\n"
                      f"Available custom keys in ATLAS_URLS: {list(ATLAS_URLS.keys())}")
-
