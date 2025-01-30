@@ -4,7 +4,7 @@ from pydoc import Helper
 import requests
 import numpy as np
 import nibabel as nib
-from .utils import _fetch_labels
+from sourcelocalizer.utils import _fetch_labels
 logger = logging.getLogger(__name__)
 
 ATLAS_URLS = {
