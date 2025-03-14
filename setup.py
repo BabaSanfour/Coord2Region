@@ -12,7 +12,7 @@ try:
 except subprocess.CalledProcessError:
     try:
         from importlib.metadata import version as get_version
-        version = get_version("sourcelocalizer")
+        version = get_version("coord2region")
     except Exception:
         version = "0.0.1"  # Default fallback version
 
@@ -22,7 +22,7 @@ __version__ = version
 long_description = Path("README.md").read_text(encoding="utf-8")
 
 setuptools.setup(
-    name="sourcelocalizer",
+    name="coord2region",
     version=__version__,
     author="Hamza Abdelhedi",
     author_email="hamza.abdelhedii@gmail.com",

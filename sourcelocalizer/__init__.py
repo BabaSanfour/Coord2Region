@@ -1,1 +1,0 @@
-from .sourcelocalizer import Atlas
