@@ -1,6 +1,6 @@
 import numpy as np
 
-class Atlas:
+class AtlasRegionMapper:
     """
     Holds a single atlas and its metadata.
 

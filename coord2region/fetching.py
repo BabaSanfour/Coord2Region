@@ -22,6 +22,8 @@ class AtlasFileHandler:
         :param data_dir: Directory to store/download atlas files.
              Defaults to a 'data' folder within a hidden '.coord2region' folder in the user's home directory.
         """
+        # TODO check if the data_dir is a valid path
+        # TODO check if data_dir is an absolute path before assigning home_dir
         home_dir = os.path.expanduser("~")
         if data_dir is None:
             self.data_dir = os.path.join(home_dir, 'coord2region_data')
@@ -42,6 +44,9 @@ class AtlasFileHandler:
         fname_xml = base + '.xml'
 
         # get parent directory
+        # TODO use os.path.join instead of + for clarity and cross-platform compatibility
+        # TODO use os.path.splitext instead of string manipulation
+        # TODO Consider parameterizing these
         base_dir = os.path.dirname(fname)
         if "HarvardOxford" in base_dir:
             fname_xml = base_dir + "-Cortical.xml"
@@ -61,6 +66,7 @@ class AtlasFileHandler:
             except Exception as e:
                 logger.warning(f"Failed to parse XML labels: {e}")
         else:
+            # TODO improve error handling
             fname_txt = base + '.txt'
             if "schaefer" in base_dir:
                 fname_txt = os.path.join(base_dir, "Schaefer2018_400Parcels_7Networks_order.txt")
@@ -86,6 +92,7 @@ class AtlasFileHandler:
         ext = ext.lower()
 
         if ext in ['.nii', '.gz', '.nii.gz']:
+            # TODO add try-except block for loading the image
             import nibabel as nib
             img = nib.load(fname)
             vol_data = img.get_fdata(dtype=np.float32)
@@ -99,6 +106,7 @@ class AtlasFileHandler:
                 'file': fname
             }
         elif ext == '.npz':
+            # TODO add try-except block for loading the archive
             arch = np.load(path, allow_pickle=True)
             vol_data = arch['vol']
             hdr_matrix = arch['hdr']
@@ -141,8 +149,9 @@ class AtlasFileHandler:
         labmap = {v: lab for lab, verts in cortex_dict.items() for v in np.atleast_1d(verts)}
 
         # Compute MNI coordinates for the cortical parts (assuming first two hemispheres)
-        mni_list = mne.vertex_to_mni(vertno[:2], [0, 1], subject, subjects_dir=subjects_dir)
+        mni_list = mne.vertex_to_mni([lh_vert, rh_vert], [0, 1], subject, subjects_dir=subjects_dir)
         mni_coords = np.concatenate(mni_list, axis=0)
+        # TODO improve consistency in the output format
         return {
             'vmap': cortex_dict,
             'labmap': labmap,
@@ -168,6 +177,7 @@ class AtlasFileHandler:
         :return: The standardized atlas dictionary.
         :raises RuntimeError: if the download fails.
         """
+        # TODO document that the file name is expected to be in the URL
         import urllib.parse
         import requests
         parsed = urllib.parse.urlparse(atlas_url)
@@ -179,7 +189,7 @@ class AtlasFileHandler:
         if not os.path.exists(local_path):
             logger.info(f"Downloading atlas from {atlas_url}...")
             try:
-                with requests.get(atlas_url, stream=True) as r:
+                with requests.get(atlas_url, stream=True, timeout=30) as r:
                     r.raise_for_status()
                     with open(local_path, 'wb') as f:
                         for chunk in r.iter_content(chunk_size=8192):
@@ -189,6 +199,7 @@ class AtlasFileHandler:
             except Exception as e:
                 if os.path.exists(local_path):
                     os.remove(local_path)
+                logger.exception(f"Failed to download from {atlas_url}")
                 raise RuntimeError(f"Failed to download from {atlas_url}") from e
         else:
             logger.info(f"Atlas already exists: {local_path}. Skipping download.")
@@ -245,7 +256,8 @@ class AtlasFetcher:
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
             return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
-        except:
+        except Exception as e:
+            logger.error("Failed to fetch atlas using primary data_dir: %s", e, exc_info=True)
             return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
 
     def _fetch_atlas_aal(self, **kwargs):

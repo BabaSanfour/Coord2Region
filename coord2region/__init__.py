@@ -1,2 +1,2 @@
-from .coord2region import Atlas
+from .coord2region import AtlasRegionMapper
 from .fetching import AtlasFetcher
