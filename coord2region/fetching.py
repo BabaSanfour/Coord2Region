@@ -1,9 +1,6 @@
 import os
 import logging
-import urllib.parse
 import numpy as np
-import nibabel as nib
-import requests
 from typing import Optional
   
 logger = logging.getLogger(__name__)
@@ -89,6 +86,7 @@ class AtlasFileHandler:
         ext = ext.lower()
 
         if ext in ['.nii', '.gz', '.nii.gz']:
+            import nibabel as nib
             img = nib.load(fname)
             vol_data = img.get_fdata(dtype=np.float32)
             hdr_matrix = img.affine
@@ -170,6 +168,8 @@ class AtlasFileHandler:
         :return: The standardized atlas dictionary.
         :raises RuntimeError: if the download fails.
         """
+        import urllib.parse
+        import requests
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
         if not file_name:
@@ -369,4 +369,3 @@ if __name__ == '__main__':
     # TODO: refactor to use a single fetch method for all atlases
     # TODO: add method to fetch all atlases at once
     # TODO: check for atlases that supported by both mne and nilearn if else
-    
