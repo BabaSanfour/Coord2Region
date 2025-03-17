@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 from .fetching import AtlasFetcher
 
 class AtlasRegionMapper:
@@ -170,7 +170,7 @@ class AtlasRegionMapper:
 
     # --- Coordinate Conversion Methods ---
 
-    def pos_to_source(self, pos: Union[List[float], np.ndarray]) -> tuple[int, int, int]:
+    def pos_to_source(self, pos: Union[List[float], np.ndarray]) -> Tuple[int, int, int]:
         """
         Convert an MNI coordinate (x, y, z) to voxel indices using the inverse of the affine transform.
 
