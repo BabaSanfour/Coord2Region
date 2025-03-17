@@ -260,16 +260,16 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.mne_data = self.file_handler.mne_data
-        self._atlas_fetchers = {
-            #"aal": self._fetch_atlas_aal,
-            "brodmann": self._fetch_atlas_brodmann,
-            "harvard-oxford": self._fetch_atlas_harvard_oxford,
-            "juelich": self._fetch_atlas_juelich,
-            "schaefer": self._fetch_atlas_schaefer,
-            "yeo": self._fetch_atlas_yeo,
-            # MNE-based atlases:
-            "aparc2009": self._fetch_atlas_aparc2009,
-        }
+        # self._atlas_fetchers = {
+        #     #"aal": self._fetch_atlas_aal,
+        #     "brodmann": self._fetch_atlas_brodmann,
+        #     "harvard-oxford": self._fetch_atlas_harvard_oxford,
+        #     "juelich": self._fetch_atlas_juelich,
+        #     "schaefer": self._fetch_atlas_schaefer,
+        #     "yeo": self._fetch_atlas_yeo,
+        #     # MNE-based atlases:
+        #     "aparc2009": self._fetch_atlas_aparc2009,
+        # }
 
         from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
 
@@ -319,55 +319,6 @@ class AtlasFetcher:
             logger.info(f"Attempting to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}")
             return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
 
-    def _fetch_atlas_aal(self, **kwargs):
-        try:
-            from nilearn.datasets import fetch_atlas_aal
-            kwargs["version"] = kwargs.get('version', 'SPM12') # TODO: add versions
-            fetched = self._fetch_atlas(fetch_atlas_aal, **kwargs)
-            return self.file_handler.pack_vol_output(fetched["maps"], desc="AAL Atlas")
-        except:
-            # Fallback URL for AAL atlas.
-            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('aal'))
-    
-    def _fetch_atlas_brodmann(self, **kwargs):
-        try:
-            from nilearn.datasets import fetch_atlas_talairach
-            fetched = self._fetch_atlas(fetch_atlas_talairach, level_name="ba", **kwargs)
-            return self.file_handler.pack_vol_output(fetched["maps"], desc="Talairach Atlas")
-        except:
-            # Fallback URL for Talairach atlas.
-            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('talairach'))
-
-    def _fetch_atlas_harvard_oxford(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_harvard_oxford
-        atlas_name = kwargs.get('version', 'cort-maxprob-thr25-2mm')
-        fetched = self._fetch_atlas(fetch_atlas_harvard_oxford, atlas_name=atlas_name, **kwargs)
-        output= {
-                'vol': fetched.get('maps',None),
-                'hdr': fetched.get('maps',None).affine,
-                'labels': fetched.get('labels',None),
-                'description': fetched.get('description',None),
-                'file': fetched.get('filename',None)
-            }
-        return output
-
-    def _fetch_atlas_juelich(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_juelich
-        atlas_name = kwargs.get('version', 'maxprob-thr0-1mm')
-        fetched = fetched = self._fetch_atlas(fetch_atlas_juelich, atlas_name=atlas_name, **kwargs)
-        return self.file_handler.pack_vol_output(fetched["filename"], desc=f"Juelich {atlas_name} Atlas")
-
-    def _fetch_atlas_schaefer(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_schaefer_2018
-        fetched = self._fetch_atlas(fetch_atlas_schaefer_2018, **kwargs)
-        return self.file_handler.pack_vol_output(fetched["maps"], desc="Schaefer 2018 Atlas")
-
-    def _fetch_atlas_yeo(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_yeo_2011
-        fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
-        version = kwargs.get('version', 'thick_17')
-        return self.file_handler.pack_vol_output(fetched[version], desc=f"Yeo 2011 {version} Atlas")
-
     # ---- MNE-based (surface annotation) atlas fetcher ----
     
     def _fetch_atlas_aparc2009(self, **kwargs):
@@ -408,13 +359,15 @@ class AtlasFetcher:
     
         # Case (c): nilearn or mne atlases.
         key = atlas_name.lower()
-        fetcher = self._atlas_fetchers.get(key)
         fetcher_nilearn = self._atlas_fetchers_nilearn.get(key)
         if fetcher_nilearn:
             try:
                 this_kwargs = fetcher_nilearn['default_kwargs']
                 this_kwargs.update(kwargs)
-                fetched = fetcher_nilearn['fetcher'](**this_kwargs)
+                if atlas_name != 'yeo':
+                    fetched = self._fetch_atlas(fetcher_nilearn['fetcher'],**this_kwargs)
+                else:
+                    fetched = fetcher_nilearn['fetcher'](**this_kwargs)
                 maphdr = self.file_handler.pack_vol_output(fetched["maps"])
                 fetched.update(maphdr)
                 fetched['kwargs'] = this_kwargs
