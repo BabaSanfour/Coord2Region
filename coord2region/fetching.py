@@ -2,6 +2,7 @@ import os
 import logging
 import numpy as np
 from typing import Optional
+from nibabel.nifti1 import Nifti1Image
   
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -52,7 +53,7 @@ class AtlasFileHandler:
             fname_xml = base_dir + "-Cortical.xml"
         if "Juelich" in base_dir:
             fname_xml = base_dir + ".xml"
-        if os.path.exists(fname_xml):
+        if os.path.exists(fname_xml): # AAL
             try:
                 import xml.etree.ElementTree as ET
                 tree = ET.parse(fname_xml)
@@ -65,15 +66,19 @@ class AtlasFileHandler:
                 return labels
             except Exception as e:
                 logger.warning(f"Failed to parse XML labels: {e}")
-        else:
+        else: # txt files with labels, 2nd column is the label (apparently)
             # TODO improve error handling
             fname_txt = base + '.txt'
             if "schaefer" in base_dir:
                 fname_txt = os.path.join(base_dir, "Schaefer2018_400Parcels_7Networks_order.txt")
+            if "Yeo_JNeurophysiol11_MNI152" in base_dir:
+                yeo_version = os.path.basename(base).split('_')[1] # remove the file name from the
+                label_dir = os.path.join(base_dir,f"Yeo2011_{yeo_version}_ColorLUT.txt")
+                fname_txt = label_dir
             if os.path.exists(fname_txt):
                 with open(fname_txt, 'r') as f:
                     lines = f.readlines()
-                labels = {str(idx): line.strip() for idx, line in enumerate(lines)}
+                labels = {str(idx): line.strip().split('\t')[1] for idx, line in enumerate(lines)}
                 return labels
         logger.warning(f"Failed to fetch labels")
         return None
@@ -87,41 +92,55 @@ class AtlasFileHandler:
         :return: A dictionary with keys: 'vol', 'hdr', 'labels', 'description', 'file'.
         :raises ValueError: If file format is unrecognized.
         """
-        path = os.path.abspath(fname)
-        _, ext = os.path.splitext(fname)
-        ext = ext.lower()
 
-        if ext in ['.nii', '.gz', '.nii.gz']:
-            # TODO add try-except block for loading the image
-            import nibabel as nib
-            img = nib.load(fname)
-            vol_data = img.get_fdata(dtype=np.float32)
-            hdr_matrix = img.affine
-            labels = self._fetch_labels(path)
-            return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
-                'labels': labels,
-                'description': desc,
-                'file': fname
-            }
-        elif ext == '.npz':
-            # TODO add try-except block for loading the archive
-            arch = np.load(path, allow_pickle=True)
-            vol_data = arch['vol']
-            hdr_matrix = arch['hdr']
-            labels = None
-            if 'labels' in arch and 'index' in arch:
-                labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
-            return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
-                'labels': labels,
-                'description': desc,
-                'file': fname
-            }
+        if isinstance(fname, str):
+            path = os.path.abspath(fname)
+            _, ext = os.path.splitext(fname)
+            ext = ext.lower()
+
+            if ext in ['.nii', '.gz', '.nii.gz']:
+                # TODO add try-except block for loading the image
+                import nibabel as nib
+                img = nib.load(fname)
+                vol_data = img.get_fdata(dtype=np.float32)
+                hdr_matrix = img.affine
+                #labels = self._fetch_labels(path)
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
+            elif ext == '.npz':
+                # TODO add try-except block for loading the archive
+                arch = np.load(path, allow_pickle=True)
+                vol_data = arch['vol']
+                hdr_matrix = arch['hdr']
+                # labels = None
+                # if 'labels' in arch and 'index' in arch:
+                #     labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
+            else:
+                raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
         else:
-            raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
+            if isinstance(fname,Nifti1Image):
+                vol_data = fname.get_fdata(dtype=np.float32)
+                hdr_matrix = fname.affine
+                #labels = self._fetch_labels(path)
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
 
     def pack_surf_output(self, subject: str, subjects_dir: str, parc: str = 'aparc', **kwargs):
         """
@@ -252,13 +271,52 @@ class AtlasFetcher:
             "aparc2009": self._fetch_atlas_aparc2009,
         }
 
+        from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
+
+        def _fetch_atlas_yeo_version(version='thick_17', **kwargs):
+            from nilearn.datasets import fetch_atlas_yeo_2011
+            fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
+            version = kwargs.get('version', 'thick_17')
+
+            # Needs special care
+            # thin/thick keys are the images
+            # colors are the labels
+            num = version.split('_')[-1]
+            labels_file = fetched[f'colors_{num}']
+            # read the labels file
+            with open(labels_file, 'r') as f:
+                lines = f.readlines()
+            import re
+            # replace any number of spaces with a single space in all lines
+            lines = [re.sub(' +', ' ', line) for line in lines]
+            labels = {str(idx): line.strip().split(' ')[1] for idx, line in enumerate(lines)}
+            output = {}
+            output['labels'] = labels
+            output['description'] = fetched['description']
+            output['file'] = fetched[version]
+            output['maps']=fetched[version] # this will be taken care of to make it an array later
+            return output
+
+
+
+        self._atlas_fetchers_nilearn = {
+            'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': 'SPM12'}},
+            'brodmann': {'fetcher':fetch_atlas_talairach,'default_kwargs': {'level_name': 'ba'}},
+            'harvard-oxford': {'fetcher':fetch_atlas_harvard_oxford, 'default_kwargs': {'atlas_name': 'cort-maxprob-thr25-2mm'}},
+            'juelich': {'fetcher':fetch_atlas_juelich, 'default_kwargs': {'atlas_name': 'maxprob-thr0-1mm'}},
+            'schaefer': {'fetcher':fetch_atlas_schaefer_2018, 'default_kwargs': {}},
+            'yeo': {'fetcher':_fetch_atlas_yeo_version, 'default_kwargs': {'version': 'thick_17'}},
+        }
+
+
     # ---- Volumetric atlas fetchers using Nilear ----
 
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
             return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
         except Exception as e:
-            logger.error("Failed to fetch atlas using primary data_dir: %s", e, exc_info=True)
+            logger.error(f"Failed to fetch atlas using primary data_dir: {self.file_handler.data_dir}", e, exc_info=True)
+            logger.info(f"Attempting to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}")
             return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
 
     def _fetch_atlas_aal(self, **kwargs):
@@ -351,9 +409,24 @@ class AtlasFetcher:
         # Case (c): nilearn or mne atlases.
         key = atlas_name.lower()
         fetcher = self._atlas_fetchers.get(key)
-        if fetcher:
-            return fetcher(**kwargs)
-    
+        fetcher_nilearn = self._atlas_fetchers_nilearn.get(key)
+        if fetcher_nilearn:
+            try:
+                this_kwargs = fetcher_nilearn['default_kwargs']
+                this_kwargs.update(kwargs)
+                fetched = fetcher_nilearn['fetcher'](**this_kwargs)
+                maphdr = self.file_handler.pack_vol_output(fetched["maps"])
+                fetched.update(maphdr)
+                fetched['kwargs'] = this_kwargs
+                return fetched
+            except Exception as e:
+                logger.error(f"Failed to fetch atlas {key} using nilearn", e, exc_info=True)
+                logger.warning(f"Attempting to fetch atlas {key} using url")
+                if key in self.ATLAS_URLS:
+                    return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
+                else:
+                    logger.error(f"Atlas {key} not found in available atlas urls")
+
         raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
 
 
