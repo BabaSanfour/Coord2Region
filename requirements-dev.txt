@@ -2,3 +2,4 @@ nilearn
 nibabel
 mne
 pytest-cov
+-e .
