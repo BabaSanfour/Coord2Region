@@ -214,7 +214,7 @@ class AtlasFetcher:
       'vmap' (label to vertex mapping), 'labmap' (vertex-to-label mapping), and 'mni' (MNI coordinates).
     """
 
-    # Fallback URL for Talairach atlas (used by the Brodmann fetcher).
+    # Fallback URL for Talairach atlas .
     ATLAS_URLS = {
         'talairach': 'https://www.talairach.org/talairach.nii',
         'aal': 'https://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
@@ -241,6 +241,7 @@ class AtlasFetcher:
         }
 
     # ---- Volumetric atlas fetchers using Nilear ----
+
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
             return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
@@ -354,17 +355,17 @@ if __name__ == '__main__':
     # TODO schaefer: self._fetch_atlas_schaefer check if labels are extracted correctly
     # TODO yeo: self._fetch_atlas_yeo check label extraction from description file
     # TODO add other nibabel, nilearn, mne atlases
-    atlas = af.fetch_atlas("yeo")
-    print(isinstance(atlas, dict))
-    print(atlas.keys())
-    print(atlas["labels"])
+    # atlas = af.fetch_atlas("yeo")
+    # print(isinstance(atlas, dict))
+    # print(atlas.keys())
+    # print(atlas["labels"])
 
     # TODO: test fetching a surface-based atlas
     # atlas = af.fetch_atlas("mne-annot", subject="fsaverage", subjects_dir="mne_data")
     # print(isinstance(atlas, dict))
 
     # TODO: add save/load methods for created atlases
-
+    # TODO: make output of fetch_atlas consistent
     # TODO: add method to list available atlases
     # TODO: refactor to use a single fetch method for all atlases
     # TODO: add method to fetch all atlases at once
