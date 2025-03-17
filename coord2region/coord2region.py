@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Any, Dict, List, Optional, Union
+from fetching import AtlasFetcher
 
 class AtlasRegionMapper:
     """
@@ -250,3 +251,190 @@ class AtlasRegionMapper:
         if idx == "Unknown":
             return np.empty((0, 3))
         return self.index_to_pos(idx)
+    
+
+class VectorizedAtlasRegionMapper:
+    """
+    Provides batch (vectorized) conversion methods for an AtlasRegionMapper.
+
+    This class wraps an instance of AtlasRegionMapper (i.e., using AtlasRegionMapper)
+    and applies its conversion methods (e.g., from MNI coordinates to voxel indices, region indexes,
+    or region names) over a list or array of inputs.
+    """
+
+    def __init__(self, mapper: AtlasRegionMapper) -> None:
+        """
+        Initialize with an instance of AtlasRegionMapper.
+        
+        :param mapper: An instance of AtlasRegionMapper.
+        """
+        self.mapper = mapper
+
+    def batch_get_region_names(self, values: List[Union[int, str]]) -> List[str]:
+        """
+        Return region names corresponding to a list of region indexes/values.
+        
+        :param values: A list of region indexes or values.
+        :return: A list of region names.
+        """
+        if not all(isinstance(val, (int, str)) for val in values):
+            raise ValueError("values must be a list of ints or strings")
+        return [self.mapper.get_region_name(val) for val in values]
+
+    def batch_get_region_indices(self, labels: List[str]) -> List[Union[int, str]]:
+        """
+        Return region indexes corresponding to a list of region names.
+        
+        :param labels: A list of region names.
+        :return: A list of region indexes.
+        """
+        if not all(isinstance(label, str) for label in labels):
+            raise ValueError("labels must be a list of strings")
+        return [self.mapper.get_region_index(label) for label in labels]
+
+    def batch_pos_to_source(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
+        """
+        Convert a batch of MNI coordinates to voxel indices.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of voxel indices (i, j, k) for each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_source(pos) for pos in positions_arr]
+
+    def batch_pos_to_index(self, positions: Union[List[List[float]], np.ndarray]) -> List[Union[int, str]]:
+        """
+        Convert a batch of MNI coordinates to atlas region indexes.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of region indexes corresponding to each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_index(pos) for pos in positions_arr]
+
+    def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> List[str]:
+        """
+        Convert a batch of MNI coordinates to region names.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of region names corresponding to each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_region(pos) for pos in positions_arr]
+
+    def batch_source_to_pos(self, sources: Union[List[List[int]], np.ndarray]) -> np.ndarray:
+        """
+        Convert a batch of voxel indices to MNI coordinates.
+        
+        :param sources: An array-like of shape (N, 3) containing voxel indices.
+        :return: An array of MNI coordinates for each voxel.
+        """
+        if not isinstance(sources, (list, np.ndarray)):
+            raise ValueError("sources must be a list or numpy array")
+        sources_arr = np.atleast_2d(sources)
+        return np.array([self.mapper.source_to_pos(src) for src in sources_arr])
+
+    def batch_index_to_pos(self, indices: List[Union[int, str]]) -> List[np.ndarray]:
+        """
+        For each region index in the list, return an array of MNI coordinates for voxels
+        having that index.
+        
+        :param indices: A list of region indexes.
+        :return: A list where each element is an array of MNI coordinates for the corresponding index.
+        """
+        if not all(isinstance(idx, (int, str)) for idx in indices):
+            raise ValueError("indices must be a list of ints or strings")
+        return [self.mapper.index_to_pos(idx) for idx in indices]
+
+    def batch_region_to_pos(self, regions: List[str]) -> List[np.ndarray]:
+        """
+        For each region name in the list, return an array of MNI coordinates for voxels
+        corresponding to that region.
+        
+        :param regions: A list of region names.
+        :return: A list where each element is an array of MNI coordinates for the corresponding region.
+        """
+        if not all(isinstance(region, str) for region in regions):
+            raise ValueError("regions must be a list of strings")
+        return [self.mapper.region_to_pos(region) for region in regions]
+
+
+class coord2region:
+    """
+    Processes region mapping and coordinate conversions across multiple atlases.
+    
+    This class accepts a dictionary of atlas mappers (keyed by atlas name) and
+    provides methods to perform coordinate conversions and mapping queries on all atlases,
+    returning results in a standardized dictionary.
+    """
+    def __init__(self, data_dir: str, atlases: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Initialize by fetching atlases from provided kwargs and wrapping them in VectorizedAtlasRegionMapper.
+        
+
+        :param data_dir: The directory where atlas data is stored.
+        :param atlases: A dictionary of atlas names and their kwargs.
+        """
+        self.atlases = {}
+        atlas_fetcher = AtlasFetcher(data_dir=data_dir)
+        self.data_dir = AtlasFetcher.data_dir
+        for name, kwargs in atlases.items():
+            atlas = atlas_fetcher.fetch_atlas(name, **kwargs)
+            mapper = AtlasRegionMapper(name=atlas.name, vol=atlas.vol, hdr=atlas.hdr, labels=atlas.labels, index=atlas.index)
+            vectorized_mapper = VectorizedAtlasRegionMapper(mapper)
+            self.atlases[name] = vectorized_mapper
+
+    def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
+        """
+        Convert a batch of MNI coordinates to region names for all atlases.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A dictionary keyed by atlas name, with lists of region names.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_pos_to_region(positions)
+        return results
+
+    def batch_get_region_names(self, values: List[Union[int, str]]) -> Dict[str, List[str]]:
+        """
+        Return region names for a list of region indices/values across all atlases.
+        
+        :param values: A list of region indexes or values.
+        :return: A dictionary keyed by atlas name, with lists of region names
+        """
+        if not all(isinstance(val, (int, str)) for val in values):
+            raise ValueError("values must be a list of ints or strings")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_get_region_names(values)
+        return results
+
+    def batch_get_region_indices(self, labels: List[str]) -> Dict[str, List[Union[int, str]]]:
+        """
+        Return region indexes for a list of region names across all atlases.
+        
+        Parameters
+        ----------
+        labels : list of str
+            Region names.
+            
+        Returns
+        -------
+        dict
+            A dictionary keyed by atlas name, with lists of region indexes.
+        """
+        if not all(isinstance(label, str) for label in labels):
+            raise ValueError("labels must be a list of strings")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_get_region_indices(labels)
+        return results
