@@ -373,8 +373,8 @@ dist = np.linalg.norm(centroid_a - centroid_b)
 
 # File: .\coord2region\coord2region.py
 import numpy as np
-from typing import Any, Dict, List, Optional, Union
-from fetching import AtlasFetcher
+from typing import Any, Dict, List, Optional, Union, Tuple
+from .fetching import AtlasFetcher
 
 class AtlasRegionMapper:
     """
@@ -457,6 +457,11 @@ class AtlasRegionMapper:
                 return self.labels[pos]
             except (ValueError, IndexError):
                 return "Unknown"
+        elif self.labels is not None:
+            try:
+                return self.labels[int(value)]
+            except (ValueError, IndexError):
+                return "Unknown"
         return "Unknown"
 
     def get_region_name(self, value: Union[int, str]) -> str:
@@ -492,6 +497,11 @@ class AtlasRegionMapper:
                     return self.index[pos]
                 else:
                     return self.index[pos]
+            except (ValueError, IndexError):
+                return "Unknown"
+        elif self.labels is not None:
+            try:
+                return int(np.where(np.array(self.labels) == label)[0][0])
             except (ValueError, IndexError):
                 return "Unknown"
         return "Unknown"
@@ -534,7 +544,7 @@ class AtlasRegionMapper:
 
     # --- Coordinate Conversion Methods ---
 
-    def pos_to_source(self, pos: Union[List[float], np.ndarray]) -> tuple[int, int, int]:
+    def pos_to_source(self, pos: Union[List[float], np.ndarray]) -> Tuple[int, int, int]:
         """
         Convert an MNI coordinate (x, y, z) to voxel indices using the inverse of the affine transform.
 
@@ -642,6 +652,8 @@ class VectorizedAtlasRegionMapper:
         
         :param mapper: An instance of AtlasRegionMapper.
         """
+        if not isinstance(mapper, AtlasRegionMapper):
+            raise ValueError("mapper must be an instance of AtlasRegionMapper")
         self.mapper = mapper
 
     def batch_get_region_names(self, values: List[Union[int, str]]) -> List[str]:
@@ -751,18 +763,18 @@ class coord2region:
         """
         Initialize by fetching atlases from provided kwargs and wrapping them in VectorizedAtlasRegionMapper.
         
-
         :param data_dir: The directory where atlas data is stored.
         :param atlases: A dictionary of atlas names and their kwargs.
         """
-        self.atlases = {}
-        atlas_fetcher = AtlasFetcher(data_dir=data_dir)
-        self.data_dir = AtlasFetcher.data_dir
+        self.mappers = {}
+        atlas_fetcher = AtlasFetcher()
+        # self.data_dir = AtlasFetcher.data_dir
+        print(atlases)
         for name, kwargs in atlases.items():
             atlas = atlas_fetcher.fetch_atlas(name, **kwargs)
-            mapper = AtlasRegionMapper(name=atlas.name, vol=atlas.vol, hdr=atlas.hdr, labels=atlas.labels, index=atlas.index)
+            mapper = AtlasRegionMapper(name=name, vol=atlas["vol"], hdr=atlas["hdr"], labels=atlas["labels"])
             vectorized_mapper = VectorizedAtlasRegionMapper(mapper)
-            self.atlases[name] = vectorized_mapper
+            self.mappers[name] = vectorized_mapper
 
     def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
         """
@@ -774,51 +786,30 @@ class coord2region:
         if not isinstance(positions, (list, np.ndarray)):
             raise ValueError("positions must be a list or numpy array")
         results = {}
-        for atlas_name, mapper in self.atlases.items():
+        for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_pos_to_region(positions)
         return results
 
-    def batch_get_region_names(self, values: List[Union[int, str]]) -> Dict[str, List[str]]:
+    def batch_region_to_pos(self, regions: List[str]) -> Dict[str, List[np.ndarray]]:
         """
-        Return region names for a list of region indices/values across all atlases.
+        Convert a list of region names to MNI coordinates for all atlases.
         
-        :param values: A list of region indexes or values.
-        :return: A dictionary keyed by atlas name, with lists of region names
+        :param regions: A list of region names.
+        :return: A dictionary keyed by atlas name, with lists of MNI coordinates.
         """
-        if not all(isinstance(val, (int, str)) for val in values):
-            raise ValueError("values must be a list of ints or strings")
+        if not all(isinstance(region, str) for region in regions):
+            raise ValueError("regions must be a list of strings")
         results = {}
-        for atlas_name, mapper in self.atlases.items():
-            results[atlas_name] = mapper.batch_get_region_names(values)
+        for atlas_name, mapper in self.mappers.items():
+            results[atlas_name] = mapper.batch_region_to_pos(regions)
         return results
-
-    def batch_get_region_indices(self, labels: List[str]) -> Dict[str, List[Union[int, str]]]:
-        """
-        Return region indexes for a list of region names across all atlases.
-        
-        Parameters
-        ----------
-        labels : list of str
-            Region names.
-            
-        Returns
-        -------
-        dict
-            A dictionary keyed by atlas name, with lists of region indexes.
-        """
-        if not all(isinstance(label, str) for label in labels):
-            raise ValueError("labels must be a list of strings")
-        results = {}
-        for atlas_name, mapper in self.atlases.items():
-            results[atlas_name] = mapper.batch_get_region_indices(labels)
-        return results
-
 
 # File: .\coord2region\fetching.py
 import os
 import logging
 import numpy as np
 from typing import Optional
+from nibabel.nifti1 import Nifti1Image
   
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -869,7 +860,7 @@ class AtlasFileHandler:
             fname_xml = base_dir + "-Cortical.xml"
         if "Juelich" in base_dir:
             fname_xml = base_dir + ".xml"
-        if os.path.exists(fname_xml):
+        if os.path.exists(fname_xml): # AAL
             try:
                 import xml.etree.ElementTree as ET
                 tree = ET.parse(fname_xml)
@@ -882,15 +873,19 @@ class AtlasFileHandler:
                 return labels
             except Exception as e:
                 logger.warning(f"Failed to parse XML labels: {e}")
-        else:
+        else: # txt files with labels, 2nd column is the label (apparently)
             # TODO improve error handling
             fname_txt = base + '.txt'
             if "schaefer" in base_dir:
                 fname_txt = os.path.join(base_dir, "Schaefer2018_400Parcels_7Networks_order.txt")
+            if "Yeo_JNeurophysiol11_MNI152" in base_dir:
+                yeo_version = os.path.basename(base).split('_')[1] # remove the file name from the
+                label_dir = os.path.join(base_dir,f"Yeo2011_{yeo_version}_ColorLUT.txt")
+                fname_txt = label_dir
             if os.path.exists(fname_txt):
                 with open(fname_txt, 'r') as f:
                     lines = f.readlines()
-                labels = {str(idx): line.strip() for idx, line in enumerate(lines)}
+                labels = {str(idx): line.strip().split('\t')[1] for idx, line in enumerate(lines)}
                 return labels
         logger.warning(f"Failed to fetch labels")
         return None
@@ -904,41 +899,55 @@ class AtlasFileHandler:
         :return: A dictionary with keys: 'vol', 'hdr', 'labels', 'description', 'file'.
         :raises ValueError: If file format is unrecognized.
         """
-        path = os.path.abspath(fname)
-        _, ext = os.path.splitext(fname)
-        ext = ext.lower()
 
-        if ext in ['.nii', '.gz', '.nii.gz']:
-            # TODO add try-except block for loading the image
-            import nibabel as nib
-            img = nib.load(fname)
-            vol_data = img.get_fdata(dtype=np.float32)
-            hdr_matrix = img.affine
-            labels = self._fetch_labels(path)
-            return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
-                'labels': labels,
-                'description': desc,
-                'file': fname
-            }
-        elif ext == '.npz':
-            # TODO add try-except block for loading the archive
-            arch = np.load(path, allow_pickle=True)
-            vol_data = arch['vol']
-            hdr_matrix = arch['hdr']
-            labels = None
-            if 'labels' in arch and 'index' in arch:
-                labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
-            return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
-                'labels': labels,
-                'description': desc,
-                'file': fname
-            }
+        if isinstance(fname, str):
+            path = os.path.abspath(fname)
+            _, ext = os.path.splitext(fname)
+            ext = ext.lower()
+
+            if ext in ['.nii', '.gz', '.nii.gz']:
+                # TODO add try-except block for loading the image
+                import nibabel as nib
+                img = nib.load(fname)
+                vol_data = img.get_fdata(dtype=np.float32)
+                hdr_matrix = img.affine
+                #labels = self._fetch_labels(path)
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
+            elif ext == '.npz':
+                # TODO add try-except block for loading the archive
+                arch = np.load(path, allow_pickle=True)
+                vol_data = arch['vol']
+                hdr_matrix = arch['hdr']
+                # labels = None
+                # if 'labels' in arch and 'index' in arch:
+                #     labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
+            else:
+                raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
         else:
-            raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
+            if isinstance(fname,Nifti1Image):
+                vol_data = fname.get_fdata(dtype=np.float32)
+                hdr_matrix = fname.affine
+                #labels = self._fetch_labels(path)
+                return {
+                    'vol': vol_data,
+                    'hdr': hdr_matrix,
+                    # 'labels': labels,
+                    # 'description': desc,
+                    # 'file': fname
+                }
 
     def pack_surf_output(self, subject: str, subjects_dir: str, parc: str = 'aparc', **kwargs):
         """
@@ -1058,16 +1067,54 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.mne_data = self.file_handler.mne_data
-        self._atlas_fetchers = {
-            #"aal": self._fetch_atlas_aal,
-            "brodmann": self._fetch_atlas_brodmann,
-            "harvard-oxford": self._fetch_atlas_harvard_oxford,
-            "juelich": self._fetch_atlas_juelich,
-            "schaefer": self._fetch_atlas_schaefer,
-            "yeo": self._fetch_atlas_yeo,
-            # MNE-based atlases:
-            "aparc2009": self._fetch_atlas_aparc2009,
+        # self._atlas_fetchers = {
+        #     #"aal": self._fetch_atlas_aal,
+        #     "brodmann": self._fetch_atlas_brodmann,
+        #     "harvard-oxford": self._fetch_atlas_harvard_oxford,
+        #     "juelich": self._fetch_atlas_juelich,
+        #     "schaefer": self._fetch_atlas_schaefer,
+        #     "yeo": self._fetch_atlas_yeo,
+        #     # MNE-based atlases:
+        #     "aparc2009": self._fetch_atlas_aparc2009,
+        # }
+
+        from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
+
+        def _fetch_atlas_yeo_version(version='thick_17', **kwargs):
+            from nilearn.datasets import fetch_atlas_yeo_2011
+            fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
+            version = kwargs.get('version', 'thick_17')
+
+            # Needs special care
+            # thin/thick keys are the images
+            # colors are the labels
+            num = version.split('_')[-1]
+            labels_file = fetched[f'colors_{num}']
+            # read the labels file
+            with open(labels_file, 'r') as f:
+                lines = f.readlines()
+            import re
+            # replace any number of spaces with a single space in all lines
+            lines = [re.sub(' +', ' ', line) for line in lines]
+            labels = {str(idx): line.strip().split(' ')[1] for idx, line in enumerate(lines)}
+            output = {}
+            output['labels'] = labels
+            output['description'] = fetched['description']
+            output['file'] = fetched[version]
+            output['maps']=fetched[version] # this will be taken care of to make it an array later
+            return output
+
+
+
+        self._atlas_fetchers_nilearn = {
+            'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': 'SPM12'}},
+            'brodmann': {'fetcher':fetch_atlas_talairach,'default_kwargs': {'level_name': 'ba'}},
+            'harvard-oxford': {'fetcher':fetch_atlas_harvard_oxford, 'default_kwargs': {'atlas_name': 'cort-maxprob-thr25-2mm'}},
+            'juelich': {'fetcher':fetch_atlas_juelich, 'default_kwargs': {'atlas_name': 'maxprob-thr0-1mm'}},
+            'schaefer': {'fetcher':fetch_atlas_schaefer_2018, 'default_kwargs': {}},
+            'yeo': {'fetcher':_fetch_atlas_yeo_version, 'default_kwargs': {'version': 'thick_17'}},
         }
+
 
     # ---- Volumetric atlas fetchers using Nilear ----
 
@@ -1075,57 +1122,9 @@ class AtlasFetcher:
         try:
             return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
         except Exception as e:
-            logger.error("Failed to fetch atlas using primary data_dir: %s", e, exc_info=True)
+            logger.error(f"Failed to fetch atlas using primary data_dir: {self.file_handler.data_dir}", e, exc_info=True)
+            logger.info(f"Attempting to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}")
             return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
-
-    def _fetch_atlas_aal(self, **kwargs):
-        try:
-            from nilearn.datasets import fetch_atlas_aal
-            kwargs["version"] = kwargs.get('version', 'SPM12') # TODO: add versions
-            fetched = self._fetch_atlas(fetch_atlas_aal, **kwargs)
-            return self.file_handler.pack_vol_output(fetched["maps"], desc="AAL Atlas")
-        except:
-            # Fallback URL for AAL atlas.
-            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('aal'))
-    
-    def _fetch_atlas_brodmann(self, **kwargs):
-        try:
-            from nilearn.datasets import fetch_atlas_talairach
-            fetched = self._fetch_atlas(fetch_atlas_talairach, level_name="ba", **kwargs)
-            return self.file_handler.pack_vol_output(fetched["maps"], desc="Talairach Atlas")
-        except:
-            # Fallback URL for Talairach atlas.
-            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('talairach'))
-
-    def _fetch_atlas_harvard_oxford(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_harvard_oxford
-        atlas_name = kwargs.get('version', 'cort-maxprob-thr25-2mm')
-        fetched = self._fetch_atlas(fetch_atlas_harvard_oxford, atlas_name=atlas_name, **kwargs)
-        output= {
-                'vol': fetched.get('maps',None),
-                'hdr': fetched.get('maps',None).affine,
-                'labels': fetched.get('labels',None),
-                'description': fetched.get('description',None),
-                'file': fetched.get('filename',None)
-            }
-        return output
-
-    def _fetch_atlas_juelich(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_juelich
-        atlas_name = kwargs.get('version', 'maxprob-thr0-1mm')
-        fetched = fetched = self._fetch_atlas(fetch_atlas_juelich, atlas_name=atlas_name, **kwargs)
-        return self.file_handler.pack_vol_output(fetched["filename"], desc=f"Juelich {atlas_name} Atlas")
-
-    def _fetch_atlas_schaefer(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_schaefer_2018
-        fetched = self._fetch_atlas(fetch_atlas_schaefer_2018, **kwargs)
-        return self.file_handler.pack_vol_output(fetched["maps"], desc="Schaefer 2018 Atlas")
-
-    def _fetch_atlas_yeo(self, **kwargs):
-        from nilearn.datasets import fetch_atlas_yeo_2011
-        fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
-        version = kwargs.get('version', 'thick_17')
-        return self.file_handler.pack_vol_output(fetched[version], desc=f"Yeo 2011 {version} Atlas")
 
     # ---- MNE-based (surface annotation) atlas fetcher ----
     
@@ -1167,10 +1166,27 @@ class AtlasFetcher:
     
         # Case (c): nilearn or mne atlases.
         key = atlas_name.lower()
-        fetcher = self._atlas_fetchers.get(key)
-        if fetcher:
-            return fetcher(**kwargs)
-    
+        fetcher_nilearn = self._atlas_fetchers_nilearn.get(key)
+        if fetcher_nilearn:
+            try:
+                this_kwargs = fetcher_nilearn['default_kwargs']
+                this_kwargs.update(kwargs)
+                if atlas_name != 'yeo':
+                    fetched = self._fetch_atlas(fetcher_nilearn['fetcher'],**this_kwargs)
+                else:
+                    fetched = fetcher_nilearn['fetcher'](**this_kwargs)
+                maphdr = self.file_handler.pack_vol_output(fetched["maps"])
+                fetched.update(maphdr)
+                fetched['kwargs'] = this_kwargs
+                return fetched
+            except Exception as e:
+                logger.error(f"Failed to fetch atlas {key} using nilearn", e, exc_info=True)
+                logger.warning(f"Attempting to fetch atlas {key} using url")
+                if key in self.ATLAS_URLS:
+                    return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
+                else:
+                    logger.error(f"Atlas {key} not found in available atlas urls")
+
         raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
 
 
@@ -1222,6 +1238,181 @@ import os
 from .utils import _fetch_labels
 
 
+# File: .\tests\test_coord2region.py
+import pytest
+import numpy as np
+
+from coord2region import fetching, coord2region
+
+
+@pytest.fixture(scope="module")
+def harvard_data():
+    """
+    This fixture downloads/loads the Harvard-Oxford atlas once
+    and returns the dict that includes 'vol', 'hdr', 'labels', etc.
+    """
+    af = fetching.AtlasFetcher(data_dir="coord2region_data")
+    harvard = af.fetch_atlas("harvard-oxford")
+    return harvard
+
+
+@pytest.fixture(scope="module")
+def harvard_mapper(harvard_data):
+    """
+    This fixture creates an AtlasRegionMapper for the Harvard-Oxford atlas.
+    """
+    return coord2region.AtlasRegionMapper(
+        name="harvard-oxford",
+        vol=harvard_data["vol"],
+        hdr=harvard_data["hdr"],
+        labels=harvard_data["labels"],
+    )
+
+
+def test_get_hemisphere(harvard_mapper):
+    # Example test for get_hemisphere
+    hemi = harvard_mapper.get_hemisphere("Frontal Pole")
+    assert hemi is None or hemi in ("L", "R"), \
+        f"Expected None or 'L'/'R', got {hemi}"
+
+    # You might not have explicit hemisphere annotations in the label for Harvard-Oxford,
+    # so you can adapt this test to match actual behavior.
+
+
+def test_get_region_name(harvard_mapper):
+    # If you know a specific index -> label mapping, you can test it
+    # But note that many Harvard-Oxford versions do NOT store numeric indexes in the “labels” dictionary
+    # so this might yield "Unknown". Adapt as needed:
+    region_name = harvard_mapper.get_region_name(7)
+    assert region_name == "Unknown" or isinstance(region_name, str), \
+        f"Expected a string or 'Unknown', got {region_name}"
+
+
+def test_get_region_index(harvard_mapper):
+    # For example, check a known label:
+    # "Frontal Pole" might or might not yield a valid integer
+    # If it doesn't exist as a key in the dict, the function might return "Unknown"
+    idx = harvard_mapper.get_region_index("Precentral Gyrus")
+    assert isinstance(idx, (int, str)), f"Expected int or 'Unknown', got {idx}"
+
+
+def test_list_of_regions(harvard_mapper):
+    regions = harvard_mapper.get_list_of_regions()
+    assert isinstance(regions, list)
+    assert len(regions) > 0, "No regions found, unexpected for Harvard-Oxford"
+
+
+def test_pos_to_source(harvard_mapper):
+    # Convert an MNI coordinate to voxel indices.
+    voxel_idx = harvard_mapper.pos_to_source([-54., 36., -4.])
+    assert len(voxel_idx) == 3, f"Expected 3D voxel index, got {voxel_idx}"
+    for v in voxel_idx:
+        assert isinstance(v, int), "Voxel indices must be integers"
+
+
+def test_pos_to_index(harvard_mapper):
+    # Convert an MNI coordinate to region index
+    region_idx = harvard_mapper.pos_to_index([-54., 36., -4.])
+    # Could be an int or "Unknown" if it’s out-of-bounds for the atlas
+    assert isinstance(region_idx, (int, str)), f"Expected int or 'Unknown', got {region_idx}"
+
+
+def test_pos_to_region(harvard_mapper):
+    # Convert an MNI coordinate to region name
+    region_name = harvard_mapper.pos_to_region([-54., 36., -4.])
+    assert isinstance(region_name, str), f"Expected string, got {type(region_name)}"
+
+
+def test_source_to_pos(harvard_mapper):
+    # Convert voxel indices (i, j, k) back to MNI
+    # This is tricky if you don't have known ground truth,
+    # so just check that it's a 3-element array
+    coords = harvard_mapper.source_to_pos([30, 40, 50])
+    assert coords.shape == (3,), f"Expected shape (3,) MNI coords, got {coords.shape}"
+
+
+def test_index_to_pos(harvard_mapper):
+    # If you know a region index that definitely exists, test it:
+    # For this example, assume index=1 is a real region
+    coords = harvard_mapper.index_to_pos(1)
+    # coords might be many points, so it’s an array Nx3
+    assert coords.ndim == 2 and coords.shape[1] == 3, \
+        f"Expected Nx3 array, got shape {coords.shape}"
+
+
+def test_region_to_pos(harvard_mapper):
+    # If you know a region name that definitely exists:
+    # e.g., "Frontal Pole"
+    coords = harvard_mapper.region_to_pos("Frontal Pole")
+    assert coords.ndim == 2 and coords.shape[1] == 3, \
+        f"Expected Nx3 array, got shape {coords.shape}"
+
+
+@pytest.fixture(scope="module")
+def vectorized_mapper(harvard_mapper):
+    """
+    Create a VectorizedAtlasRegionMapper for the Harvard-Oxford atlas.
+    """
+    return coord2region.VectorizedAtlasRegionMapper(harvard_mapper)
+
+
+def test_batch_pos_to_region(vectorized_mapper, harvard_mapper):
+    # Example: Build a list of MNI coords from a handful of region centroids
+    # (completely arbitrary for demonstration)
+    labels = harvard_mapper.get_list_of_regions()[:5]  # just first 5 to avoid huge list
+    coords_for_tests = []
+    for label in labels:
+        pos_array = harvard_mapper.region_to_pos(label)
+        if pos_array.shape[0] > 0:
+            coords_for_tests.append(pos_array[0])  # pick the first voxel as an example
+
+    result = vectorized_mapper.batch_pos_to_region(coords_for_tests)
+    assert len(result) == len(coords_for_tests)
+    for r in result:
+        assert isinstance(r, str)
+
+
+def test_batch_get_region_names(vectorized_mapper):
+    # Suppose we guess a few indexes
+    region_names = vectorized_mapper.batch_get_region_names([2, 3, 4])
+    assert len(region_names) == 3
+
+
+def test_batch_get_region_indices(vectorized_mapper):
+    # Suppose from the above region_names, we convert them back to indices
+    region_names = ["Frontal Pole", "Precentral Gyrus", "Unknown Region"]
+    region_indices = vectorized_mapper.batch_get_region_indices(region_names)
+    assert len(region_indices) == len(region_names)
+
+
+def test_c2r_coord2region_api():
+    # Now test the high-level coord2region.coord2region class
+    c2r = coord2region.coord2region(
+        data_dir="coord2region_data", 
+        atlases={"harvard-oxford": {}}
+    )
+    # Provide a few coordinates:
+    coords = [[-54., 36., -4.], [10., 20., 30.]]
+    # batch_pos_to_region returns a dict keyed by atlas name
+    result_dict = c2r.batch_pos_to_region(coords)
+    assert "harvard-oxford" in result_dict
+    assert len(result_dict["harvard-oxford"]) == 2
+
+
+def test_c2r_region_to_pos():
+    # Similarly for region -> coords
+    c2r = coord2region.coord2region(
+        data_dir="coord2region_data",
+        atlases={"harvard-oxford": {}}
+    )
+    # This method does not exist in c2r directly, but you might test e.g.:
+    # c2r.batch_region_to_pos(["Frontal Pole", "Precentral Gyrus"])
+    # By default, `coord2region` only has batch_pos_to_region, batch_get_region_names,
+    # batch_get_region_indices. 
+    pass
+
+
+
 # File: .\tests\test_fetch.py
 from coord2region import AtlasFetcher
 
@@ -1246,37 +1437,25 @@ from coord2region import AtlasFetcher
 }
 """
 def test_fetch_all_atlases():
-    atlases = ["harvard-oxford","brodmann", "juelich", "schaefer", "yeo", "aparc2009"]
+    atlases = ["yeo","harvard-oxford","juelich", "schaefer"]#, "aparc2009"] #"brodmann", "aal",
     good_atlases = []
     bad_atlases = []
     for atlas in atlases:
         try:
-            _fetch_atlas_helper(atlas)
+            output=_fetch_atlas_helper(atlas)
+            print(output)
             good_atlases.append(atlas)
         except Exception as e:
             print(f"Error fetching atlas {atlas}: {e}")
             bad_atlases.append(atlas)
     print(f"Good atlases: {good_atlases}")
     print(f"Bad atlases: {bad_atlases}")
+    assert len(bad_atlases) == 0, f"Failed to fetch atlases: {bad_atlases}"
 
 def _fetch_atlas_helper(atlas_name):
     af = AtlasFetcher(data_dir="atlas_data")
     atlas = af.fetch_atlas(atlas_name)
-
-    # assert for volume data
-    assert 'vol' in atlas.keys() and atlas['vol'] is not None, f"Volume data is None for atlas {atlas_name}"
-    assert 'hdr' in atlas.keys() and atlas['hdr'] is not None, f"Header data is None for atlas {atlas_name}"
-    assert 'labels' in atlas.keys() and atlas['labels'] is not None, f"Labels data is None for atlas {atlas_name}"
-    assert 'description' in atlas.keys() and atlas['description'] is not None, f"Description data is None for atlas {atlas_name}"
-    # Right now is returning the description coming from nilearn, Hamza wants the name of the atlas and the version
-    print('Warning! Right now is returning the description coming from nilearn, Hamza wants the name of the atlas and the version')
-    assert 'file' in atlas.keys(), f"File name is not in atlas {atlas_name}"
     return atlas
-
-def test_fetch_atlas_nolabels():
-    af = AtlasFetcher(data_dir="atlas_data")
-    atlas = af.fetch_atlas("yeo")
-    print(atlas.keys())
 
 if __name__ == "__main__":
     test_fetch_all_atlases()

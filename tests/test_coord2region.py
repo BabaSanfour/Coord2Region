@@ -1,8 +1,12 @@
 import pytest
 import numpy as np
 
-from coord2region import fetching, coord2region
-
+from coord2region.fetching import AtlasFetcher
+from coord2region.coord2region import (
+    VolumetricAtlasMapper,
+    BatchAtlasMapper,
+    MultiAtlasMapper
+)
 
 @pytest.fixture(scope="module")
 def harvard_data():
@@ -10,7 +14,7 @@ def harvard_data():
     This fixture downloads/loads the Harvard-Oxford atlas once
     and returns the dict that includes 'vol', 'hdr', 'labels', etc.
     """
-    af = fetching.AtlasFetcher(data_dir="coord2region_data")
+    af = AtlasFetcher(data_dir="coord2region_data")
     harvard = af.fetch_atlas("harvard-oxford")
     return harvard
 
@@ -18,155 +22,123 @@ def harvard_data():
 @pytest.fixture(scope="module")
 def harvard_mapper(harvard_data):
     """
-    This fixture creates an AtlasRegionMapper for the Harvard-Oxford atlas.
+    This fixture creates a VolumetricAtlasMapper for the Harvard-Oxford atlas.
     """
-    return coord2region.AtlasRegionMapper(
+    return VolumetricAtlasMapper(
         name="harvard-oxford",
         vol=harvard_data["vol"],
         hdr=harvard_data["hdr"],
-        labels=harvard_data["labels"],
+        labels=harvard_data.get("labels", None)
     )
 
 
-def test_get_hemisphere(harvard_mapper):
-    # Example test for get_hemisphere
-    hemi = harvard_mapper.get_hemisphere("Frontal Pole")
+def test_infer_hemisphere(harvard_mapper):
+    # Example test for infer_hemisphere
+    hemi = harvard_mapper.infer_hemisphere("Frontal Pole")  # might be 'Unknown' in Harvard-Oxford
     assert hemi is None or hemi in ("L", "R"), \
         f"Expected None or 'L'/'R', got {hemi}"
 
-    # You might not have explicit hemisphere annotations in the label for Harvard-Oxford,
-    # so you can adapt this test to match actual behavior.
+
+def test_region_name_for_index(harvard_mapper):
+    # If you know a numeric index, e.g. 7, check the region name.
+    region_name = harvard_mapper.region_name_for_index(7)
+    assert isinstance(region_name, str)
 
 
-def test_get_region_name(harvard_mapper):
-    # If you know a specific index -> label mapping, you can test it
-    # But note that many Harvard-Oxford versions do NOT store numeric indexes in the “labels” dictionary
-    # so this might yield "Unknown". Adapt as needed:
-    region_name = harvard_mapper.get_region_name(7)
-    assert region_name == "Unknown" or isinstance(region_name, str), \
-        f"Expected a string or 'Unknown', got {region_name}"
-
-
-def test_get_region_index(harvard_mapper):
-    # For example, check a known label:
-    # "Frontal Pole" might or might not yield a valid integer
-    # If it doesn't exist as a key in the dict, the function might return "Unknown"
-    idx = harvard_mapper.get_region_index("Precentral Gyrus")
+def test_region_index_for_name(harvard_mapper):
+    idx = harvard_mapper.region_index_for_name("Precentral Gyrus")
     assert isinstance(idx, (int, str)), f"Expected int or 'Unknown', got {idx}"
 
 
-def test_list_of_regions(harvard_mapper):
-    regions = harvard_mapper.get_list_of_regions()
+def test_list_all_regions(harvard_mapper):
+    regions = harvard_mapper.list_all_regions()
     assert isinstance(regions, list)
-    assert len(regions) > 0, "No regions found, unexpected for Harvard-Oxford"
+    assert len(regions) > 0, "No regions found, unexpected for Harvard-Oxford."
 
 
-def test_pos_to_source(harvard_mapper):
-    # Convert an MNI coordinate to voxel indices.
-    voxel_idx = harvard_mapper.pos_to_source([-54., 36., -4.])
+def test_mni_to_voxel(harvard_mapper):
+    voxel_idx = harvard_mapper.mni_to_voxel([-54., 36., -4.])
     assert len(voxel_idx) == 3, f"Expected 3D voxel index, got {voxel_idx}"
     for v in voxel_idx:
-        assert isinstance(v, int), "Voxel indices must be integers"
+        assert isinstance(v, int), "Voxel indices must be integers."
 
 
-def test_pos_to_index(harvard_mapper):
-    # Convert an MNI coordinate to region index
-    region_idx = harvard_mapper.pos_to_index([-54., 36., -4.])
-    # Could be an int or "Unknown" if it’s out-of-bounds for the atlas
+def test_mni_to_region_index(harvard_mapper):
+    region_idx = harvard_mapper.mni_to_region_index([-54., 36., -4.])
     assert isinstance(region_idx, (int, str)), f"Expected int or 'Unknown', got {region_idx}"
 
 
-def test_pos_to_region(harvard_mapper):
-    # Convert an MNI coordinate to region name
-    region_name = harvard_mapper.pos_to_region([-54., 36., -4.])
+def test_mni_to_region_name(harvard_mapper):
+    region_name = harvard_mapper.mni_to_region_name([-54., 36., -4.])
     assert isinstance(region_name, str), f"Expected string, got {type(region_name)}"
 
 
-def test_source_to_pos(harvard_mapper):
-    # Convert voxel indices (i, j, k) back to MNI
-    # This is tricky if you don't have known ground truth,
-    # so just check that it's a 3-element array
-    coords = harvard_mapper.source_to_pos([30, 40, 50])
-    assert coords.shape == (3,), f"Expected shape (3,) MNI coords, got {coords.shape}"
+def test_voxel_to_mni(harvard_mapper):
+    coords = harvard_mapper.voxel_to_mni([30, 40, 50])
+    assert coords.shape == (3,), f"Expected shape (3,), got {coords.shape}"
 
 
-def test_index_to_pos(harvard_mapper):
-    # If you know a region index that definitely exists, test it:
-    # For this example, assume index=1 is a real region
-    coords = harvard_mapper.index_to_pos(1)
-    # coords might be many points, so it’s an array Nx3
+def test_region_index_to_mni(harvard_mapper):
+    # e.g., if index=1 is a real region
+    coords = harvard_mapper.region_index_to_mni(1)
     assert coords.ndim == 2 and coords.shape[1] == 3, \
-        f"Expected Nx3 array, got shape {coords.shape}"
+        f"Expected Nx3 array, got {coords.shape}"
 
 
-def test_region_to_pos(harvard_mapper):
-    # If you know a region name that definitely exists:
-    # e.g., "Frontal Pole"
-    coords = harvard_mapper.region_to_pos("Frontal Pole")
+def test_region_name_to_mni(harvard_mapper):
+    coords = harvard_mapper.region_name_to_mni("Frontal Pole")
     assert coords.ndim == 2 and coords.shape[1] == 3, \
-        f"Expected Nx3 array, got shape {coords.shape}"
+        f"Expected Nx3 array, got {coords.shape}"
 
 
 @pytest.fixture(scope="module")
 def vectorized_mapper(harvard_mapper):
     """
-    Create a VectorizedAtlasRegionMapper for the Harvard-Oxford atlas.
+    Create a BatchAtlasMapper for the Harvard-Oxford atlas.
     """
-    return coord2region.VectorizedAtlasRegionMapper(harvard_mapper)
+    return BatchAtlasMapper(harvard_mapper)
 
 
-def test_batch_pos_to_region(vectorized_mapper, harvard_mapper):
-    # Example: Build a list of MNI coords from a handful of region centroids
-    # (completely arbitrary for demonstration)
-    labels = harvard_mapper.get_list_of_regions()[:5]  # just first 5 to avoid huge list
+def test_batch_mni_to_region_name(vectorized_mapper, harvard_mapper):
+    labels = harvard_mapper.list_all_regions()[:5]
     coords_for_tests = []
     for label in labels:
-        pos_array = harvard_mapper.region_to_pos(label)
-        if pos_array.shape[0] > 0:
-            coords_for_tests.append(pos_array[0])  # pick the first voxel as an example
+        arr = harvard_mapper.region_name_to_mni(label)
+        if arr.shape[0] > 0:
+            coords_for_tests.append(arr[0])  # pick first voxel as example
 
-    result = vectorized_mapper.batch_pos_to_region(coords_for_tests)
+    if len(coords_for_tests) == 0:
+        pytest.skip("No valid coords found for testing batch MNI->region")
+
+    result = vectorized_mapper.batch_mni_to_region_name(coords_for_tests)
     assert len(result) == len(coords_for_tests)
     for r in result:
         assert isinstance(r, str)
 
 
-def test_batch_get_region_names(vectorized_mapper):
-    # Suppose we guess a few indexes
-    region_names = vectorized_mapper.batch_get_region_names([2, 3, 4])
+def test_batch_region_name_for_index(vectorized_mapper):
+    region_names = vectorized_mapper.batch_region_name_for_index([2, 3, 4])
     assert len(region_names) == 3
 
 
-def test_batch_get_region_indices(vectorized_mapper):
-    # Suppose from the above region_names, we convert them back to indices
-    region_names = ["Frontal Pole", "Precentral Gyrus", "Unknown Region"]
-    region_indices = vectorized_mapper.batch_get_region_indices(region_names)
-    assert len(region_indices) == len(region_names)
+def test_batch_region_index_for_name(vectorized_mapper):
+    some_names = ["Frontal Pole", "Precentral Gyrus", "Unknown Region"]
+    region_indices = vectorized_mapper.batch_region_index_for_name(some_names)
+    assert len(region_indices) == len(some_names)
 
 
-def test_c2r_coord2region_api():
-    # Now test the high-level coord2region.coord2region class
-    c2r = coord2region.coord2region(
+def test_multiatlas_api():
+    # Test the high-level MultiAtlasMapper class
+    c2r = MultiAtlasMapper(
         data_dir="coord2region_data", 
         atlases={"harvard-oxford": {}}
     )
-    # Provide a few coordinates:
     coords = [[-54., 36., -4.], [10., 20., 30.]]
-    # batch_pos_to_region returns a dict keyed by atlas name
-    result_dict = c2r.batch_pos_to_region(coords)
+    result_dict = c2r.batch_mni_to_region_names(coords)
     assert "harvard-oxford" in result_dict
     assert len(result_dict["harvard-oxford"]) == 2
 
-
-def test_c2r_region_to_pos():
-    # Similarly for region -> coords
-    c2r = coord2region.coord2region(
-        data_dir="coord2region_data",
-        atlases={"harvard-oxford": {}}
-    )
-    # This method does not exist in c2r directly, but you might test e.g.:
-    # c2r.batch_region_to_pos(["Frontal Pole", "Precentral Gyrus"])
-    # By default, `coord2region` only has batch_pos_to_region, batch_get_region_names,
-    # batch_get_region_indices. 
-    pass
-
+    # region -> coords
+    # example call:
+    # c2r.batch_region_name_to_mni(["Frontal Pole", "Precentral Gyrus"])
+    # etc.
