@@ -1,0 +1,1288 @@
+# File: .\all_codes.py
+import os
+
+# Set the directory to your repository root
+repo_dir = "."  # Change this to your repository folder if needed
+output_file = "combined_python_code.txt"
+
+with open(output_file, "w", encoding="utf-8") as outfile:
+    for root, dirs, files in os.walk(repo_dir):
+        for file in files:
+            if file.endswith(".py"):
+                file_path = os.path.join(root, file)
+                outfile.write(f"# File: {file_path}\n")
+                with open(file_path, "r", encoding="utf-8") as infile:
+                    outfile.write(infile.read())
+                outfile.write("\n\n")  # Add spacing between files
+
+print(f"All Python files have been combined into '{output_file}'")
+
+
+# File: .\setup.py
+import setuptools
+import subprocess
+from pathlib import Path
+
+# Try retrieving the version dynamically
+try:
+    version = (
+        subprocess.check_output(["git", "describe", "--abbrev=0", "--tags"], stderr=subprocess.DEVNULL)
+        .strip()
+        .decode("utf-8")
+    )
+except subprocess.CalledProcessError:
+    try:
+        from importlib.metadata import version as get_version
+        version = get_version("coord2region")
+    except Exception:
+        version = "0.0.1"  # Default fallback version
+
+__version__ = version
+
+# Read long description from README.md
+long_description = Path("README.md").read_text(encoding="utf-8")
+
+setuptools.setup(
+    name="coord2region",
+    version=__version__,
+    author="Hamza Abdelhedi",
+    author_email="hamza.abdelhedii@gmail.com",
+    description="Find region name for a given MNI coordinate in a selected atlas",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+    ],
+    python_requires=">=3.8",
+    install_requires=[
+        "nibabel",  
+    ],
+    include_package_data=True,
+)
+
+# File: .\yorguin.py
+def get_vertinfo(subjects_dir,parc='aparc.a2009s'):
+    subject='fstemplate'
+    src = mne.read_source_spaces(os.path.join(subjects_dir, subject, 'bem', subject + '-ico-4-src.fif'),verbose=False)
+    verts = [v["vertno"] for v in src]
+    #colormap = colormap
+
+    subject = 'fsaverage' #source space subject ('fsaverage') did not match stc.subject (fstemplate)
+    vmapping=get_vert_mappings(subject,subjects_dir,src=src,parc=parc)
+    labmap=invert_vmapping(vmapping)
+    mni = mne.vertex_to_mni(verts[:2], [0,1], subject, subjects_dir=subjects_dir)
+    mni = np.concatenate(mni,axis=0)#.shape
+    return {'mni':mni,'vmap':vmapping,'labmap':labmap}
+
+def get_vert_mappings(subject,subjects_dir,parc='aparc',src=None,verbose=False):
+    if src is None:
+        src = mne.read_source_spaces(os.path.join(subjects_dir, subject, 'bem', subject + '-ico-4-src.fif'),verbose=False)
+
+    labels_cortex = mne.read_labels_from_annot(
+        subject, parc=parc, subjects_dir=subjects_dir,verbose=False)
+
+    vertno = [s['vertno'] for s in src]
+    nvert = [len(vn) for vn in vertno]
+    if verbose:
+        print(labels_cortex)
+
+        print('the src space contains {} spaces and {} points'.format(
+                len(src), sum(nvert)))
+        print('the cortex contains {} spaces and {} points'.format(
+                len(src[:2]), sum(nvert[:2])))
+        print('the volumes contains {} spaces and {} points'.format(
+                len(src[2:]), sum(nvert[2:])))
+
+    labels_aseg = mne.get_volume_labels_from_src(src, subject, subjects_dir)
+
+    label_vertidx_cortex = list()
+    label_name_cortex = list()
+
+    for label in labels_cortex:
+        if label.hemi == 'lh':
+            this_vertno = np.intersect1d(vertno[0], label.vertices)
+            vertidx = np.searchsorted(vertno[0], this_vertno)
+        elif label.hemi == 'rh':
+            this_vertno = np.intersect1d(vertno[1], label.vertices)
+            vertidx = nvert[0] + np.searchsorted(vertno[1], this_vertno)
+
+        label_vertidx_cortex.append(vertidx)
+        label_name_cortex.append(label.name)
+
+
+    nv_ROIs_cortex = [len(lab) for lab in label_vertidx_cortex]
+    n_ROIs_cortex = len(label_vertidx_cortex)
+
+    # label_vertidx_deep contains the vertices of deep structures,
+    # v=label_vertidx_deep[0] is the Left-Amygdala and so on
+    label_vertidx_deep = list()
+    label_name_deep = list()
+    all_deep = list()
+
+    n_hemi = 2
+    for s, label in enumerate(labels_aseg):
+        n_deep = s + n_hemi
+        print(n_deep)
+        print(label)
+        this_vertno = np.intersect1d(vertno[n_deep], label.vertices)
+        vertidx = sum(nvert[:n_deep]) + np.searchsorted(
+                vertno[n_deep], this_vertno)
+
+        label_vertidx_deep.append(vertidx)
+        label_name_deep.append(label.name)
+
+    n_ROIs_deep = len(label_vertidx_deep)
+
+    # TEST
+    if n_ROIs_deep>0:
+        all_deep = np.concatenate(label_vertidx_deep)
+
+        assert len(all_deep) == sum(nvert[2:]), 'Something wrong!!!'
+        assert np.sum(all_deep - np.arange(sum(nvert[:2]), sum(nvert))) == 0, 'Something wrong!!!'  # noqa
+
+    n_ROIs = n_ROIs_cortex + n_ROIs_deep
+
+    cortex_dict = {'cortex-'+label_name_cortex[i]:label_vertidx_cortex[i] for i in range(len(label_name_cortex))}
+    if n_ROIs_deep>0:
+        deep_dict = {'deep-'+label_name_deep[i]:label_vertidx_deep[i] for i in range(len(label_name_deep))}
+    else:
+        deep_dict = {}
+    all_dict = {**cortex_dict,**deep_dict}
+    return all_dict
+
+def invert_vmapping(vmapping):
+    labmap ={}
+    for lab,verts in vmapping.items():
+        for v in verts:
+            labmap[v]=lab
+    return labmap
+
+# As you may notice, there is a special treatment when deep sources are involved.
+# 3:59
+# I have a very similar function to get_vertinfo which is called get_ROI_info, I believe it was an older version, perhaps less general, I dont remember, probably better to compare with an llm:
+def get_ROI_info(src, subject, subjects_dir, parc='aparc', aseg=False):
+
+    labels_cortex = mne.read_labels_from_annot(
+        subject, parc=parc, subjects_dir=subjects_dir)
+    # print(labels_cortex)
+    vertno = [s['vertno'] for s in src]
+    nvert = [len(vn) for vn in vertno]
+    n_vertices = sum(nvert)
+    ROI_mapping = np.zeros(n_vertices, dtype=int)
+
+    print('the src space contains {} spaces and {} points'.format(
+            len(src), sum(nvert)))
+    print('the cortex contains {} spaces and {} points'.format(
+            len(src[:2]), sum(nvert[:2])))
+    print('the volumes contains {} spaces and {} points'.format(
+            len(src[2:]), sum(nvert[2:])))
+
+    if aseg:
+        labels_aseg = mne.get_volume_labels_from_src(
+            src, subject, subjects_dir)
+
+    label_vertidx_cortex = list()
+    label_name_cortex = list()
+
+    for label in labels_cortex:
+        if label.hemi == 'lh':
+            this_vertno = np.intersect1d(vertno[0], label.vertices)
+            vertidx = np.searchsorted(vertno[0], this_vertno)
+        elif label.hemi == 'rh':
+            this_vertno = np.intersect1d(vertno[1], label.vertices)
+            vertidx = nvert[0] + np.searchsorted(vertno[1], this_vertno)
+
+        label_vertidx_cortex.append(vertidx)
+        label_name_cortex.append(label.name)
+
+    nv_ROIs_cortex = [len(lab) for lab in label_vertidx_cortex]
+    n_ROIs_cortex = len(label_vertidx_cortex)
+
+    cortex_dict = {
+        label_name_cortex[i]:label_vertidx_cortex[i] for i in range(len(label_name_cortex))}  # noqa
+    # label_vertidx_deep contains the vertices of deep structures,
+    # v=label_vertidx_deep[0] is the Left-Amygdala and so on
+    if aseg:
+        label_vertidx_deep = list()
+        label_name_deep = list()
+        all_deep = list()
+
+        n_hemi = 2
+        for s, label in enumerate(labels_aseg):
+            n_deep = s + n_hemi
+            # print(n_deep)
+            # print(label)
+            this_vertno = np.intersect1d(vertno[n_deep], label.vertices)
+            vertidx = sum(nvert[:n_deep]) + np.searchsorted(
+                    vertno[n_deep], this_vertno)
+
+            label_vertidx_deep.append(vertidx)
+            label_name_deep.append(label.name)
+
+        n_ROIs_deep = len(label_vertidx_deep)
+
+        # TEST
+        all_deep = np.concatenate(label_vertidx_deep)
+
+        assert len(all_deep) == sum(nvert[2:]), 'Something wrong!!!'
+        assert np.sum(all_deep - np.arange(sum(nvert[:2]), sum(nvert))) == 0, 'Something wrong!!!'  # noqa
+
+        n_ROIs = n_ROIs_cortex + n_ROIs_deep
+
+        deep_dict = {
+            label_name_deep[i]:label_vertidx_deep[i] for i in range(len(label_name_deep))}  # noqa
+        all_dict = {**cortex_dict, **deep_dict}
+    else:
+        n_ROIs = n_ROIs_cortex
+        all_dict = {**cortex_dict}
+
+    for nr, roi in enumerate(all_dict):
+        # print(roi)
+        idx = all_dict[roi]
+        ROI_mapping[idx] = nr
+
+    return all_dict, ROI_mapping
+
+def get_morph(subject,subjects_dir,bidspath,subtemplate='fsaverage',spacing='ico-4',aseg=True,only_check=False):
+    if aseg:
+        asegstr = '-aseg'
+    else:
+        asegstr=''
+
+    fpath = os.path.join(bidspath,f"sub-{subject}",f"sub-{subject}_modality-meg_type-epo-{spacing}{asegstr}-fwd.fif")
+
+    if only_check:
+        return os.path.exists(fpath)
+
+    sbj = subject
+    #fwd = mne.read_forward_solution(fpath)
+
+    fsaverage_fpath = os.path.join(subjects_dir, f'{subtemplate}/bem/{subtemplate}-ico-4-src.fif')
+    fsaverage_src = mne.read_source_spaces(fsaverage_fpath)
+
+    vertices_to = [s['vertno'] for s in fsaverage_src]
+
+
+    bem_dir = os.path.join(subjects_dir, sbj, 'bem')
+    print('bem path {}'.format(bem_dir))
+    fwd_fpath = fpath
+    assert os.path.exists(fwd_fpath)
+    print('source path {}'.format(fwd_fpath))
+
+    fwd = mne.read_forward_solution(fwd_fpath)
+    src = fwd['src']
+    surf_src = mne.source_space.SourceSpaces(fwd['src'][:2])
+
+    n_cortex = (src[0]['nuse'] + src[1]['nuse'])
+
+    morph_surf = mne.compute_source_morph(
+            src=surf_src, subject_from=sbj, subject_to=subtemplate,
+            spacing=vertices_to, subjects_dir=subjects_dir)
+    # M = morph_surf.morph_mat has dim N_fs x N_sbj  => M*data
+    # gives the data in fs_average space
+    print(morph_surf.kind)
+    print(morph_surf.morph_mat.shape)
+    print((src[0]['nuse'] + src[1]['nuse']))
+
+    return morph_surf,n_cortex
+
+# PALS_B12_Brodmann
+# aparc.a2009s
+# aparc
+# aparc_sub
+# Which were the freesurfer .annot files under "fsaverage\label"
+# vertex to mni:
+{"mni": {
+        "0": [
+            -36.806278228759766,
+            -18.292722702026367,
+            64.4615249633789
+        ],
+}# label to vertices:
+{    "vmap": {
+        "cortex-bankssts_1-lh": [
+            129,
+            290,
+            1232,
+            1233,
+            1234,
+            1236,
+            1674,
+            1675,
+            1676,
+            1677
+        ]
+}# vertices to label
+{    "labmap": {
+        "129": "cortex-bankssts_1-lh",
+        "290": "cortex-bankssts_1-lh",
+        "1232": "cortex-bankssts_1-lh",
+        "1233": "cortex-bankssts_1-lh",
+        "1234": "cortex-bankssts_1-lh",
+}# vertices to tal coordinates
+{    "tal": {
+        "0": [
+            -35.88577840194702,
+            -24.24612915802002,
+            59.44336203365325
+        ],
+}
+# Finally I have this script to see if regions of differents parcellations intersect
+
+import json
+import numpy as np
+aparc=json.load(open("vertinfo_aparc.json"))
+pals = json.load(open("vertinfo_PALS_B12_Brodmann.json"))
+aparc_sub=json.load(open("vertinfo_aparc_sub.json"))
+
+regions = {}
+
+for atlas_dict,atlas in zip([aparc, pals, aparc_sub], ['aparc', 'pals', 'aparc_sub']):
+    regions[atlas] = {}
+    for info in atlas_dict.keys():
+        regions[atlas][info] = atlas_dict[info]
+
+
+a = 'cortex-postcentral_1-rh' + '@' + 'aparc_sub'
+b = 'cortex-Brodmann.43-rh' + '@' + 'pals'
+
+region_a=a.split('@')[0]
+region_b=b.split('@')[0]
+atlas_a=a.split('@')[1]
+atlas_b=b.split('@')[1]
+
+vmap_a = regions[atlas_a]['vmap'][region_a]
+vmap_b = regions[atlas_b]['vmap'][region_b]
+
+intersect = set.intersection(set(vmap_a),set(vmap_b))
+
+
+# get centroid of regions
+
+coords_a = np.array([regions[atlas_a]['mni'][str(x)] for x in vmap_a])
+coords_b = np.array([regions[atlas_b]['mni'][str(x)] for x in vmap_b])
+
+centroid_a = np.mean(coords_a, axis=0)
+centroid_b = np.mean(coords_b, axis=0)
+
+dist_comp=np.abs(centroid_a-centroid_b)
+dist = np.linalg.norm(centroid_a - centroid_b)
+
+
+# File: .\coord2region\coord2region.py
+import numpy as np
+from typing import Any, Dict, List, Optional, Union
+from fetching import AtlasFetcher
+
+class AtlasRegionMapper:
+    """
+    Holds a single atlas and its metadata, and provides methods to query region labels and coordinates.
+
+    Parameters
+    ----------
+    :param name: Human-readable identifier of the atlas (e.g., "aal" or "brodmann").
+    :param vol: 3D array (I, J, K) representing the atlas, where each voxel contains a region index.
+    :param hdr: 4x4 affine transform for voxel-to-world (MNI) coordinates.
+    :param labels: Mapping of region indices to region names. Can be a dictionary (keys as strings) or an array-like.
+    :param index: Explicit numeric indices corresponding to `labels`. If `labels` is a dict, this can be left as None.
+    :param system: The anatomical coordinate space (e.g., "mni", "tal", "unknown").
+
+    Attributes
+    ----------
+    :attr name: Human-readable identifier of the atlas.
+    :attr vol: 3D array representing the atlas.
+    :attr hdr: 4x4 affine transform for voxel-to-world (MNI) coordinates.
+    :attr labels: Mapping of region indices to region names.
+    :attr index: Explicit numeric indices corresponding to `labels`.
+    :attr system: The anatomical coordinate space.
+    """
+
+    def __init__(self,
+                 name: str,
+                 vol: np.ndarray,
+                 hdr: np.ndarray,
+                 labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
+                 index: Optional[Union[List[int], np.ndarray]] = None,
+                 system: str = 'mni') -> None:
+        self.name = name
+        self.vol = np.asarray(vol)
+        self.hdr = np.asarray(hdr)
+        self.labels = labels
+        self.index = index
+        self.system = system
+        # TODO: Add support for surf based atlases (mne)
+        # Basic checks
+        # TODO: check for vol and hdr only when working with volume based atlases and addd support for surf atlases
+        if self.vol.ndim != 3:
+            raise ValueError("`vol` must be a 3D numpy array.")
+        if self.hdr.shape != (4, 4):
+            raise ValueError("`hdr` must be a 4x4 transform matrix.")
+
+        self.shape = self.vol.shape
+
+        # If labels is a dict, prepare an inverse mapping.
+        if isinstance(self.labels, dict):
+            self._label2index = {v: k for k, v in self.labels.items()}
+        else:
+            self._label2index = None
+
+    # --- Region Mapping Methods ---
+
+    def _get_region_name(self, value: Union[int, str]) -> str:
+        """
+        Get the region label corresponding from an index.
+        
+        :param value: The region index or label. Must be an int or str.
+        :return: The region name.
+
+        If `labels` is a dict, lookup is performed using string keys.
+        If `labels` is array-like with a corresponding `index` array, the position is found.
+        Returns "Unknown" if not found.
+        """
+        if not isinstance(value, (int, str)):
+            raise ValueError("value must be an int or str")
+        value_str = str(value)
+        if isinstance(self.labels, dict):
+            return self.labels.get(value_str, "Unknown")
+        
+        if self.index is not None and self.labels is not None:
+            try:
+                # Support both list and numpy array for index.
+                if isinstance(self.index, list):
+                    pos = self.index.index(int(value))
+                else:
+                    pos = int(np.where(self.index == int(value))[0][0])
+                return self.labels[pos]
+            except (ValueError, IndexError):
+                return "Unknown"
+        return "Unknown"
+
+    def get_region_name(self, value: Union[int, str]) -> str:
+        """
+        Return the region name corresponding to the given atlas value.
+        """
+        return self._get_region_name(value)
+
+    def _get_region_index(self, label: str) -> Union[int, str]:
+        """
+        Return the numeric region index corresponding to the given label.
+        
+        :param label: The region name.
+        :return: The region index.
+
+        If `labels` is a dict, lookup is performed using string keys.
+        If `labels` is array-like with a corresponding `index` array, the position is found.
+        Returns "Unknown" if not found.
+        """
+        if not isinstance(label, str):
+            raise ValueError("label must be a string")
+        
+        if self._label2index is not None:
+            return self._label2index.get(label, "Unknown")
+        
+        if self.index is not None and self.labels is not None:
+            try:
+                if isinstance(self.labels, list):
+                    pos = self.labels.index(label)
+                else:
+                    pos = int(np.where(np.array(self.labels) == label)[0][0])
+                if isinstance(self.index, list):
+                    return self.index[pos]
+                else:
+                    return self.index[pos]
+            except (ValueError, IndexError):
+                return "Unknown"
+        return "Unknown"
+    
+    def get_region_index(self, label: str) -> Union[int, str]:
+        """
+        Return the region index corresponding to the given label.
+        """
+        return self._get_region_index(label)
+
+    def get_list_of_regions(self) -> List[str]:
+        """
+        Return a list of all unique region names in the atlas.
+
+        :return: A list of region names.
+        """
+        if isinstance(self.labels, dict):
+            return list(self.labels.values())
+        elif self.labels is not None:
+            return list(self.labels)
+        else:
+            return []
+
+    def get_hemisphere(self, region: Union[int, str]) -> Optional[str]:
+        """
+        Return the hemisphere ('L' or 'R') inferred from the region name.
+        
+        :param region: The region index or name.
+        :return: The hemisphere ('L' or 'R') or None if not found.
+        """
+        region_name = region if isinstance(region, str) else self.get_region_name(region)
+        if region_name in (None, "Unknown"):
+            return None
+        region_lower = region_name.lower()
+        if region_lower.endswith('_l'):
+            return 'L'
+        elif region_lower.endswith('_r'):
+            return 'R'
+        return None
+
+    # --- Coordinate Conversion Methods ---
+
+    def pos_to_source(self, pos: Union[List[float], np.ndarray]) -> tuple[int, int, int]:
+        """
+        Convert an MNI coordinate (x, y, z) to voxel indices using the inverse of the affine transform.
+
+        :param pos: The MNI coordinate (x, y, z).
+        :return: The voxel indices (i, j, k).
+        """
+        if not isinstance(pos, (list, np.ndarray)):
+            raise ValueError("`pos` must be a list or numpy array.")
+        pos_arr = np.asarray(pos)
+        if pos_arr.shape != (3,):
+            raise ValueError("`pos` must be a 3-element coordinate (x, y, z).")
+        homogeneous = np.append(pos_arr, 1)
+        voxel = np.linalg.inv(self.hdr) @ homogeneous
+        return tuple(map(int, np.round(voxel[:3])))
+
+    def pos_to_index(self, pos: Union[List[float], np.ndarray]) -> Union[int, str]:
+        """
+        Return the atlas region index for a given MNI coordinate.
+
+        :param pos: The MNI coordinate (x, y, z).
+        :return: The region index or "Unknown".
+        """
+        if not isinstance(pos, (list, np.ndarray)):
+            raise ValueError("`pos` must be a list or numpy array.")
+        ijk = self.pos_to_source(pos)
+        if any(i < 0 or i >= s for i, s in zip(ijk, self.shape)):
+            return "Unknown"
+        return int(self.vol[ijk])
+
+    def pos_to_region(self, pos: Union[List[float], np.ndarray]) -> str:
+        """
+        Return the region name for a given MNI coordinate.
+
+        :param pos: The MNI coordinate (x, y, z).
+        :return: The region name or "Unknown".
+        """
+        if not isinstance(pos, (list, np.ndarray)):
+            raise ValueError("`pos` must be a list or numpy array.")
+        idx = self.pos_to_index(pos)
+        if idx == "Unknown":
+            return "Unknown"
+        return self.get_region_name(idx)
+
+    def source_to_pos(self, source: Union[List[int], np.ndarray]) -> Union[np.ndarray, np.ndarray]:
+        """
+        Convert voxel indices (i, j, k) to MNI coordinates using the affine transform.
+
+        :param source: The voxel indices (i, j, k).
+        :return: The MNI coordinates
+        """
+        if not isinstance(source, (list, np.ndarray)):
+            raise ValueError("`source` must be a list or numpy array.")
+        src_arr = np.atleast_2d(source)
+        ones = np.ones((src_arr.shape[0], 1))
+        homogeneous = np.hstack([src_arr, ones])
+        transformed = homogeneous @ self.hdr.T
+        coords = transformed[:, :3] / transformed[:, 3, np.newaxis]
+        return coords if src_arr.shape[0] > 1 else coords[0]
+
+    def index_to_pos(self, index: Union[int, str]) -> np.ndarray:
+        """
+        Return MNI coordinates for all voxels that have the specified atlas region index.
+
+        :param index: The region index or name.
+        :return: The MNI coordinates.
+        """
+        if not isinstance(index, (int, str)):
+            raise ValueError("`index` must be an int or str.")
+        try:
+            idx = int(index)
+        except ValueError:
+            return np.empty((0, 3))
+        coords = np.argwhere(self.vol == idx)
+        if coords.size == 0:
+            return np.empty((0, 3))
+        return self.source_to_pos(coords)
+
+    def region_to_pos(self, region: str) -> np.ndarray:
+        """
+        Return MNI coordinates for all voxels corresponding to the given region name.
+
+        :param region: The region name.
+        :return: The MNI coordinates
+        """
+        if not isinstance(region, str):
+            raise ValueError("`region` must be a string.")
+        idx = self.get_region_index(region)
+        if idx == "Unknown":
+            return np.empty((0, 3))
+        return self.index_to_pos(idx)
+    
+
+class VectorizedAtlasRegionMapper:
+    """
+    Provides batch (vectorized) conversion methods for an AtlasRegionMapper.
+
+    This class wraps an instance of AtlasRegionMapper (i.e., using AtlasRegionMapper)
+    and applies its conversion methods (e.g., from MNI coordinates to voxel indices, region indexes,
+    or region names) over a list or array of inputs.
+    """
+
+    def __init__(self, mapper: AtlasRegionMapper) -> None:
+        """
+        Initialize with an instance of AtlasRegionMapper.
+        
+        :param mapper: An instance of AtlasRegionMapper.
+        """
+        self.mapper = mapper
+
+    def batch_get_region_names(self, values: List[Union[int, str]]) -> List[str]:
+        """
+        Return region names corresponding to a list of region indexes/values.
+        
+        :param values: A list of region indexes or values.
+        :return: A list of region names.
+        """
+        if not all(isinstance(val, (int, str)) for val in values):
+            raise ValueError("values must be a list of ints or strings")
+        return [self.mapper.get_region_name(val) for val in values]
+
+    def batch_get_region_indices(self, labels: List[str]) -> List[Union[int, str]]:
+        """
+        Return region indexes corresponding to a list of region names.
+        
+        :param labels: A list of region names.
+        :return: A list of region indexes.
+        """
+        if not all(isinstance(label, str) for label in labels):
+            raise ValueError("labels must be a list of strings")
+        return [self.mapper.get_region_index(label) for label in labels]
+
+    def batch_pos_to_source(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
+        """
+        Convert a batch of MNI coordinates to voxel indices.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of voxel indices (i, j, k) for each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_source(pos) for pos in positions_arr]
+
+    def batch_pos_to_index(self, positions: Union[List[List[float]], np.ndarray]) -> List[Union[int, str]]:
+        """
+        Convert a batch of MNI coordinates to atlas region indexes.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of region indexes corresponding to each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_index(pos) for pos in positions_arr]
+
+    def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> List[str]:
+        """
+        Convert a batch of MNI coordinates to region names.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A list of region names corresponding to each coordinate.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        positions_arr = np.atleast_2d(positions)
+        return [self.mapper.pos_to_region(pos) for pos in positions_arr]
+
+    def batch_source_to_pos(self, sources: Union[List[List[int]], np.ndarray]) -> np.ndarray:
+        """
+        Convert a batch of voxel indices to MNI coordinates.
+        
+        :param sources: An array-like of shape (N, 3) containing voxel indices.
+        :return: An array of MNI coordinates for each voxel.
+        """
+        if not isinstance(sources, (list, np.ndarray)):
+            raise ValueError("sources must be a list or numpy array")
+        sources_arr = np.atleast_2d(sources)
+        return np.array([self.mapper.source_to_pos(src) for src in sources_arr])
+
+    def batch_index_to_pos(self, indices: List[Union[int, str]]) -> List[np.ndarray]:
+        """
+        For each region index in the list, return an array of MNI coordinates for voxels
+        having that index.
+        
+        :param indices: A list of region indexes.
+        :return: A list where each element is an array of MNI coordinates for the corresponding index.
+        """
+        if not all(isinstance(idx, (int, str)) for idx in indices):
+            raise ValueError("indices must be a list of ints or strings")
+        return [self.mapper.index_to_pos(idx) for idx in indices]
+
+    def batch_region_to_pos(self, regions: List[str]) -> List[np.ndarray]:
+        """
+        For each region name in the list, return an array of MNI coordinates for voxels
+        corresponding to that region.
+        
+        :param regions: A list of region names.
+        :return: A list where each element is an array of MNI coordinates for the corresponding region.
+        """
+        if not all(isinstance(region, str) for region in regions):
+            raise ValueError("regions must be a list of strings")
+        return [self.mapper.region_to_pos(region) for region in regions]
+
+
+class coord2region:
+    """
+    Processes region mapping and coordinate conversions across multiple atlases.
+    
+    This class accepts a dictionary of atlas mappers (keyed by atlas name) and
+    provides methods to perform coordinate conversions and mapping queries on all atlases,
+    returning results in a standardized dictionary.
+    """
+    def __init__(self, data_dir: str, atlases: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Initialize by fetching atlases from provided kwargs and wrapping them in VectorizedAtlasRegionMapper.
+        
+
+        :param data_dir: The directory where atlas data is stored.
+        :param atlases: A dictionary of atlas names and their kwargs.
+        """
+        self.atlases = {}
+        atlas_fetcher = AtlasFetcher(data_dir=data_dir)
+        self.data_dir = AtlasFetcher.data_dir
+        for name, kwargs in atlases.items():
+            atlas = atlas_fetcher.fetch_atlas(name, **kwargs)
+            mapper = AtlasRegionMapper(name=atlas.name, vol=atlas.vol, hdr=atlas.hdr, labels=atlas.labels, index=atlas.index)
+            vectorized_mapper = VectorizedAtlasRegionMapper(mapper)
+            self.atlases[name] = vectorized_mapper
+
+    def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
+        """
+        Convert a batch of MNI coordinates to region names for all atlases.
+        
+        :param positions: An array-like of shape (N, 3) containing MNI coordinates.
+        :return: A dictionary keyed by atlas name, with lists of region names.
+        """
+        if not isinstance(positions, (list, np.ndarray)):
+            raise ValueError("positions must be a list or numpy array")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_pos_to_region(positions)
+        return results
+
+    def batch_get_region_names(self, values: List[Union[int, str]]) -> Dict[str, List[str]]:
+        """
+        Return region names for a list of region indices/values across all atlases.
+        
+        :param values: A list of region indexes or values.
+        :return: A dictionary keyed by atlas name, with lists of region names
+        """
+        if not all(isinstance(val, (int, str)) for val in values):
+            raise ValueError("values must be a list of ints or strings")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_get_region_names(values)
+        return results
+
+    def batch_get_region_indices(self, labels: List[str]) -> Dict[str, List[Union[int, str]]]:
+        """
+        Return region indexes for a list of region names across all atlases.
+        
+        Parameters
+        ----------
+        labels : list of str
+            Region names.
+            
+        Returns
+        -------
+        dict
+            A dictionary keyed by atlas name, with lists of region indexes.
+        """
+        if not all(isinstance(label, str) for label in labels):
+            raise ValueError("labels must be a list of strings")
+        results = {}
+        for atlas_name, mapper in self.atlases.items():
+            results[atlas_name] = mapper.batch_get_region_indices(labels)
+        return results
+
+
+# File: .\coord2region\fetching.py
+import os
+import logging
+import numpy as np
+from typing import Optional
+  
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+class AtlasFileHandler:
+    """
+    Handles file operations for atlas fetching.
+    
+    This class provides utility functions to:
+      - Load local atlas files.
+      - Download atlases from a URL.
+      - Package files into a standardized dictionary with keys:
+          'vol', 'hdr', 'labels', 'description', and 'file'.
+    """
+    def __init__(self, data_dir: Optional[str] = None):
+        """
+        :param data_dir: Directory to store/download atlas files.
+             Defaults to a 'data' folder within a hidden '.coord2region' folder in the user's home directory.
+        """
+        # TODO check if the data_dir is a valid path
+        # TODO check if data_dir is an absolute path before assigning home_dir
+        home_dir = os.path.expanduser("~")
+        if data_dir is None:
+            self.data_dir = os.path.join(home_dir, 'coord2region_data')
+        else:
+            self.data_dir = os.path.join(home_dir, data_dir)
+        os.makedirs(self.data_dir, exist_ok=True)
+        self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
+        self.mne_data = os.path.join(home_dir, 'mne_data')
+
+    def _fetch_labels(self, fname: str):
+        """
+        Attempt to fetch labels from a corresponding XML or TXT file.
+        
+        :param fname: The file name of the atlas image.
+        :return: A dictionary of labels if found, else None.
+        """
+        base, _ = os.path.splitext(fname)        
+        fname_xml = base + '.xml'
+
+        # get parent directory
+        # TODO use os.path.join instead of + for clarity and cross-platform compatibility
+        # TODO use os.path.splitext instead of string manipulation
+        # TODO Consider parameterizing these
+        base_dir = os.path.dirname(fname)
+        if "HarvardOxford" in base_dir:
+            fname_xml = base_dir + "-Cortical.xml"
+        if "Juelich" in base_dir:
+            fname_xml = base_dir + ".xml"
+        if os.path.exists(fname_xml):
+            try:
+                import xml.etree.ElementTree as ET
+                tree = ET.parse(fname_xml)
+                root = tree.getroot()
+                labels = {}
+                for label in root.find("data").findall("label"):
+                    index = label.find("index").text
+                    name = label.find("name").text
+                    labels[index] = name
+                return labels
+            except Exception as e:
+                logger.warning(f"Failed to parse XML labels: {e}")
+        else:
+            # TODO improve error handling
+            fname_txt = base + '.txt'
+            if "schaefer" in base_dir:
+                fname_txt = os.path.join(base_dir, "Schaefer2018_400Parcels_7Networks_order.txt")
+            if os.path.exists(fname_txt):
+                with open(fname_txt, 'r') as f:
+                    lines = f.readlines()
+                labels = {str(idx): line.strip() for idx, line in enumerate(lines)}
+                return labels
+        logger.warning(f"Failed to fetch labels")
+        return None
+
+    def pack_vol_output(self, fname: str, desc: str = None):
+        """
+        Load an atlas file into a nibabel image (or numpy archive) and package it.
+        
+        :param fname: Path to the atlas file.
+        :param desc: Short description.
+        :return: A dictionary with keys: 'vol', 'hdr', 'labels', 'description', 'file'.
+        :raises ValueError: If file format is unrecognized.
+        """
+        path = os.path.abspath(fname)
+        _, ext = os.path.splitext(fname)
+        ext = ext.lower()
+
+        if ext in ['.nii', '.gz', '.nii.gz']:
+            # TODO add try-except block for loading the image
+            import nibabel as nib
+            img = nib.load(fname)
+            vol_data = img.get_fdata(dtype=np.float32)
+            hdr_matrix = img.affine
+            labels = self._fetch_labels(path)
+            return {
+                'vol': vol_data,
+                'hdr': hdr_matrix,
+                'labels': labels,
+                'description': desc,
+                'file': fname
+            }
+        elif ext == '.npz':
+            # TODO add try-except block for loading the archive
+            arch = np.load(path, allow_pickle=True)
+            vol_data = arch['vol']
+            hdr_matrix = arch['hdr']
+            labels = None
+            if 'labels' in arch and 'index' in arch:
+                labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
+            return {
+                'vol': vol_data,
+                'hdr': hdr_matrix,
+                'labels': labels,
+                'description': desc,
+                'file': fname
+            }
+        else:
+            raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
+
+    def pack_surf_output(self, subject: str, subjects_dir: str, parc: str = 'aparc', **kwargs):
+        """
+        Load surface-based atlas using MNE from FreeSurfer annotation files.
+
+        :param subject: The subject identifier (e.g., 'fsaverage').
+        :param subjects_dir: Path to the FreeSurfer subjects directory.
+        :param parc: The parcellation name (e.g., 'aparc', 'aparc.a2009s').
+        :param kwargs: Additional keyword arguments.
+        :return: A dictionary with keys: 'vmap', 'labmap', 'mni'.
+                """
+        import mne
+        src = mne.read_source_spaces(os.path.join(subjects_dir, subject, 'bem', f'{subject}-ico-5-src.fif'), verbose=False)
+        labels = mne.read_labels_from_annot(subject, parc=parc, subjects_dir=subjects_dir, verbose=False)
+        lh_vert = src[0]['vertno']
+        rh_vert = src[1]['vertno']
+    
+        cortex_dict = {
+            label.name: (np.searchsorted(lh_vert, np.intersect1d(lh_vert, label.vertices))
+                        if label.hemi == 'lh'
+                        else len(lh_vert) + np.searchsorted(rh_vert, np.intersect1d(rh_vert, label.vertices)))
+            for label in labels
+        }
+
+        labmap = {v: lab for lab, verts in cortex_dict.items() for v in np.atleast_1d(verts)}
+
+        # Compute MNI coordinates for the cortical parts (assuming first two hemispheres)
+        mni_list = mne.vertex_to_mni([lh_vert, rh_vert], [0, 1], subject, subjects_dir=subjects_dir)
+        mni_coords = np.concatenate(mni_list, axis=0)
+        # TODO improve consistency in the output format
+        return {
+            'vmap': cortex_dict,
+            'labmap': labmap,
+            'mni': mni_coords
+        }
+
+    def fetch_from_local(self, atlas_path: str):
+        """
+        Load an atlas from a local file.
+        
+        :param atlas_path: Path to the local atlas file.
+        :return: The standardized atlas dictionary.
+        """
+        logger.info(f"Loading local atlas file: {atlas_path}")
+        return self.pack_vol_output(atlas_path, desc="Local file")
+
+    def fetch_from_url(self, atlas_url: str, **kwargs):
+        """
+        Download an atlas from a URL (if not already present) and load it.
+        
+        :param atlas_url: The URL of the atlas.
+        :param kwargs: Additional parameters.
+        :return: The standardized atlas dictionary.
+        :raises RuntimeError: if the download fails.
+        """
+        # TODO document that the file name is expected to be in the URL
+        import urllib.parse
+        import requests
+        #requests.packages.urllib3.disable_warnings()
+        parsed = urllib.parse.urlparse(atlas_url)
+        file_name = os.path.basename(parsed.path)
+        if not file_name:
+            file_name = "atlas_download.nii.gz"
+        local_path = os.path.join(self.data_dir, file_name)
+
+        if not os.path.exists(local_path):
+            logger.info(f"Downloading atlas from {atlas_url}...")
+            try:
+                with requests.get(atlas_url, stream=True, timeout=30, verify=False) as r:
+                    r.raise_for_status()
+                    with open(local_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                logger.info(f"Atlas downloaded to {local_path}")
+            except Exception as e:
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                logger.exception(f"Failed to download from {atlas_url}")
+                raise RuntimeError(f"Failed to download from {atlas_url}") from e
+        else:
+            logger.info(f"Atlas already exists: {local_path}. Skipping download.")
+
+        return local_path
+
+
+class AtlasFetcher:
+    """
+    Fetches neuroimaging atlases using various methods.
+    
+    This class uses an AtlasFileHandler instance for file operations and provides atlas-specific
+    fetchers. Supported atlas identifiers include volumetric atlases such as:
+      - "aal", "brodmann", "harvard-oxford", "juelich", "schaefer", "yeo", "aparc2009"
+    
+    In addition, this module now supports MNE-based, surface annotation atlases via:
+      - "mne-annot" (generic annotation; requires keyword arguments 'subject' and 'subjects_dir')
+      - "mne-aparc2009" (a convenience key that sets parc to 'aparc.a2009s')
+      
+    Each fetcher returns a standardized dictionary. For volumetric atlases the keys are:
+      'vol', 'hdr', 'labels', 'description', 'file'.
+    For MNE annotation atlases, additional keys include:
+      'vmap' (label to vertex mapping), 'labmap' (vertex-to-label mapping), and 'mni' (MNI coordinates).
+    """
+
+    # Fallback URL for Talairach atlas .
+    ATLAS_URLS = {
+        'talairach': 'https://www.talairach.org/talairach.nii',
+        'aal': 'http://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
+    }
+
+    def __init__(self, data_dir: str = None):
+        """
+        :param data_dir: Directory to store/download atlas files.
+        """
+
+        self.file_handler = AtlasFileHandler(data_dir=data_dir)
+        self.data_dir = self.file_handler.data_dir
+        self.nilearn_data = self.file_handler.nilearn_data
+        self.mne_data = self.file_handler.mne_data
+        self._atlas_fetchers = {
+            #"aal": self._fetch_atlas_aal,
+            "brodmann": self._fetch_atlas_brodmann,
+            "harvard-oxford": self._fetch_atlas_harvard_oxford,
+            "juelich": self._fetch_atlas_juelich,
+            "schaefer": self._fetch_atlas_schaefer,
+            "yeo": self._fetch_atlas_yeo,
+            # MNE-based atlases:
+            "aparc2009": self._fetch_atlas_aparc2009,
+        }
+
+    # ---- Volumetric atlas fetchers using Nilear ----
+
+    def _fetch_atlas(self, fetcher, **kwargs):
+        try:
+            return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
+        except Exception as e:
+            logger.error("Failed to fetch atlas using primary data_dir: %s", e, exc_info=True)
+            return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
+
+    def _fetch_atlas_aal(self, **kwargs):
+        try:
+            from nilearn.datasets import fetch_atlas_aal
+            kwargs["version"] = kwargs.get('version', 'SPM12') # TODO: add versions
+            fetched = self._fetch_atlas(fetch_atlas_aal, **kwargs)
+            return self.file_handler.pack_vol_output(fetched["maps"], desc="AAL Atlas")
+        except:
+            # Fallback URL for AAL atlas.
+            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('aal'))
+    
+    def _fetch_atlas_brodmann(self, **kwargs):
+        try:
+            from nilearn.datasets import fetch_atlas_talairach
+            fetched = self._fetch_atlas(fetch_atlas_talairach, level_name="ba", **kwargs)
+            return self.file_handler.pack_vol_output(fetched["maps"], desc="Talairach Atlas")
+        except:
+            # Fallback URL for Talairach atlas.
+            return self.file_handler.fetch_from_url(self.ATLAS_URLS.get('talairach'))
+
+    def _fetch_atlas_harvard_oxford(self, **kwargs):
+        from nilearn.datasets import fetch_atlas_harvard_oxford
+        atlas_name = kwargs.get('version', 'cort-maxprob-thr25-2mm')
+        fetched = self._fetch_atlas(fetch_atlas_harvard_oxford, atlas_name=atlas_name, **kwargs)
+        output= {
+                'vol': fetched.get('maps',None),
+                'hdr': fetched.get('maps',None).affine,
+                'labels': fetched.get('labels',None),
+                'description': fetched.get('description',None),
+                'file': fetched.get('filename',None)
+            }
+        return output
+
+    def _fetch_atlas_juelich(self, **kwargs):
+        from nilearn.datasets import fetch_atlas_juelich
+        atlas_name = kwargs.get('version', 'maxprob-thr0-1mm')
+        fetched = fetched = self._fetch_atlas(fetch_atlas_juelich, atlas_name=atlas_name, **kwargs)
+        return self.file_handler.pack_vol_output(fetched["filename"], desc=f"Juelich {atlas_name} Atlas")
+
+    def _fetch_atlas_schaefer(self, **kwargs):
+        from nilearn.datasets import fetch_atlas_schaefer_2018
+        fetched = self._fetch_atlas(fetch_atlas_schaefer_2018, **kwargs)
+        return self.file_handler.pack_vol_output(fetched["maps"], desc="Schaefer 2018 Atlas")
+
+    def _fetch_atlas_yeo(self, **kwargs):
+        from nilearn.datasets import fetch_atlas_yeo_2011
+        fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
+        version = kwargs.get('version', 'thick_17')
+        return self.file_handler.pack_vol_output(fetched[version], desc=f"Yeo 2011 {version} Atlas")
+
+    # ---- MNE-based (surface annotation) atlas fetcher ----
+    
+    def _fetch_atlas_aparc2009(self, **kwargs):
+        return self.file_handler.pack_surf_output(parc='aparc.a2009s', **kwargs)
+    
+    # ---- Public method ----
+
+    def fetch_atlas(self, atlas_name: str, atlas_url: str = None, version: str = None, **kwargs):
+        """
+        Fetch an atlas given an atlas identifier.
+        
+        The identifier can be:
+            (a) A URL (starting with http:// or https://),
+            (b) A local file path,
+            (c) Nilearn or mne atlases atlases (e.g., "aal", "harvard-oxford", "aparc2009", "mne-annot", etc.).
+        
+        For MNE-based atlases (keys starting with "mne-"), additional keyword arguments are required:
+            - subject: subject identifier (e.g., "fsaverage")
+            - subjects_dir: path to the FreeSurfer subjects directory
+        
+        :param atlas_name: The atlas identifier or file path.
+        :param version: Version specifier (used for certain atlases, e.g., AAL).
+        :param atlas_url: (Optional) Override URL for fetching the atlas.
+        :param kwargs: Additional keyword arguments for the specific fetcher.
+        :return: A standardized atlas dictionary.
+        :raises ValueError: if the atlas identifier is not recognized.
+        """
+        # Case (a): URL provided.
+        if atlas_url is not None and (atlas_url.startswith('http://') or atlas_url.startswith('https://')):
+            return self.file_handler.fetch_from_url(atlas_url, **kwargs)
+        
+        # Case (b): Local file path.
+        atlas_file = kwargs.get("atlas_file")
+        if atlas_file and os.path.isfile(atlas_file):
+            return self.file_handler.fetch_from_local(atlas_file)
+        elif os.path.isfile(os.path.join(self.data_dir, atlas_name)):
+            return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_name))
+    
+        # Case (c): nilearn or mne atlases.
+        key = atlas_name.lower()
+        fetcher = self._atlas_fetchers.get(key)
+        if fetcher:
+            return fetcher(**kwargs)
+    
+        raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
+
+
+# Example usage: # remove later
+if __name__ == '__main__':
+    af = AtlasFetcher(data_dir="atlas_data")
+    # TODO: fix fetch using url!
+    # atlas = af.fetch_atlas("aal", atlas_url="https://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz")
+    # logger.info(f"Fetched atlas: {atlas['description']} from file: {atlas['file']}")
+    # atlas = af.fetch_atlas("talairach", atlas_url="https://www.talairach.org/talairach.nii")
+    # logger.info(f"Fetched atlas: {atlas['description']} from file: {atlas['file']}")
+
+    # TODO: test fetch from local file
+
+    # TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
+    # TODO brodmann: self._fetch_atlas_brodmann is not downloading the file
+    # TODO harvard-oxford: self._fetch_atlas_harvard_oxford fix labels fetching for this atlas
+    # TODO juilich: self._fetch_atlas_juelich fix labels fetching for this atlas
+    # TODO schaefer: self._fetch_atlas_schaefer check if labels are extracted correctly
+    # TODO yeo: self._fetch_atlas_yeo check label extraction from description file
+    # TODO add other nibabel, nilearn, mne atlases
+    # atlas = af.fetch_atlas("yeo")
+    # print(isinstance(atlas, dict))
+    # print(atlas.keys())
+    # print(atlas["labels"])
+
+    # TODO: test fetching a surface-based atlas
+    # atlas = af.fetch_atlas("mne-annot", subject="fsaverage", subjects_dir="mne_data")
+    # print(isinstance(atlas, dict))
+
+    # TODO: add save/load methods for created atlases
+    # TODO: make output of fetch_atlas consistent
+    # TODO: add method to list available atlases
+    # TODO: refactor to use a single fetch method for all atlases
+    # TODO: add method to fetch all atlases at once
+    # TODO: check for atlases that supported by both mne and nilearn if else
+
+
+# File: .\coord2region\__init__.py
+from .coord2region import AtlasRegionMapper
+from .fetching import AtlasFetcher
+
+# File: .\coord2region\utils\utils.py
+import os
+
+
+
+# File: .\coord2region\utils\__init__.py
+from .utils import _fetch_labels
+
+
+# File: .\tests\test_fetch.py
+from coord2region import AtlasFetcher
+
+"""
+{
+#"aal": self._fetch_atlas_aal,
+"brodmann": self._fetch_atlas_brodmann,
+"harvard-oxford": self._fetch_atlas_harvard_oxford,
+"juelich": self._fetch_atlas_juelich,
+"schaefer": self._fetch_atlas_schaefer,
+"yeo": self._fetch_atlas_yeo,
+# MNE-based atlases:
+"aparc2009": self._fetch_atlas_aparc2009,
+}
+
+{
+'vol': vol_data,
+'hdr': hdr_matrix,
+'labels': labels,
+'description': desc,
+'file': fname
+}
+"""
+def test_fetch_all_atlases():
+    atlases = ["harvard-oxford","brodmann", "juelich", "schaefer", "yeo", "aparc2009"]
+    good_atlases = []
+    bad_atlases = []
+    for atlas in atlases:
+        try:
+            _fetch_atlas_helper(atlas)
+            good_atlases.append(atlas)
+        except Exception as e:
+            print(f"Error fetching atlas {atlas}: {e}")
+            bad_atlases.append(atlas)
+    print(f"Good atlases: {good_atlases}")
+    print(f"Bad atlases: {bad_atlases}")
+
+def _fetch_atlas_helper(atlas_name):
+    af = AtlasFetcher(data_dir="atlas_data")
+    atlas = af.fetch_atlas(atlas_name)
+
+    # assert for volume data
+    assert 'vol' in atlas.keys() and atlas['vol'] is not None, f"Volume data is None for atlas {atlas_name}"
+    assert 'hdr' in atlas.keys() and atlas['hdr'] is not None, f"Header data is None for atlas {atlas_name}"
+    assert 'labels' in atlas.keys() and atlas['labels'] is not None, f"Labels data is None for atlas {atlas_name}"
+    assert 'description' in atlas.keys() and atlas['description'] is not None, f"Description data is None for atlas {atlas_name}"
+    # Right now is returning the description coming from nilearn, Hamza wants the name of the atlas and the version
+    print('Warning! Right now is returning the description coming from nilearn, Hamza wants the name of the atlas and the version')
+    assert 'file' in atlas.keys(), f"File name is not in atlas {atlas_name}"
+    return atlas
+
+def test_fetch_atlas_nolabels():
+    af = AtlasFetcher(data_dir="atlas_data")
+    atlas = af.fetch_atlas("yeo")
+    print(atlas.keys())
+
+if __name__ == "__main__":
+    test_fetch_all_atlases()
+
+
+
+# File: .\tests\__init__.py
+
+
