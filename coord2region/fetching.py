@@ -34,55 +34,6 @@ class AtlasFileHandler:
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
-    def _fetch_labels(self, fname: str):
-        """
-        Attempt to fetch labels from a corresponding XML or TXT file.
-        
-        :param fname: The file name of the atlas image.
-        :return: A dictionary of labels if found, else None.
-        """
-        base, _ = os.path.splitext(fname)        
-        fname_xml = base + '.xml'
-
-        # get parent directory
-        # TODO use os.path.join instead of + for clarity and cross-platform compatibility
-        # TODO use os.path.splitext instead of string manipulation
-        # TODO Consider parameterizing these
-        base_dir = os.path.dirname(fname)
-        if "HarvardOxford" in base_dir:
-            fname_xml = base_dir + "-Cortical.xml"
-        if "Juelich" in base_dir:
-            fname_xml = base_dir + ".xml"
-        if os.path.exists(fname_xml): # AAL
-            try:
-                import xml.etree.ElementTree as ET
-                tree = ET.parse(fname_xml)
-                root = tree.getroot()
-                labels = {}
-                for label in root.find("data").findall("label"):
-                    index = label.find("index").text
-                    name = label.find("name").text
-                    labels[index] = name
-                return labels
-            except Exception as e:
-                logger.warning(f"Failed to parse XML labels: {e}")
-        else: # txt files with labels, 2nd column is the label (apparently)
-            # TODO improve error handling
-            fname_txt = base + '.txt'
-            if "schaefer" in base_dir:
-                fname_txt = os.path.join(base_dir, "Schaefer2018_400Parcels_7Networks_order.txt")
-            if "Yeo_JNeurophysiol11_MNI152" in base_dir:
-                yeo_version = os.path.basename(base).split('_')[1] # remove the file name from the
-                label_dir = os.path.join(base_dir,f"Yeo2011_{yeo_version}_ColorLUT.txt")
-                fname_txt = label_dir
-            if os.path.exists(fname_txt):
-                with open(fname_txt, 'r') as f:
-                    lines = f.readlines()
-                labels = {str(idx): line.strip().split('\t')[1] for idx, line in enumerate(lines)}
-                return labels
-        logger.warning(f"Failed to fetch labels")
-        return None
-
     def pack_vol_output(self, fname: str, desc: str = None):
         """
         Load an atlas file into a nibabel image (or numpy archive) and package it.
@@ -104,14 +55,11 @@ class AtlasFileHandler:
                 img = nib.load(fname)
                 vol_data = img.get_fdata(dtype=np.float32)
                 hdr_matrix = img.affine
-                #labels = self._fetch_labels(path)
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
-                    # 'labels': labels,
-                    # 'description': desc,
-                    # 'file': fname
                 }
+ 
             elif ext == '.npz':
                 # TODO add try-except block for loading the archive
                 arch = np.load(path, allow_pickle=True)
@@ -123,9 +71,6 @@ class AtlasFileHandler:
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
-                    # 'labels': labels,
-                    # 'description': desc,
-                    # 'file': fname
                 }
             else:
                 raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
@@ -133,13 +78,9 @@ class AtlasFileHandler:
             if isinstance(fname,Nifti1Image):
                 vol_data = fname.get_fdata(dtype=np.float32)
                 hdr_matrix = fname.affine
-                #labels = self._fetch_labels(path)
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
-                    # 'labels': labels,
-                    # 'description': desc,
-                    # 'file': fname
                 }
 
     def pack_surf_output(self, subject: str, subjects_dir: str, parc: str = 'aparc', **kwargs):
@@ -309,7 +250,7 @@ class AtlasFetcher:
         }
 
 
-    # ---- Volumetric atlas fetchers using Nilear ----
+    # ---- Volumetric atlas fetchers using nilearn ----
 
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
