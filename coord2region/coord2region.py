@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any, Dict, List, Optional, Union
-from fetching import AtlasFetcher
+from .fetching import AtlasFetcher
 
 class AtlasRegionMapper:
     """
