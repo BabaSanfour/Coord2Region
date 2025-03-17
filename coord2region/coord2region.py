@@ -83,6 +83,11 @@ class AtlasRegionMapper:
                 return self.labels[pos]
             except (ValueError, IndexError):
                 return "Unknown"
+        elif self.labels is not None:
+            try:
+                return self.labels[int(value)]
+            except (ValueError, IndexError):
+                return "Unknown"
         return "Unknown"
 
     def get_region_name(self, value: Union[int, str]) -> str:
@@ -118,6 +123,11 @@ class AtlasRegionMapper:
                     return self.index[pos]
                 else:
                     return self.index[pos]
+            except (ValueError, IndexError):
+                return "Unknown"
+        elif self.labels is not None:
+            try:
+                return int(np.where(np.array(self.labels) == label)[0][0])
             except (ValueError, IndexError):
                 return "Unknown"
         return "Unknown"
@@ -268,6 +278,8 @@ class VectorizedAtlasRegionMapper:
         
         :param mapper: An instance of AtlasRegionMapper.
         """
+        if not isinstance(mapper, AtlasRegionMapper):
+            raise ValueError("mapper must be an instance of AtlasRegionMapper")
         self.mapper = mapper
 
     def batch_get_region_names(self, values: List[Union[int, str]]) -> List[str]:
@@ -377,18 +389,18 @@ class coord2region:
         """
         Initialize by fetching atlases from provided kwargs and wrapping them in VectorizedAtlasRegionMapper.
         
-
         :param data_dir: The directory where atlas data is stored.
         :param atlases: A dictionary of atlas names and their kwargs.
         """
-        self.atlases = {}
-        atlas_fetcher = AtlasFetcher(data_dir=data_dir)
-        self.data_dir = AtlasFetcher.data_dir
+        self.mappers = {}
+        atlas_fetcher = AtlasFetcher()
+        # self.data_dir = AtlasFetcher.data_dir
+        print(atlases)
         for name, kwargs in atlases.items():
             atlas = atlas_fetcher.fetch_atlas(name, **kwargs)
-            mapper = AtlasRegionMapper(name=atlas.name, vol=atlas.vol, hdr=atlas.hdr, labels=atlas.labels, index=atlas.index)
+            mapper = AtlasRegionMapper(name=name, vol=atlas["vol"], hdr=atlas["hdr"], labels=atlas["labels"])
             vectorized_mapper = VectorizedAtlasRegionMapper(mapper)
-            self.atlases[name] = vectorized_mapper
+            self.mappers[name] = vectorized_mapper
 
     def batch_pos_to_region(self, positions: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
         """
@@ -400,41 +412,20 @@ class coord2region:
         if not isinstance(positions, (list, np.ndarray)):
             raise ValueError("positions must be a list or numpy array")
         results = {}
-        for atlas_name, mapper in self.atlases.items():
+        for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_pos_to_region(positions)
         return results
 
-    def batch_get_region_names(self, values: List[Union[int, str]]) -> Dict[str, List[str]]:
+    def batch_region_to_pos(self, regions: List[str]) -> Dict[str, List[np.ndarray]]:
         """
-        Return region names for a list of region indices/values across all atlases.
+        Convert a list of region names to MNI coordinates for all atlases.
         
-        :param values: A list of region indexes or values.
-        :return: A dictionary keyed by atlas name, with lists of region names
+        :param regions: A list of region names.
+        :return: A dictionary keyed by atlas name, with lists of MNI coordinates.
         """
-        if not all(isinstance(val, (int, str)) for val in values):
-            raise ValueError("values must be a list of ints or strings")
+        if not all(isinstance(region, str) for region in regions):
+            raise ValueError("regions must be a list of strings")
         results = {}
-        for atlas_name, mapper in self.atlases.items():
-            results[atlas_name] = mapper.batch_get_region_names(values)
-        return results
-
-    def batch_get_region_indices(self, labels: List[str]) -> Dict[str, List[Union[int, str]]]:
-        """
-        Return region indexes for a list of region names across all atlases.
-        
-        Parameters
-        ----------
-        labels : list of str
-            Region names.
-            
-        Returns
-        -------
-        dict
-            A dictionary keyed by atlas name, with lists of region indexes.
-        """
-        if not all(isinstance(label, str) for label in labels):
-            raise ValueError("labels must be a list of strings")
-        results = {}
-        for atlas_name, mapper in self.atlases.items():
-            results[atlas_name] = mapper.batch_get_region_indices(labels)
+        for atlas_name, mapper in self.mappers.items():
+            results[atlas_name] = mapper.batch_region_to_pos(regions)
         return results
