@@ -284,13 +284,13 @@ class AtlasFetcher:
         from nilearn.datasets import fetch_atlas_harvard_oxford
         atlas_name = kwargs.get('version', 'cort-maxprob-thr25-2mm')
         fetched = self._fetch_atlas(fetch_atlas_harvard_oxford, atlas_name=atlas_name, **kwargs)
-        output= {
-                'vol': fetched.get('maps',None),
-                'hdr': fetched.get('maps',None).affine,
-                'labels': fetched.get('labels',None),
-                'description': fetched.get('description',None),
-                'file': fetched.get('filename',None)
-            }
+        output = {
+            'vol': fetched.get('maps', None).get_fdata(dtype=np.float32) if fetched.get('maps', None) else None,
+            'hdr': fetched.get('maps', None).affine if fetched.get('maps', None) else None,
+            'labels': fetched.get('labels', None),
+            'description': fetched.get('description', None),
+            'file': fetched.get('filename', None)
+        }
         return output
 
     def _fetch_atlas_juelich(self, **kwargs):
