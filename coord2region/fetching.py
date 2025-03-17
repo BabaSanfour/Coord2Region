@@ -180,6 +180,7 @@ class AtlasFileHandler:
         # TODO document that the file name is expected to be in the URL
         import urllib.parse
         import requests
+        #requests.packages.urllib3.disable_warnings()
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
         if not file_name:
@@ -189,7 +190,7 @@ class AtlasFileHandler:
         if not os.path.exists(local_path):
             logger.info(f"Downloading atlas from {atlas_url}...")
             try:
-                with requests.get(atlas_url, stream=True, timeout=30) as r:
+                with requests.get(atlas_url, stream=True, timeout=30, verify=False) as r:
                     r.raise_for_status()
                     with open(local_path, 'wb') as f:
                         for chunk in r.iter_content(chunk_size=8192):
@@ -228,7 +229,7 @@ class AtlasFetcher:
     # Fallback URL for Talairach atlas .
     ATLAS_URLS = {
         'talairach': 'https://www.talairach.org/talairach.nii',
-        'aal': 'https://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
+        'aal': 'http://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
     }
 
     def __init__(self, data_dir: str = None):
@@ -241,7 +242,7 @@ class AtlasFetcher:
         self.nilearn_data = self.file_handler.nilearn_data
         self.mne_data = self.file_handler.mne_data
         self._atlas_fetchers = {
-            "aal": self._fetch_atlas_aal,
+            #"aal": self._fetch_atlas_aal,
             "brodmann": self._fetch_atlas_brodmann,
             "harvard-oxford": self._fetch_atlas_harvard_oxford,
             "juelich": self._fetch_atlas_juelich,
@@ -263,8 +264,8 @@ class AtlasFetcher:
     def _fetch_atlas_aal(self, **kwargs):
         try:
             from nilearn.datasets import fetch_atlas_aal
-            version = kwargs.get('version', '3v2')
-            fetched = self._fetch_atlas(fetch_atlas_aal, version=version, **kwargs)
+            kwargs["version"] = kwargs.get('version', 'SPM12') # TODO: add versions
+            fetched = self._fetch_atlas(fetch_atlas_aal, **kwargs)
             return self.file_handler.pack_vol_output(fetched["maps"], desc="AAL Atlas")
         except:
             # Fallback URL for AAL atlas.
@@ -283,7 +284,14 @@ class AtlasFetcher:
         from nilearn.datasets import fetch_atlas_harvard_oxford
         atlas_name = kwargs.get('version', 'cort-maxprob-thr25-2mm')
         fetched = self._fetch_atlas(fetch_atlas_harvard_oxford, atlas_name=atlas_name, **kwargs)
-        
+        output= {
+                'vol': fetched.get('maps',None),
+                'hdr': fetched.get('maps',None).affine,
+                'labels': fetched.get('labels',None),
+                'description': fetched.get('description',None),
+                'file': fetched.get('filename',None)
+            }
+        return output
 
     def _fetch_atlas_juelich(self, **kwargs):
         from nilearn.datasets import fetch_atlas_juelich
