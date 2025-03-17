@@ -32,8 +32,8 @@ jobs:
 #        pip install -e .,already inside requirements-dev.txt
     - name: Test with pytest
       run: |
-        pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
-        pytest tests/ --cov=sovabids/ --cov-report=xml --verbose -s
+          pytest --cov-branch --cov-report=xml
+        # pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
     # - name: Build docs
     #   run: |
     #     cd docs

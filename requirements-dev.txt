@@ -1,3 +1,4 @@
 nilearn
 nibabel
 mne
+pytest-cov
