@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any, Dict, List, Optional, Union, Tuple
-from .fetching import AtlasFetcher
+from fetching import AtlasFetcher
 
 # TODO: Add getting region with the shortest distance to a given coordinate
 # TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
@@ -8,7 +8,7 @@ from .fetching import AtlasFetcher
 
 class AtlasMapper:
     """
-    Stores a single atlas (a 3D numpy array + 4x4 affine for volumetri 
+    Stores a single atlas (a 3D numpy array + 4x4 affine for volumetric 
     atlases or a vertices array for surface atlases) and provides 
     coordinate <-> voxel <-> region lookups.
 
@@ -38,25 +38,33 @@ class AtlasMapper:
                  hdr: np.ndarray,
                  labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
                  index: Optional[Union[List[int], np.ndarray]] = None,
+                 subject: Optional[str] = "fsaverage",
+                 subjects_dir: Optional[str] = None,
                  system: str = 'mni') -> None:
 
         self.name = name
-        self.vol = np.asarray(vol)
-        self.hdr = np.asarray(hdr)
         self.labels = labels
         self.index = index
         self.system = system
 
         # Basic shape checks
-        if self.vol is not None and self.hdr is not None:
+        if isinstance(vol, np.ndarray) and isinstance(hdr, np.ndarray):
+            self.vol = np.asarray(vol)
+            self.hdr = np.asarray(hdr)
             if self.vol.ndim != 3:
                 raise ValueError("`vol` must be a 3D numpy array.")
             if self.hdr.shape != (4, 4):
                 raise ValueError("`hdr` must be a 4x4 transform matrix.")
             self.shape = self.vol.shape
+            self.atlases_type = 'volume'
+        if isinstance(vol, list):
+            self.vol = vol
+            self.hdr = None
+            self.atlases_type = 'surface'
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
+        # TODO: Add support for surface atlases: sometimes a region has many indexes
         if isinstance(self.labels, dict):
             # Here we assume keys are index strings, values are region names
             self._label2index = {v: k for k, v in self.labels.items()}
@@ -147,14 +155,12 @@ class AtlasMapper:
 
     def list_all_regions(self) -> List[str]:
         """
-        Return a list of all region names in this atlas.
+        Return a list of all unique region names in this atlas.
         """
-        if isinstance(self.labels, dict):
-            return list(self.labels.values())
-        elif self.labels is not None:
-            return list(self.labels)
-        else:
+        if self.labels is None:
             return []
+        regions = self.labels.values() if isinstance(self.labels, dict) else self.labels
+        return list(dict.fromkeys(regions))
 
     def infer_hemisphere(self, region: Union[int, str]) -> Optional[str]:
         """
@@ -165,14 +171,15 @@ class AtlasMapper:
         region_name = region if isinstance(region, str) else self._lookup_region_name(region)
         if region_name in (None, "Unknown"):
             return None
-        
+
         if self.name.lower() == 'schaefer':
-            try:
-                return {'LH': 'L', 'RH': 'R'}.get(region.split('_')[1])
-            except IndexError:
-                return None
+            parts = region.split('_', 1)
+            if len(parts) > 1:
+                return {'LH': 'L', 'RH': 'R'}.get(parts[1])
+            return None
+
         lower = region_name.lower()
-        return 'L' if lower.endswith('_l') else 'R' if lower.endswith('_r') else None
+        return 'L' if lower.endswith(('_lh', '-lh')) else 'R' if lower.endswith(('_rh', '-rh')) else None
 
     # -------------------------------------------------------------------------
     # MNI <--> voxel conversions
@@ -395,3 +402,26 @@ class MultiAtlasMapper:
         for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_region_name_to_mni(region_names)
         return results
+
+if __name__ == '__main__':
+# Fetch an atlas
+    af = AtlasFetcher()
+    # fetch aparc.a2009s
+    aparc = af.fetch_atlas('aparc.a2009s')
+    # fetch nilearn harvard-oxford
+    aparc_mapper = AtlasMapper(
+        name='aparc.a2009s',
+        vol=aparc['vol'],
+        hdr=aparc['hdr'],
+        labels=aparc['labels'],
+    )
+    print(aparc_mapper.region_name_from_index(4494))
+    print(aparc_mapper.region_index_from_name('S_calcarine-lh'))
+    print(aparc_mapper.list_all_regions())
+    print(aparc_mapper.infer_hemisphere("Lat_Fis-post-rh"))
+
+
+
+
+
+
