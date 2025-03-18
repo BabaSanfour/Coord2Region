@@ -45,7 +45,6 @@ class AtlasMapper:
 
         self.name = name
         self.labels = labels
-        print(len(index))
         self.index = index
         self.system = system
 
@@ -273,10 +272,15 @@ class AtlasMapper:
         """
         Return the region index for a given MNI coordinate.
         """
-        ijk = self.mni_to_voxel(mni_coord)
-        if any(i < 0 or i >= s for i, s in zip(ijk, self.shape)):
-            return "Unknown"
-        return int(self.vol[ijk])
+        ind = self.convert_to_source(mni_coord)
+        if self.atlas_type == 'volume':
+            if any(i < 0 or i >= s for i, s in zip(ind, self.shape)):
+                return "Unknown"
+            return int(self.vol[tuple(ind)])
+        elif self.atlas_type == 'surface':
+            if ind < 0 or ind >= len(self.index):
+                return "Unknown"
+            return ind[0]
 
     def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
         """
@@ -285,7 +289,7 @@ class AtlasMapper:
         region_idx = self.mni_to_region_index(mni_coord)
         if region_idx == "Unknown":
             return "Unknown"
-        return self._lookup_region_name(region_idx)
+        return self._lookup_region_name(int(region_idx))
 
     # -------------------------------------------------------------------------
     # region index/name <--> all voxel coords
@@ -463,11 +467,12 @@ if __name__ == '__main__':
 
     )
     print(aparc_mapper.region_name_from_index(32))
-    print(aparc_mapper.region_index_from_name('Lat_Fis-post-rh'))
+    print(aparc_mapper.region_index_from_name('S_oc_sup_and_transversal-lh'))
     # print(aparc_mapper.list_all_regions())
     print(aparc_mapper.infer_hemisphere("Lat_Fis-post-rh"))
-    print(aparc_mapper.convert_to_mni(75, hemi=1))
-    print(aparc_mapper.convert_to_source([42.82332993, -29.66965294,  22.00577736]))
+    print(aparc_mapper.convert_to_mni(32, hemi=0))
+    print(aparc_mapper.convert_to_source([-23.91684151, -78.48731995,  16.8182888]))
+    print(aparc_mapper.mni_to_region_name([-23.91684151, -78.48731995,  16.8182888]))
 
 
 
