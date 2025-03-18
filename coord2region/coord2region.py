@@ -2,41 +2,34 @@ import numpy as np
 from typing import Any, Dict, List, Optional, Union, Tuple
 from .fetching import AtlasFetcher
 
-import numpy as np
-from typing import Any, Dict, List, Optional, Union, Tuple
+# TODO: Add getting region with the shortest distance to a given coordinate
+# TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
+# TODO: Add support for surface atlases
 
-
-class VolumetricAtlasMapper:
+class AtlasMapper:
     """
-    Stores a single 3D volumetric atlas (a 3D numpy array + 4x4 affine) and provides
+    Stores a single atlas (a 3D numpy array + 4x4 affine for volumetri 
+    atlases or a vertices array for surface atlases) and provides 
     coordinate <-> voxel <-> region lookups.
 
     Parameters
     ----------
-    name : str
-        Identifier for the atlas (e.g. "aal" or "brodmann").
-    vol : np.ndarray
-        A 3D array where each voxel stores an integer (region index).
-    hdr : np.ndarray
-        A 4x4 affine transform mapping voxel indices -> MNI/world coordinates.
-    labels : dict or list or None
-        Region labels. If a dict, keys should be strings for numeric indices, 
-        and values are region names. If a list/array, it should match `index`.
-    index : list or np.ndarray or None
-        Region indices (numeric) corresponding to the labels list/array. Not needed if `labels` is a dict.
-    system : str
-        The anatomical coordinate space (e.g. "mni", "tal").
+    :param name: Identifier for the atlas (e.g. "aal" or "brodmann").
+    :vol: A 3D numpy array representing the volumetric atlas.
+    :hdr: A 4x4 affine transform mapping voxel indices -> MNI/world coordinates.
+    :labels: Region labels. If a dict, keys should be strings for numeric indices, and values are region names. If a list/array, it should match `index`.
+    :index: Region indices (numeric) corresponding to the labels list/array. Not needed if `labels` is a dict.
+    :system: The anatomical coordinate space (e.g. "mni", "tal").
 
     Attributes
     ----------
-    name : str
-    vol : np.ndarray
-    hdr : np.ndarray
-    labels : dict or list or None
-    index : list or np.ndarray or None
-    system : str
-    shape : tuple
-        Shape of the volumetric atlas (vol.shape).
+    :attrib: name: str
+    :attrib: vol: np.ndarray
+    :attrib: hdr: np.ndarray
+    :attrib: labels: dict or list or None
+    :attrib: index: list or np.ndarray or None
+    :attrib: system: str
+    :attrib: shape: tuple
     """
 
     def __init__(self,
@@ -55,12 +48,12 @@ class VolumetricAtlasMapper:
         self.system = system
 
         # Basic shape checks
-        # if self.vol.ndim != 3:
-        #     raise ValueError("`vol` must be a 3D numpy array.")
-        if self.hdr.shape != (4, 4):
-            raise ValueError("`hdr` must be a 4x4 transform matrix.")
-
-        self.shape = self.vol.shape
+        if self.vol is not None and self.hdr is not None:
+            if self.vol.ndim != 3:
+                raise ValueError("`vol` must be a 3D numpy array.")
+            if self.hdr.shape != (4, 4):
+                raise ValueError("`hdr` must be a 4x4 transform matrix.")
+            self.shape = self.vol.shape
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
@@ -73,6 +66,7 @@ class VolumetricAtlasMapper:
     # -------------------------------------------------------------------------
     # Internal lookups (private)
     # -------------------------------------------------------------------------
+
     def _lookup_region_name(self, value: Union[int, str]) -> str:
         """
         Return the region name corresponding to the given region index (int/str).
@@ -101,7 +95,6 @@ class VolumetricAtlasMapper:
                 return self.labels[int(value)]
             except (ValueError, IndexError):
                 return "Unknown"
-
         return "Unknown"
 
     def _lookup_region_index(self, label: str) -> Union[int, str]:
@@ -134,19 +127,19 @@ class VolumetricAtlasMapper:
                 return int(np.where(np.array(self.labels) == label)[0][0])
             except (ValueError, IndexError):
                 return "Unknown"
-
         return "Unknown"
 
     # -------------------------------------------------------------------------
     # Region name / index
     # -------------------------------------------------------------------------
-    def region_name_for_index(self, region_idx: Union[int, str]) -> str:
+
+    def region_name_from_index(self, region_idx: Union[int, str]) -> str:
         """
         Public method: Return region name from numeric region index.
         """
         return self._lookup_region_name(region_idx)
 
-    def region_index_for_name(self, region_name: str) -> Union[int, str]:
+    def region_index_from_name(self, region_name: str) -> Union[int, str]:
         """
         Public method: Return region index from region name.
         """
@@ -172,18 +165,19 @@ class VolumetricAtlasMapper:
         region_name = region if isinstance(region, str) else self._lookup_region_name(region)
         if region_name in (None, "Unknown"):
             return None
-
+        
+        if self.name.lower() == 'schaefer':
+            try:
+                return {'LH': 'L', 'RH': 'R'}.get(region.split('_')[1])
+            except IndexError:
+                return None
         lower = region_name.lower()
-        if lower.endswith('_l'):
-            return 'L'
-        elif lower.endswith('_r'):
-            return 'R'
-        else:
-            return None
+        return 'L' if lower.endswith('_l') else 'R' if lower.endswith('_r') else None
 
     # -------------------------------------------------------------------------
     # MNI <--> voxel conversions
     # -------------------------------------------------------------------------
+
     def mni_to_voxel(self, mni_coord: Union[List[float], np.ndarray]) -> Tuple[int, int, int]:
         """
         Convert an (x,y,z) MNI/world coordinate to voxel indices (i,j,k).
@@ -195,8 +189,12 @@ class VolumetricAtlasMapper:
         if pos_arr.shape != (3,):
             raise ValueError("`mni_coord` must be a 3-element (x,y,z).")
 
+        # MNI coordinates are usually in 3D (x, y, z), but to apply affine transformations, we need homogeneous coordinates (x, y, z, 1)
         homogeneous = np.append(pos_arr, 1)
         voxel = np.linalg.inv(self.hdr) @ homogeneous
+        #self.hdr is a 4×4 affine transformation matrix that maps voxel indices ↔ MNI coordinates.
+        #np.linalg.inv(self.hdr) computes the inverse of the affine matrix, which transforms MNI back to voxel space.
+        #@ homogeneous applies the matrix multiplication.
         ijk = tuple(map(int, np.round(voxel[:3])))
         return ijk
 
@@ -219,6 +217,7 @@ class VolumetricAtlasMapper:
     # -------------------------------------------------------------------------
     # MNI <--> region
     # -------------------------------------------------------------------------
+
     def mni_to_region_index(self, mni_coord: Union[List[float], np.ndarray]) -> Union[int, str]:
         """
         Return the region index for a given MNI coordinate.
@@ -240,6 +239,7 @@ class VolumetricAtlasMapper:
     # -------------------------------------------------------------------------
     # region index/name <--> all voxel coords
     # -------------------------------------------------------------------------
+    
     def region_index_to_mni(self, region_idx: Union[int, str]) -> np.ndarray:
         """
         Return an Nx3 array of MNI coords for all voxels matching the specified region index.
@@ -260,40 +260,40 @@ class VolumetricAtlasMapper:
         Return an Nx3 array of MNI coords for all voxels matching the specified region name.
         Returns an empty array if none found.
         """
-        region_idx = self.region_index_for_name(region_name)
+        region_idx = self.region_index_from_name(region_name)
         if region_idx == "Unknown":
             return np.empty((0, 3))
         return self.region_index_to_mni(region_idx)
 
 class BatchAtlasMapper:
     """
-    Provides batch (vectorized) conversions over many coordinates for a single VolumetricAtlasMapper.
+    Provides batch (vectorized) conversions over many coordinates for a single AtlasMapper.
 
     Example:
     --------
-    mapper = VolumetricAtlasMapper(...)
+    mapper = AtlasMapper(...)
     batch = BatchAtlasMapper(mapper)
 
     regions = batch.batch_mni_to_region_name([[0, 0, 0], [10, -20, 30]])
     """
 
-    def __init__(self, mapper: VolumetricAtlasMapper) -> None:
-        if not isinstance(mapper, VolumetricAtlasMapper):
-            raise ValueError("mapper must be an instance of VolumetricAtlasMapper")
+    def __init__(self, mapper: AtlasMapper) -> None:
+        if not isinstance(mapper, AtlasMapper):
+            raise ValueError("mapper must be an instance of AtlasMapper")
         self.mapper = mapper
 
     # ---- region name <-> index (batch) ---------------------------------------
-    def batch_region_name_for_index(self, values: List[Union[int, str]]) -> List[str]:
+    def batch_region_name_from_index(self, values: List[Union[int, str]]) -> List[str]:
         """
         For each region index in `values`, return the corresponding region name.
         """
-        return [self.mapper.region_name_for_index(val) for val in values]
+        return [self.mapper.region_name_from_index(val) for val in values]
 
-    def batch_region_index_for_name(self, labels: List[str]) -> List[Union[int, str]]:
+    def batch_region_index_from_name(self, labels: List[str]) -> List[Union[int, str]]:
         """
         For each region name in `labels`, return the corresponding region index.
         """
-        return [self.mapper.region_index_for_name(label) for label in labels]
+        return [self.mapper.region_index_from_name(label) for label in labels]
 
     # ---- MNI <-> voxel (batch) -----------------------------------------------
     def batch_mni_to_voxel(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
@@ -339,23 +339,18 @@ class BatchAtlasMapper:
         """
         return [self.mapper.region_name_to_mni(r) for r in regions]
 
-from .fetching import AtlasFetcher  
 class MultiAtlasMapper:
     """
-    Manages multiple volumetric atlases by name, providing batch MNI->region or region->MNI queries
+    Manages multiple atlases by name, providing batch MNI->region or region->MNI queries
     across all atlases at once.
 
     Parameters
     ----------
-    data_dir : str
-        Directory for atlas data.
-    atlases : dict
-        Dictionary of {atlas_name: fetch_kwargs}, used by AtlasFetcher to retrieve each atlas.
+    :params data_dir: Directory for atlas data.
+    :params atlases: Dictionary of {atlas_name: fetch_kwargs}, used by AtlasFetcher to retrieve each atlas.
 
     Attributes
-    ----------
-    mappers : dict
-        Each entry {atlas_name: BatchAtlasMapper}
+    :attrib: mappers: dict
     """
 
     def __init__(self, data_dir: str, atlases: Dict[str, Dict[str, Any]]) -> None:
@@ -364,14 +359,13 @@ class MultiAtlasMapper:
         atlas_fetcher = AtlasFetcher(data_dir=data_dir)
         for name, kwargs in atlases.items():
             atlas_data = atlas_fetcher.fetch_atlas(name, **kwargs)
-            # Create a VolumetricAtlasMapper for this atlas_data
             vol = atlas_data["vol"]
             hdr = atlas_data["hdr"]
             labels = atlas_data.get("labels")
             index = atlas_data.get("index")
             # system = atlas_data.get("system", "mni")
 
-            single_mapper = VolumetricAtlasMapper(
+            single_mapper = AtlasMapper(
                 name=name,
                 vol=vol,
                 hdr=hdr,
