@@ -45,11 +45,6 @@ def not_ready_test_fetch_mne_atlases():
     atlas = af.fetch_atlas('aparc.a2009s')
     print(atlas)
 
-def not_ready_test_fetch_mne_atlases():
-    af = AtlasFetcher(data_dir="mne_data")
-    atlas = af.fetch_atlas('aparc.a2009s')
-    print(atlas)
-
 def _fetch_atlas_helper(atlas_name):
     af = AtlasFetcher(data_dir="atlas_data")
     atlas = af.fetch_atlas(atlas_name)
