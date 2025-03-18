@@ -24,7 +24,6 @@ except ImportError:
     logger.warning("Biopython not found. Abstract fetching will be disabled.")
 
 # TODO: Add more nimare datasets ! and optinally private datasets
-# TODO: Remove duplicates when returning studies
 
 def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = True) -> Dict[str, Dataset]:
     """
@@ -140,6 +139,23 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
             logger.warning(f"Failed to fetch abstract for PMID {pmid}: {e}")
     return study_entry
 
+def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    unique = {}
+    for st in studies:
+        # If IDs are like '24984958-1', split at the dash
+        full_id = st.get("id", "")
+        # Keep only the left part of the dash (the actual PMID)
+        pmid = full_id.split("-")[0]
+        # Use that as your key to unify across sources
+        key = pmid
+
+        if key not in unique:
+            unique[key] = st
+        else:
+            # Optionally merge or just skip
+            pass
+    return list(unique.values())
+
 
 def get_studies_for_coordinate(
     datasets: Dict[str, Dataset],
@@ -180,35 +196,3 @@ def get_studies_for_coordinate(
     # Remove duplicates before returning
     studies_info = remove_duplicate_studies(studies_info)
     return studies_info
-
-def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    unique = {}
-    for st in studies:
-        # If IDs are like '24984958-1', split at the dash
-        full_id = st.get("id", "")
-        # Keep only the left part of the dash (the actual PMID)
-        pmid = full_id.split("-")[0]
-        # Use that as your key to unify across sources
-        key = pmid
-
-        if key not in unique:
-            unique[key] = st
-        else:
-            # Optionally merge or just skip
-            pass
-    return list(unique.values())
-
-
-
-# Example usage:
-if __name__ == '__main__':
-    DATA_DIR = "nimare_data"
-    # Fetch datasets (Neurosynth and NeuroQuery)
-    nimare_datasets = fetch_datasets(DATA_DIR)
-    # Example coordinate (MNI)
-    coordinate = [30, 22, -8]
-    # Optionally, provide an email for fetching PubMed abstracts.
-    email_address = "babasanfour1503@gmail.com"  
-    studies = get_studies_for_coordinate(nimare_datasets, coordinate, email=email_address)
-    for study in studies:
-        print(study)
