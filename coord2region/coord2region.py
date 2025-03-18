@@ -55,8 +55,8 @@ class VolumetricAtlasMapper:
         self.system = system
 
         # Basic shape checks
-        if self.vol.ndim != 3:
-            raise ValueError("`vol` must be a 3D numpy array.")
+        # if self.vol.ndim != 3:
+        #     raise ValueError("`vol` must be a 3D numpy array.")
         if self.hdr.shape != (4, 4):
             raise ValueError("`hdr` must be a 4x4 transform matrix.")
 
