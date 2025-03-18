@@ -339,9 +339,7 @@ class BatchAtlasMapper:
         """
         return [self.mapper.region_name_to_mni(r) for r in regions]
 
-from .fetching import AtlasFetcher  # Keep the same import if it's in the same package.
-
-
+from .fetching import AtlasFetcher  
 class MultiAtlasMapper:
     """
     Manages multiple volumetric atlases by name, providing batch MNI->region or region->MNI queries
