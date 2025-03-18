@@ -23,14 +23,22 @@ class AtlasFileHandler:
         :param data_dir: Directory to store/download atlas files.
              Defaults to a 'data' folder within a hidden '.coord2region' folder in the user's home directory.
         """
-        # TODO check if the data_dir is a valid path
-        # TODO check if data_dir is an absolute path before assigning home_dir
         home_dir = os.path.expanduser("~")
         if data_dir is None:
-            self.data_dir = os.path.join(home_dir, 'coord2region_data')
+            self.data_dir = os.path.join(home_dir, 'coord2region')
+        elif os.path.isabs(data_dir):
+            self.data_dir = data_dir
         else:
             self.data_dir = os.path.join(home_dir, data_dir)
-        os.makedirs(self.data_dir, exist_ok=True)
+
+        try:
+            os.makedirs(self.data_dir, exist_ok=True)
+        except Exception as e:
+            raise ValueError(f"Could not create data directory {self.data_dir}: {e}")
+
+        if not os.access(self.data_dir, os.W_OK):
+            raise ValueError(f"Data directory {self.data_dir} is not writable")
+
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
