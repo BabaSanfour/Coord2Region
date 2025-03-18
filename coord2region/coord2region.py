@@ -140,13 +140,13 @@ class VolumetricAtlasMapper:
     # -------------------------------------------------------------------------
     # Region name / index
     # -------------------------------------------------------------------------
-    def region_name_for_index(self, region_idx: Union[int, str]) -> str:
+    def region_name_from_index(self, region_idx: Union[int, str]) -> str:
         """
         Public method: Return region name from numeric region index.
         """
         return self._lookup_region_name(region_idx)
 
-    def region_index_for_name(self, region_name: str) -> Union[int, str]:
+    def region_index_from_name(self, region_name: str) -> Union[int, str]:
         """
         Public method: Return region index from region name.
         """
@@ -172,7 +172,16 @@ class VolumetricAtlasMapper:
         region_name = region if isinstance(region, str) else self._lookup_region_name(region)
         if region_name in (None, "Unknown"):
             return None
-
+        
+        if self.name == 'schaefer':
+            hemi = region.split('_')[1]
+            if hemi == 'LH':
+                return 'L'
+            if hemi == 'RH':
+                return 'R'
+            else:
+                #TODO:logger.warn
+                return None
         lower = region_name.lower()
         if lower.endswith('_l'):
             return 'L'
@@ -195,8 +204,12 @@ class VolumetricAtlasMapper:
         if pos_arr.shape != (3,):
             raise ValueError("`mni_coord` must be a 3-element (x,y,z).")
 
+        # MNI coordinates are usually in 3D (x, y, z), but to apply affine transformations, we need homogeneous coordinates (x, y, z, 1)
         homogeneous = np.append(pos_arr, 1)
         voxel = np.linalg.inv(self.hdr) @ homogeneous
+        #self.hdr is a 4×4 affine transformation matrix that maps voxel indices ↔ MNI coordinates.
+        #np.linalg.inv(self.hdr) computes the inverse of the affine matrix, which transforms MNI back to voxel space.
+        #@ homogeneous applies the matrix multiplication.
         ijk = tuple(map(int, np.round(voxel[:3])))
         return ijk
 
@@ -260,7 +273,7 @@ class VolumetricAtlasMapper:
         Return an Nx3 array of MNI coords for all voxels matching the specified region name.
         Returns an empty array if none found.
         """
-        region_idx = self.region_index_for_name(region_name)
+        region_idx = self.region_index_from_name(region_name)
         if region_idx == "Unknown":
             return np.empty((0, 3))
         return self.region_index_to_mni(region_idx)
@@ -283,17 +296,17 @@ class BatchAtlasMapper:
         self.mapper = mapper
 
     # ---- region name <-> index (batch) ---------------------------------------
-    def batch_region_name_for_index(self, values: List[Union[int, str]]) -> List[str]:
+    def batch_region_name_from_index(self, values: List[Union[int, str]]) -> List[str]:
         """
         For each region index in `values`, return the corresponding region name.
         """
-        return [self.mapper.region_name_for_index(val) for val in values]
+        return [self.mapper.region_name_from_index(val) for val in values]
 
-    def batch_region_index_for_name(self, labels: List[str]) -> List[Union[int, str]]:
+    def batch_region_index_from_name(self, labels: List[str]) -> List[Union[int, str]]:
         """
         For each region name in `labels`, return the corresponding region index.
         """
-        return [self.mapper.region_index_for_name(label) for label in labels]
+        return [self.mapper.region_index_from_name(label) for label in labels]
 
     # ---- MNI <-> voxel (batch) -----------------------------------------------
     def batch_mni_to_voxel(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
