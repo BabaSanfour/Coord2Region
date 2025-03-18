@@ -6,7 +6,17 @@ from fetching import AtlasFetcher
 # TODO: Add getting region with the shortest distance to a given coordinate
 # TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
 # TODO: Add support for surface atlases
-
+def _get_numeric_hemi(hemi: Union[str, int]) -> int:
+    """
+    Convert hemisphere string to numeric code (0 or 1).
+    """
+    if isinstance(hemi, int):
+        return hemi
+    if hemi.lower() in ('l', 'lh', 'left'):
+        return 0
+    if hemi.lower() in ('r', 'rh', 'right'):
+        return 1
+    raise ValueError("Invalid hemisphere value. Use 'L', 'R', 'LH', 'RH', 0, or 1.")
 class AtlasMapper:
     """
     Stores a single atlas (a 3D numpy array + 4x4 affine for volumetric 
@@ -295,7 +305,7 @@ class AtlasMapper:
     # region index/name <--> all voxel coords
     # -------------------------------------------------------------------------
     
-    def region_index_to_mni(self, region_idx: Union[int, str]) -> np.ndarray:
+    def region_index_to_mni(self, region_idx: Union[int, str], hemi: Optional[int] = None) -> np.ndarray:
         """
         Return an Nx3 array of MNI coords for all voxels matching the specified region index.
         Returns an empty array if none found.
@@ -305,10 +315,13 @@ class AtlasMapper:
             idx_val = int(region_idx)
         except (ValueError, TypeError):
             return np.empty((0, 3))
-        coords = np.argwhere(self.vol == idx_val)
+        if self.atlas_type == 'volume':
+            coords = np.argwhere(self.vol == idx_val)
+        elif self.atlas_type == 'surface':
+            coords = np.argwhere(self.index == idx_val)
         if coords.size == 0:
             return np.empty((0, 3))
-        return self.voxel_to_mni(coords)
+        return self.convert_to_mni(coords, hemi) # Gets all mnicoords for the region if surface atlas
 
     def region_name_to_mni(self, region_name: str) -> np.ndarray:
         """
@@ -318,7 +331,7 @@ class AtlasMapper:
         region_idx = self.region_index_from_name(region_name)
         if region_idx == "Unknown":
             return np.empty((0, 3))
-        return self.region_index_to_mni(region_idx)
+        return self.region_index_to_mni(region_idx, _get_numeric_hemi(self.infer_hemisphere(region_name)))
 
 class BatchAtlasMapper:
     """
@@ -473,6 +486,8 @@ if __name__ == '__main__':
     print(aparc_mapper.convert_to_mni(32, hemi=0))
     print(aparc_mapper.convert_to_source([-23.91684151, -78.48731995,  16.8182888]))
     print(aparc_mapper.mni_to_region_name([-23.91684151, -78.48731995,  16.8182888]))
+    print(aparc_mapper.region_index_to_mni(32, 0))
+    print(aparc_mapper.region_name_to_mni("S_oc_sup_and_transversal-lh"))
 
 
 
