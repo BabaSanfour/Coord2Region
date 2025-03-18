@@ -3,7 +3,8 @@ import sys
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from nimare.extract import fetch_neurosynth, fetch_neuroquery
+from nimare.extract import fetch_neurosynth, fetch_neuroquery, download_nidm_pain
+from nimare.utils import get_resource_path
 from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
 
@@ -25,7 +26,7 @@ except ImportError:
 # TODO: Add more nimare datasets ! and optinally private datasets
 # TODO: Remove duplicates when returning studies
 
-def fetch_datasets(data_dir: str) -> Dict[str, Dataset]:
+def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = True) -> Dict[str, Dataset]:
     """
     Fetch and convert Neurosynth and NeuroQuery datasets into NiMARE Dataset objects.
     
@@ -35,46 +36,58 @@ def fetch_datasets(data_dir: str) -> Dict[str, Dataset]:
     datasets: Dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
     
-    # Fetch Neurosynth data
-    try:
-        ns_files = fetch_neurosynth(
-            data_dir=data_dir,
-            version="7",
-            source="abstract",
-            vocab="terms",
-            overwrite=False
-        )
-        ns_data = ns_files[0]  # fetch_neurosynth returns a list of dicts
-        neurosynth_dset = convert_neurosynth_to_dataset(
-            coordinates_file=ns_data["coordinates"],
-            metadata_file=ns_data["metadata"],
-            annotations_files=ns_data.get("features")
-        )
-        datasets["Neurosynth"] = neurosynth_dset
-        logger.info("Neurosynth dataset loaded successfully.")
-    except Exception as e:
-        logger.warning(f"Failed to fetch/convert Neurosynth dataset: {e}")
+    if neurosynth:
+        # Fetch Neurosynth data
+        try:
+            ns_files = fetch_neurosynth(
+                data_dir=data_dir,
+                version="7",
+                source="abstract",
+                vocab="terms",
+                overwrite=False
+            )
+            ns_data = ns_files[0]  # fetch_neurosynth returns a list of dicts
+            neurosynth_dset = convert_neurosynth_to_dataset(
+                coordinates_file=ns_data["coordinates"],
+                metadata_file=ns_data["metadata"],
+                annotations_files=ns_data.get("features")
+            )
+            datasets["Neurosynth"] = neurosynth_dset
+            logger.info("Neurosynth dataset loaded successfully.")
+        except Exception as e:
+            logger.warning(f"Failed to fetch/convert Neurosynth dataset: {e}")
 
-    # Fetch NeuroQuery data
+    if neuroquery:
+        # Fetch NeuroQuery data
+        try:
+            nq_files = fetch_neuroquery(
+                data_dir=data_dir,
+                version="1",
+                source="combined",
+                vocab="neuroquery6308",
+                type="tfidf",
+                overwrite=False
+            )
+            nq_data = nq_files[0]
+            neuroquery_dset = convert_neurosynth_to_dataset(
+                coordinates_file=nq_data["coordinates"],
+                metadata_file=nq_data["metadata"],
+                annotations_files=nq_data.get("features")
+            )
+            datasets["NeuroQuery"] = neuroquery_dset
+            logger.info("NeuroQuery dataset loaded successfully.")
+        except Exception as e:
+            logger.warning(f"Failed to fetch/convert NeuroQuery dataset: {e}")
+
+    # Fetch NIDM-Pain data
     try:
-        nq_files = fetch_neuroquery(
-            data_dir=data_dir,
-            version="1",
-            source="combined",
-            vocab="neuroquery6308",
-            type="tfidf",
-            overwrite=False
-        )
-        nq_data = nq_files[0]
-        neuroquery_dset = convert_neurosynth_to_dataset(
-            coordinates_file=nq_data["coordinates"],
-            metadata_file=nq_data["metadata"],
-            annotations_files=nq_data.get("features")
-        )
-        datasets["NeuroQuery"] = neuroquery_dset
-        logger.info("NeuroQuery dataset loaded successfully.")
+        nidm_pain_file = download_nidm_pain(data_dir=data_dir, overwrite=False)
+        dset_file = os.path.join(get_resource_path(), "nidm_pain_dset.json")
+        nidm_pain_dset = Dataset(dset_file,target="mni152_2mm", mask=None)
+        datasets["NIDM-Pain"] = nidm_pain_dset
+        logger.info("NIDM-Pain dataset loaded successfully.")
     except Exception as e:
-        logger.warning(f"Failed to fetch/convert NeuroQuery dataset: {e}")
+        logger.warning(f"Failed to fetch/convert NIDM-Pain dataset: {e}")
 
     if not datasets:
         sys.exit("Error: No datasets could be loaded. Ensure you have internet access and NiMARE supports the datasets.")

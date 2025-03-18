@@ -23,7 +23,7 @@ def test_fetch_datasets_integration(tmp_path):
 
     # This will actually download (unless cached) the datasets.
     # If you want to skip real data fetch, remove or mark with @pytest.mark.skip
-    dsets = fetch_datasets(str(data_dir))
+    dsets = fetch_datasets(str(data_dir), neurosynth=False, neuroquery=False)
     assert isinstance(dsets, dict), "fetch_datasets must return a dict"
     # Expect at least Neurosynth or NeuroQuery in the dictionary
     assert len(dsets) > 0, "Expected at least one dataset"
@@ -39,7 +39,7 @@ def test_get_studies_for_coordinate_integration(tmp_path):
     """
     data_dir = tmp_path / "nimare_data"
     data_dir.mkdir(exist_ok=True)
-    dsets = fetch_datasets(str(data_dir))
+    dsets = fetch_datasets(str(data_dir),neurosynth=False, neuroquery=False)
 
     # Known coordinate for testing (this might or might not yield hits)
     coordinate = (-30, -22, 50)
