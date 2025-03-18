@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from coord2region.fetching import AtlasFetcher
-from coord2region.coord2region import VolumetricAtlasMapper, BatchAtlasMapper, MultiAtlasMapper
+from coord2region.coord2region import AtlasMapper, BatchAtlasMapper, MultiAtlasMapper
 
 # Atlas Properties for Validation
 PROPERTIES = {
@@ -45,9 +45,9 @@ def fresh_atlas_data(request):
 # Fixture: Create Volumetric Mapper
 @pytest.fixture(scope="function")
 def volumetric_mapper(fresh_atlas_data):
-    """Creates a fresh VolumetricAtlasMapper per test."""
+    """Creates a fresh AtlasMapper per test."""
     atlas_name, data = fresh_atlas_data
-    return VolumetricAtlasMapper(
+    return AtlasMapper(
         name=atlas_name,
         vol=data["vol"],
         hdr=data["hdr"],
@@ -61,7 +61,7 @@ def vectorized_mapper(fresh_atlas_data):
     """Creates a BatchAtlasMapper for a given atlas."""
     atlas_name, data = fresh_atlas_data
     return BatchAtlasMapper(
-        VolumetricAtlasMapper(
+        AtlasMapper(
             name=atlas_name,
             vol=data["vol"],
             hdr=data["hdr"],

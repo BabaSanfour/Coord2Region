@@ -44,9 +44,6 @@ class AtlasFileHandler:
         except Exception as e:
             raise ValueError(f"Could not create data directory {self.data_dir}: {e}")
 
-        if not os.access(self.data_dir, os.W_OK):
-            raise ValueError(f"Data directory {self.data_dir} is not writable")
-
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
@@ -98,8 +95,8 @@ class AtlasFileHandler:
                 raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
         else:
             if isinstance(file, Nifti1Image):
-                vol_data = fname.get_fdata(dtype=np.float32)
-                hdr_matrix = fname.affine
+                vol_data = file.get_fdata(dtype=np.float32)
+                hdr_matrix = file.affine
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
@@ -314,14 +311,15 @@ class AtlasFetcher:
         labels = kwargs.get("labels") or kwargs.get("label_file")
 
         # Case (b/c): Local file path or Nifti1Image object.
-        atlas_file = kwargs.get("atlas_file")
-        if atlas_file and os.path.isfile(atlas_file):
+        atlas_file = kwargs.get("atlas_file", None)
+        if atlas_file is not None and os.path.isfile(atlas_file):
             return self.file_handler.fetch_from_local(atlas_file, labels)
-        elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
+        elif atlas_file is not None and os.path.isfile(os.path.join(self.data_dir, atlas_file)):
+        # elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
             return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_file), labels)
         
         atlas_image = kwargs.get("atlas_image")
-        if isinstance(atlas_image, Nifti1Image, np.ndarray):
+        if isinstance(atlas_image, (Nifti1Image, np.ndarray)):
             output = self.file_handler.pack_vol_output(atlas_image)
             output['labels'] = self.file_handler.fetch_labels(labels)
             return output
