@@ -163,8 +163,27 @@ def get_studies_for_coordinate(
             study_metadata = _extract_study_metadata(dset, sid)
             study_entry.update(study_metadata)
             studies_info.append(study_entry)
-
+    # Remove duplicates before returning
+    studies_info = remove_duplicate_studies(studies_info)
     return studies_info
+
+def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    unique = {}
+    for st in studies:
+        # If IDs are like '24984958-1', split at the dash
+        full_id = st.get("id", "")
+        # Keep only the left part of the dash (the actual PMID)
+        pmid = full_id.split("-")[0]
+        # Use that as your key to unify across sources
+        key = pmid
+
+        if key not in unique:
+            unique[key] = st
+        else:
+            # Optionally merge or just skip
+            pass
+    return list(unique.values())
+
 
 
 # Example usage:
@@ -173,7 +192,7 @@ if __name__ == '__main__':
     # Fetch datasets (Neurosynth and NeuroQuery)
     nimare_datasets = fetch_datasets(DATA_DIR)
     # Example coordinate (MNI)
-    coordinate = [-30, -22, 50]
+    coordinate = [30, 22, -8]
     # Optionally, provide an email for fetching PubMed abstracts.
     email_address = "babasanfour1503@gmail.com"  
     studies = get_studies_for_coordinate(nimare_datasets, coordinate, email=email_address)

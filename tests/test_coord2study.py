@@ -8,7 +8,8 @@ from unittest.mock import patch, MagicMock
 from coord2region.coord2study import (
     fetch_datasets,
     get_studies_for_coordinate,
-    _extract_study_metadata
+    _extract_study_metadata,
+    remove_duplicate_studies
 )
 
 @pytest.mark.integration
@@ -105,3 +106,44 @@ def test_extract_study_metadata_mock():
     assert entry["title"] == "Example Title"
 
     # If you want to test the PubMed retrieval portion, you could also patch Bio.Entrez calls.
+@pytest.mark.unit
+def test_remove_duplicate_studies():
+    """
+    Tests that remove_duplicate_studies properly removes duplicates 
+    by extracting the PMID from the 'id' field (e.g. '123456-1' -> '123456').
+    """
+    # Suppose we have multiple entries with the same PMID but different sources or suffixes
+    studies = [
+        {"id": "123456-1", "title": "Study A", "source": "Neurosynth"},
+        {"id": "123456-2", "title": "Study A (dup)", "source": "NeuroQuery"},
+        {"id": "19224116-1", "title": "Study B", "source": "Neurosynth"},
+        {"id": "19224116-1", "title": "Study B (exact dup)", "source": "Neurosynth"},
+        {"id": "999999-9", "title": "Study C", "source": "NeuroQuery"},
+    ]
+    # After removing duplicates by PMID, we should only have one of each unique PMID: 123456, 19224116, 999999
+    # The logic in remove_duplicate_studies() picks the first occurrence for each PMID key
+    cleaned = remove_duplicate_studies(studies)
+
+    # We expect 3 unique PMIDs in the result
+    assert len(cleaned) == 3, f"Expected 3 unique entries but got {len(cleaned)}"
+
+    # We expect only the first occurrence of '123456' to appear
+    # which is the '123456-1' from Neurosynth
+    pmids = [entry["id"].split("-")[0] for entry in cleaned]
+    assert "123456" in pmids
+    assert "19224116" in pmids
+    assert "999999" in pmids
+
+    # Make sure we don't see the second or third duplicates in the result.
+    # Specifically, '123456-2' should be replaced by '123456-1'
+    # and '19224116-1' repeated entry is also consolidated.
+    # The test doesn't necessarily require us to check the "source"
+    # but let's confirm the code used the FIRST entry for '123456':
+    # i.e., the "title" is "Study A" from "Neurosynth"
+    for entry in cleaned:
+        if entry["id"].startswith("123456"):
+            assert entry["title"] == "Study A"
+            assert entry["source"] == "Neurosynth"
+        if entry["id"].startswith("19224116"):
+            assert entry["title"] == "Study B"
+            assert entry["source"] == "Neurosynth"
