@@ -149,11 +149,14 @@ class AtlasFileHandler:
         }
 
         labmap = {v: lab for lab, verts in cortex_dict.items() for v in np.atleast_1d(verts)}
+        indexes = np.array(list(labmap.keys()))
+        labels = np.array(list(labmap.values()))
 
         return {
             'vol': [lh_vert, rh_vert],
             'hdr': None,
-            'labels': labmap,
+            'labels': labels,
+            'indexes': indexes,
         }
 
     def fetch_from_local(self, atlas: str, labels: str):
