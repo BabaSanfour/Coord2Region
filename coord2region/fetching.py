@@ -110,7 +110,7 @@ class AtlasFileHandler:
                     'hdr': hdr_matrix,
                 }
 
-    def pack_surf_output(self, fetcher: mne.datasets, subject: str='fsaverage', subjects_dir: str=None, parc: str = 'aparc', **kwargs):
+    def pack_surf_output(self, fetcher: mne.datasets, subject: str = 'fsaverage', subjects_dir: str = None, parc: str = 'aparc', **kwargs):
         """
         Load surface-based atlas using MNE from FreeSurfer annotation files.
 
@@ -122,35 +122,55 @@ class AtlasFileHandler:
         """
         import mne
 
-        if self.subjects_dir is None:
+        # Determine subjects_dir: use self.subjects_dir if available, otherwise the provided one or default.
+        if hasattr(self, 'subjects_dir') and self.subjects_dir is not None:
+            subjects_dir = self.subjects_dir
+        elif subjects_dir is None:
             subjects_dir = mne.datasets.sample.data_path() / "subjects"
 
-        # Read annotation labels
+        # Read annotation labels; if missing, use fetcher to obtain the atlas.
         try:
-            labels = mne.read_labels_from_annot(
-                subject, parc, subjects_dir=subjects_dir, **kwargs
-            )
+            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
         except Exception as e:
-            #use fetcher to get the atlas
             fetcher(subjects_dir=subjects_dir)
-            labels = mne.read_labels_from_annot(
-                subject, parc, subjects_dir=subjects_dir, **kwargs
-            )
-        # Set up source space to retrieve vertices information
+            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
+
+        # Set up source space to get vertex information.
         src = mne.setup_source_space(subject, spacing='oct6', subjects_dir=subjects_dir, add_dist=False)
-        lh_vert = src[0]['vertno']
-        rh_vert = src[1]['vertno']
-    
-        cortex_dict = {
-            label.name: (np.searchsorted(lh_vert, np.intersect1d(lh_vert, label.vertices))
-                        if label.hemi == 'lh'
-                        else len(lh_vert) + np.searchsorted(rh_vert, np.intersect1d(rh_vert, label.vertices)))
-            for label in labels
+        lh_vert = src[0]['vertno']  # Left hemisphere vertex numbers (sorted)
+        rh_vert = src[1]['vertno']  # Right hemisphere vertex numbers (sorted)
+
+        # For each label, find the indices (positions in lh_vert/rh_vert) that are part of the label.
+        cortex_dict_lh = {
+            label.name: np.nonzero(np.in1d(lh_vert, label.vertices))[0]
+            for label in labels if label.hemi == 'lh'
+        }
+        cortex_dict_rh = {
+            label.name: np.nonzero(np.in1d(rh_vert, label.vertices))[0]
+            for label in labels if label.hemi == 'rh'
         }
 
-        labmap = {v: lab for lab, verts in cortex_dict.items() for v in np.atleast_1d(verts)}
-        indexes = np.array(list(labmap.keys()))
-        labels = np.array(list(labmap.values()))
+        # Build labmap: map from the index (position in the hemisphere vertex array) to the label name.
+        labmap_lh = {}
+        for lab, indices in cortex_dict_lh.items():
+            for idx in indices:
+                labmap_lh[idx] = lab
+        labmap_rh = {}
+        for lab, indices in cortex_dict_rh.items():
+            for idx in indices:
+                labmap_rh[idx] = lab
+
+        # Extract sorted indices and their corresponding labels, ensuring the order matches.
+        index_lh = np.sort(np.array(list(labmap_lh.keys())))
+        labels_lh = np.array([labmap_lh[i] for i in index_lh])
+        # Actual vertex numbers from lh_vert using the ordered indices.
+        vmap_lh = lh_vert[index_lh]
+
+        index_rh = np.sort(np.array(list(labmap_rh.keys())))
+        labels_rh = np.array([labmap_rh[i] for i in index_rh])
+        vmap_rh = rh_vert[index_rh]
+        labels = np.concatenate([labels_lh, labels_rh])
+        indexes = np.concatenate([vmap_lh, vmap_rh])
 
         return {
             'vol': [lh_vert, rh_vert],

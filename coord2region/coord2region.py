@@ -1,4 +1,5 @@
 import numpy as np
+import mne
 from typing import Any, Dict, List, Optional, Union, Tuple
 from fetching import AtlasFetcher
 
@@ -44,6 +45,7 @@ class AtlasMapper:
 
         self.name = name
         self.labels = labels
+        print(len(index))
         self.index = index
         self.system = system
 
@@ -56,11 +58,13 @@ class AtlasMapper:
             if self.hdr.shape != (4, 4):
                 raise ValueError("`hdr` must be a 4x4 transform matrix.")
             self.shape = self.vol.shape
-            self.atlases_type = 'volume'
+            self.atlas_type = 'volume'
         if isinstance(vol, list):
             self.vol = vol
             self.hdr = None
-            self.atlases_type = 'surface'
+            self.atlas_type = 'surface'
+            self.subject = subject
+            self.subjects_dir = subjects_dir
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
@@ -204,6 +208,27 @@ class AtlasMapper:
         #@ homogeneous applies the matrix multiplication.
         ijk = tuple(map(int, np.round(voxel[:3])))
         return ijk
+    
+    def mni_to_vertex(self, mni_coord: Union[List[float], np.ndarray]) -> np.ndarray:
+        """
+        Convert MNI coordinates to vertices.
+        Returns an array of vertex indices from both hemispheres that match the given coordinate.
+        """
+        mni = mne.vertex_to_mni(self.vol, [0, 1], self.subject, self.subjects_dir)
+        mni_coord_round = np.round(mni_coord, decimals=5)
+        mni_rounded = np.round(mni, decimals=5)
+        matches = np.all(mni_rounded == mni_coord_round, axis=2)
+        vertex = np.nonzero(matches[0])[0] if matches[0].any() else np.nonzero(matches[1])[0]
+        return self.index[vertex]
+    
+    def convert_to_source(self, target: Union[List[float], np.ndarray], hemi: Optional[Union[List[int], int]] = None) -> np.ndarray:
+        """
+        Convert target mni to the source space.
+        """
+        if self.atlas_type == 'volume':
+            return self.mni_to_voxel(target)
+        if self.atlas_type == 'surface':
+            return self.mni_to_vertex(target)
 
     def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
         """
@@ -220,7 +245,26 @@ class AtlasMapper:
         if src_arr.shape[0] == 1:
             return coords[0]
         return coords
-
+    
+    def vertex_to_mni(self, vertices: Union[List[int], np.ndarray], hemi: Union[list[int], int]) -> np.ndarray:
+        """
+        Convert vertices to MNI coordinates.
+        Returns an array of shape (3,).
+        """
+        # use mne.vertex_to_mni
+        coords = mne.vertex_to_mni(vertices, hemi, self.subject, self.subjects_dir)
+        return coords
+    
+    def convert_to_mni(self, source: Union[List[int], np.ndarray], hemi: Optional[Union[List[int], int]] = None) -> np.ndarray:
+        """
+        Convert source space to MNI.
+        """
+        if self.atlas_type == 'volume':
+            return self.voxel_to_mni(source)
+        if self.atlas_type == 'surface':
+            if hemi is None:
+                raise ValueError("hemi must be provided for surface atlases")
+            return self.vertex_to_mni(source, hemi)
     # -------------------------------------------------------------------------
     # MNI <--> region
     # -------------------------------------------------------------------------
@@ -414,11 +458,17 @@ if __name__ == '__main__':
         vol=aparc['vol'],
         hdr=aparc['hdr'],
         labels=aparc['labels'],
+        index=aparc['indexes'],
+        subjects_dir=af.subjects_dir,
+
     )
-    print(aparc_mapper.region_name_from_index(4494))
-    print(aparc_mapper.region_index_from_name('S_calcarine-lh'))
-    print(aparc_mapper.list_all_regions())
+    print(aparc_mapper.region_name_from_index(32))
+    print(aparc_mapper.region_index_from_name('Lat_Fis-post-rh'))
+    # print(aparc_mapper.list_all_regions())
     print(aparc_mapper.infer_hemisphere("Lat_Fis-post-rh"))
+    print(aparc_mapper.convert_to_mni(75, hemi=1))
+    print(aparc_mapper.convert_to_source([42.82332993, -29.66965294,  22.00577736]))
+
 
 
 
