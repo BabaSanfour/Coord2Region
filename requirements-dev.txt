@@ -3,6 +3,7 @@ nibabel
 mne
 pytest-cov
 nimare
+bio
 sphinx>=4.0.0
 insegel
 furo
