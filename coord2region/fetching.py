@@ -3,10 +3,18 @@ import logging
 import numpy as np
 from typing import Optional
 from nibabel.nifti1 import Nifti1Image
-  
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# TODO: Raise SSL issue for URL not working suggest to download the file manually and provide the path (aal, brodmann, talairach)
+# TODO: test fetch from local file
+# TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
+# TODO add other nibabel, nilearn, mne atlases
+# TODO: UPDATE fetch mne atlases
+# TODO: add save/load methods for created objects!
+# TODO: add method to list available atlases
+# TODO: check for atlases that supported by both mne and nilearn if else
 
 class AtlasFileHandler:
     """
@@ -23,36 +31,51 @@ class AtlasFileHandler:
         :param data_dir: Directory to store/download atlas files.
              Defaults to a 'data' folder within a hidden '.coord2region' folder in the user's home directory.
         """
-        # TODO check if the data_dir is a valid path
-        # TODO check if data_dir is an absolute path before assigning home_dir
         home_dir = os.path.expanduser("~")
         if data_dir is None:
-            self.data_dir = os.path.join(home_dir, 'coord2region_data')
+            self.data_dir = os.path.join(home_dir, 'coord2region')
+        elif os.path.isabs(data_dir):
+            self.data_dir = data_dir
         else:
             self.data_dir = os.path.join(home_dir, data_dir)
-        os.makedirs(self.data_dir, exist_ok=True)
+
+        try:
+            os.makedirs(self.data_dir, exist_ok=True)
+        except Exception as e:
+            raise ValueError(f"Could not create data directory {self.data_dir}: {e}")
+
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
-    def pack_vol_output(self, fname: str, desc: str = None):
+    def fetch_labels(self, labels: str):
+        """
+        :param labels: Path to the labels file or a list of labels.
+        :return: A list of labels.
+        """
+        if isinstance(labels, str):
+            raise NotImplementedError("Reading labels from file is not yet implemented.")
+        elif isinstance(labels, list):
+            return labels
+        else:
+            raise ValueError(f"Invalid labels type: {type(labels)}")
+
+    def pack_vol_output(self, file: str):
         """
         Load an atlas file into a nibabel image (or numpy archive) and package it.
         
-        :param fname: Path to the atlas file.
-        :param desc: Short description.
-        :return: A dictionary with keys: 'vol', 'hdr', 'labels', 'description', 'file'.
+        :param file: Path to the atlas image file (NIfTI, NPZ) or a Nifti1Image object.
+        :return: A dictionary with keys: 'vol', 'hdr'.
         :raises ValueError: If file format is unrecognized.
         """
 
-        if isinstance(fname, str):
-            path = os.path.abspath(fname)
-            _, ext = os.path.splitext(fname)
+        if isinstance(file, str):
+            path = os.path.abspath(file)
+            _, ext = os.path.splitext(file)
             ext = ext.lower()
 
             if ext in ['.nii', '.gz', '.nii.gz']:
-                # TODO add try-except block for loading the image
                 import nibabel as nib
-                img = nib.load(fname)
+                img = nib.load(file)
                 vol_data = img.get_fdata(dtype=np.float32)
                 hdr_matrix = img.affine
                 return {
@@ -61,13 +84,9 @@ class AtlasFileHandler:
                 }
  
             elif ext == '.npz':
-                # TODO add try-except block for loading the archive
                 arch = np.load(path, allow_pickle=True)
                 vol_data = arch['vol']
                 hdr_matrix = arch['hdr']
-                # labels = None
-                # if 'labels' in arch and 'index' in arch:
-                #     labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
@@ -75,9 +94,9 @@ class AtlasFileHandler:
             else:
                 raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
         else:
-            if isinstance(fname,Nifti1Image):
-                vol_data = fname.get_fdata(dtype=np.float32)
-                hdr_matrix = fname.affine
+            if isinstance(file, Nifti1Image):
+                vol_data = file.get_fdata(dtype=np.float32)
+                hdr_matrix = file.affine
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
@@ -129,15 +148,17 @@ class AtlasFileHandler:
             'mni': mni_coords
         }
 
-    def fetch_from_local(self, atlas_path: str):
+    def fetch_from_local(self, atlas: str, labels: str):
         """
         Load an atlas from a local file.
         
-        :param atlas_path: Path to the local atlas file.
+        :param atlas: Path to the atlas file or a Nifti1Image object.
         :return: The standardized atlas dictionary.
         """
-        logger.info(f"Loading local atlas file: {atlas_path}")
-        return self.pack_vol_output(atlas_path, desc="Local file")
+        logger.info(f"Loading local atlas file: {atlas}")
+        output = self.pack_vol_output(atlas)
+        output['labels'] = self.fetch_labels(labels)
+        return output
 
     def fetch_from_url(self, atlas_url: str, **kwargs):
         """
@@ -148,14 +169,13 @@ class AtlasFileHandler:
         :return: The standardized atlas dictionary.
         :raises RuntimeError: if the download fails.
         """
-        # TODO document that the file name is expected to be in the URL
+        import warnings
+        warnings.warn("The file name is expected to be in the URL", UserWarning)
         import urllib.parse
         import requests
         #requests.packages.urllib3.disable_warnings()
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
-        if not file_name:
-            file_name = "atlas_download.nii.gz"
         local_path = os.path.join(self.data_dir, file_name)
 
         if not os.path.exists(local_path):
@@ -181,20 +201,15 @@ class AtlasFileHandler:
 
 class AtlasFetcher:
     """
-    Fetches neuroimaging atlases using various methods.
-    
     This class uses an AtlasFileHandler instance for file operations and provides atlas-specific
-    fetchers. Supported atlas identifiers include volumetric atlases such as:
+    fetchers. You can either download atlases using a URL, specify your atlas file, or use one of the
+    supported atlas identifiers including volumetric and surface atlases such as:
       - "aal", "brodmann", "harvard-oxford", "juelich", "schaefer", "yeo", "aparc2009"
-    
-    In addition, this module now supports MNE-based, surface annotation atlases via:
-      - "mne-annot" (generic annotation; requires keyword arguments 'subject' and 'subjects_dir')
-      - "mne-aparc2009" (a convenience key that sets parc to 'aparc.a2009s')
-      
+          
     Each fetcher returns a standardized dictionary. For volumetric atlases the keys are:
       'vol', 'hdr', 'labels', 'description', 'file'.
     For MNE annotation atlases, additional keys include:
-      'vmap' (label to vertex mapping), 'labmap' (vertex-to-label mapping), and 'mni' (MNI coordinates).
+      'vmap' (label-to-vertex mapping), 'labmap' (vertex-to-label mapping), and 'mni' (MNI coordinates).
     """
 
     # Fallback URL for Talairach atlas .
@@ -212,17 +227,6 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.mne_data = self.file_handler.mne_data
-        # self._atlas_fetchers = {
-        #     #"aal": self._fetch_atlas_aal,
-        #     "brodmann": self._fetch_atlas_brodmann,
-        #     "harvard-oxford": self._fetch_atlas_harvard_oxford,
-        #     "juelich": self._fetch_atlas_juelich,
-        #     "schaefer": self._fetch_atlas_schaefer,
-        #     "yeo": self._fetch_atlas_yeo,
-        #     # MNE-based atlases:
-        #     "aparc2009": self._fetch_atlas_aparc2009,
-        # }
-
         from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
 
         def _fetch_atlas_yeo_version(version='thick_17', **kwargs):
@@ -248,8 +252,6 @@ class AtlasFetcher:
             output['file'] = fetched[version]
             output['maps']=fetched[version] # this will be taken care of to make it an array later
             return output
-
-
 
         self._atlas_fetchers_nilearn = {
             'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': 'SPM12'}},
@@ -282,21 +284,21 @@ class AtlasFetcher:
     
     # ---- Public method ----
 
-    def fetch_atlas(self, atlas_name: str, atlas_url: str = None, version: str = None, **kwargs):
+    def fetch_atlas(self, atlas_name: str, atlas_url: str = None, **kwargs):
         """
         Fetch an atlas given an atlas identifier.
         
         The identifier can be:
             (a) A URL (starting with http:// or https://),
-            (b) A local file path,
-            (c) Nilearn or mne atlases atlases (e.g., "aal", "harvard-oxford", "aparc2009", "mne-annot", etc.).
+            (b) A local file path 
+            (c) Nifti1Image/NPZ object,
+            (d) Nilearn or mne atlases atlases (e.g., "aal", "harvard-oxford", "aparc2009", "mne-annot", etc.).
         
         For MNE-based atlases (keys starting with "mne-"), additional keyword arguments are required:
             - subject: subject identifier (e.g., "fsaverage")
             - subjects_dir: path to the FreeSurfer subjects directory
         
-        :param atlas_name: The atlas identifier or file path.
-        :param version: Version specifier (used for certain atlases, e.g., AAL).
+        :param atlas_name: The atlas identifier.
         :param atlas_url: (Optional) Override URL for fetching the atlas.
         :param kwargs: Additional keyword arguments for the specific fetcher.
         :return: A standardized atlas dictionary.
@@ -304,16 +306,25 @@ class AtlasFetcher:
         """
         # Case (a): URL provided.
         if atlas_url is not None and (atlas_url.startswith('http://') or atlas_url.startswith('https://')):
-            return self.file_handler.fetch_from_url(atlas_url, **kwargs)
+            return self.file_handler.fetch_from_local(self.file_handler.fetch_from_url(atlas_url, **kwargs))
+
+        labels = kwargs.get("labels") or kwargs.get("label_file")
+
+        # Case (b/c): Local file path or Nifti1Image object.
+        atlas_file = kwargs.get("atlas_file", None)
+        if atlas_file is not None and os.path.isfile(atlas_file):
+            return self.file_handler.fetch_from_local(atlas_file, labels)
+        elif atlas_file is not None and os.path.isfile(os.path.join(self.data_dir, atlas_file)):
+        # elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
+            return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_file), labels)
         
-        # Case (b): Local file path.
-        atlas_file = kwargs.get("atlas_file")
-        if atlas_file and os.path.isfile(atlas_file):
-            return self.file_handler.fetch_from_local(atlas_file)
-        elif os.path.isfile(os.path.join(self.data_dir, atlas_name)):
-            return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_name))
+        atlas_image = kwargs.get("atlas_image")
+        if isinstance(atlas_image, (Nifti1Image, np.ndarray)):
+            output = self.file_handler.pack_vol_output(atlas_image)
+            output['labels'] = self.file_handler.fetch_labels(labels)
+            return output
     
-        # Case (c): nilearn or mne atlases.
+        # Case (d): nilearn or mne atlases.
         key = atlas_name.lower()
         fetcher_nilearn = self._atlas_fetchers_nilearn.get(key, None)
         if fetcher_nilearn:
@@ -343,7 +354,6 @@ class AtlasFetcher:
                     logger.error(f"Atlas {key} not found in available atlas urls")
         
         fetcher_mne = self._atlas_fetchers_mne.get(key, None)
-
         if fetcher_mne:
             try:
                 this_kwargs = fetcher_mne['default_kwargs']
@@ -357,38 +367,3 @@ class AtlasFetcher:
                 logger.error(f"Failed to fetch atlas {key} using mne", e, exc_info=True)
                 return None
         raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
-
-
-# Example usage: # remove later
-if __name__ == '__main__':
-    af = AtlasFetcher(data_dir="atlas_data")
-    # TODO: fix fetch using url!
-    # atlas = af.fetch_atlas("aal", atlas_url="https://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz")
-    # logger.info(f"Fetched atlas: {atlas['description']} from file: {atlas['file']}")
-    # atlas = af.fetch_atlas("talairach", atlas_url="https://www.talairach.org/talairach.nii")
-    # logger.info(f"Fetched atlas: {atlas['description']} from file: {atlas['file']}")
-
-    # TODO: test fetch from local file
-
-    # TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
-    # TODO brodmann: self._fetch_atlas_brodmann is not downloading the file
-    # TODO harvard-oxford: self._fetch_atlas_harvard_oxford fix labels fetching for this atlas
-    # TODO juilich: self._fetch_atlas_juelich fix labels fetching for this atlas
-    # TODO schaefer: self._fetch_atlas_schaefer check if labels are extracted correctly
-    # TODO yeo: self._fetch_atlas_yeo check label extraction from description file
-    # TODO add other nibabel, nilearn, mne atlases
-    # atlas = af.fetch_atlas("yeo")
-    # print(isinstance(atlas, dict))
-    # print(atlas.keys())
-    # print(atlas["labels"])
-
-    # TODO: test fetching a surface-based atlas
-    # atlas = af.fetch_atlas("mne-annot", subject="fsaverage", subjects_dir="mne_data")
-    # print(isinstance(atlas, dict))
-
-    # TODO: add save/load methods for created atlases
-    # TODO: make output of fetch_atlas consistent
-    # TODO: add method to list available atlases
-    # TODO: refactor to use a single fetch method for all atlases
-    # TODO: add method to fetch all atlases at once
-    # TODO: check for atlases that supported by both mne and nilearn if else

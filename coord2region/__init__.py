@@ -1,5 +1,5 @@
 from .coord2region import (
-    VolumetricAtlasMapper,
+    AtlasMapper,
     BatchAtlasMapper,
     MultiAtlasMapper
 )
