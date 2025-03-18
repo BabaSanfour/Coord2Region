@@ -2,5 +2,13 @@ nilearn
 nibabel
 mne
 pytest-cov
--e .
 nimare
+sphinx>=4.0.0
+insegel
+furo
+sphinx_gallery
+sphinx-copybutton
+sphinxcontrib-mermaid
+sphinx-autoapi
+myst-parser
+-e .
