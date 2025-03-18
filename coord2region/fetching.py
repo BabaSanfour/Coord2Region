@@ -230,7 +230,7 @@ class AtlasFetcher:
             import re
             # replace any number of spaces with a single space in all lines
             lines = [re.sub(' +', ' ', line) for line in lines]
-            labels = {str(idx): line.strip().split(' ')[1] for idx, line in enumerate(lines)}
+            labels = [line.strip().split(' ')[1] for idx, line in enumerate(lines)]
             output = {}
             output['labels'] = labels
             output['description'] = fetched['description']
@@ -311,7 +311,13 @@ class AtlasFetcher:
                     fetched = fetcher_nilearn['fetcher'](**this_kwargs)
                 maphdr = self.file_handler.pack_vol_output(fetched["maps"])
                 fetched.update(maphdr)
+                fetched['vol']=np.squeeze(fetched['vol'])
                 fetched['kwargs'] = this_kwargs
+                if fetched.get('labels', None) is not None and isinstance(fetched['labels'], np.ndarray):
+                    labels = fetched['labels'].tolist()
+                    if isinstance(labels[0], bytes):
+                        labels = [label.decode('utf-8') for label in labels]
+                    fetched['labels'] = labels
                 return fetched
             except Exception as e:
                 logger.error(f"Failed to fetch atlas {key} using nilearn", e, exc_info=True)
