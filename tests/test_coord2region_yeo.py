@@ -46,20 +46,20 @@ def test_infer_hemisphere_yeo(yeo_mapper):
     # Typically 'L', 'R', or None.
     assert hemi is None or hemi == 'L', f"Expected 'L' or None, got {hemi}"
 
-def test_region_name_for_index_yeo(yeo_mapper):
+def test_region_name_from_index_yeo(yeo_mapper):
     """
     Check that we get a string (possibly 'Unknown') for a given index.
     """
-    region_name = yeo_mapper.region_name_for_index(1)
-    assert isinstance(region_name, str), "region_name_for_index(1) did not return a string."
+    region_name = yeo_mapper.region_name_from_index(1)
+    assert isinstance(region_name, str), "region_name_from_index(1) did not return a string."
 
-def test_region_index_for_name_yeo(yeo_mapper):
+def test_region_index_from_name_yeo(yeo_mapper):
     """
     If you know a Yeo label exists, test that we get a valid integer index.
     Adjust the label below if needed.
     """
     # Suppose there's a label "7Networks_Visual_L". If not, change to something that definitely exists in your 'labels'.
-    idx_val = yeo_mapper.region_index_for_name("7Networks_Visual_L")
+    idx_val = yeo_mapper.region_index_from_name("7Networks_Visual_L")
     # Could be an integer or "Unknown"
     assert isinstance(idx_val, (int, str)), f"Expected int or 'Unknown', got {idx_val}"
 
