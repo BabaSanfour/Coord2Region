@@ -17,7 +17,32 @@ from datetime import date
 # sys.path.insert(0, os.path.abspath('.'))
 
 curdir = os.path.dirname(__file__)
-sys.path.append(os.path.abspath(os.path.join(curdir, "..", "sovabids")))
+sys.path.append(os.path.abspath(os.path.join(curdir, "..", "coord2region")))
+
+import shutil
+
+def copy_readme():
+    """Copy README.md from the root directory to docs/source/."""
+    source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../README.md"))
+    destination = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
+    
+    if os.path.exists(source):
+        shutil.copyfile(source, destination)
+        print(f"Copied {source} -> {destination}")
+
+def cleanup_readme(app, exception):
+    """Delete README.md in docs/source/ after the build."""
+    destination = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
+    
+    if os.path.exists(destination):
+        os.remove(destination)
+        print(f"Deleted {destination} after build.")
+
+# Register the cleanup function to run at the end
+def setup(app):
+    app.connect("build-finished", cleanup_readme)
+
+copy_readme()
 
 # -- Project information -----------------------------------------------------
 
@@ -37,7 +62,6 @@ release = version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
 #    "sphinx.ext.intersphinx",
@@ -47,7 +71,14 @@ extensions = [
     "sphinx_copybutton",
     'sphinxcontrib.mermaid',
     'sphinx.ext.napoleon',
+    "myst_parser",
 ]
+
+# Allow Markdown files to be used as documentation pages
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 copybutton_prompt_text = r">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
