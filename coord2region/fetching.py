@@ -12,7 +12,6 @@ logger.setLevel(logging.INFO)
 # TODO: test fetch from local file
 # TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
 # TODO add other nibabel, nilearn, mne atlases
-# TODO: UPDATE fetch mne atlases
 # TODO: add save/load methods for created objects!
 # TODO: add method to list available atlases
 # TODO: check for atlases that supported by both mne and nilearn if else
