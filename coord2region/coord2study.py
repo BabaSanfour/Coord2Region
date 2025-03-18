@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import sys
 import logging
@@ -23,6 +22,8 @@ except ImportError:
     BIO_AVAILABLE = False
     logger.warning("Biopython not found. Abstract fetching will be disabled.")
 
+# TODO: Add more nimare datasets ! and optinally private datasets
+# TODO: Remove duplicates when returning studies
 
 def fetch_datasets(data_dir: str) -> Dict[str, Dataset]:
     """
