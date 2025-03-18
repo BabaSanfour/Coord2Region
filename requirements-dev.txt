@@ -3,3 +3,5 @@ nibabel
 mne
 pytest-cov
 -e .
+nimare
+bio
