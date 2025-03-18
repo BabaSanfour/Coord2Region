@@ -39,14 +39,14 @@ def test_infer_hemisphere(harvard_mapper):
         f"Expected None or 'L'/'R', got {hemi}"
 
 
-def test_region_name_for_index(harvard_mapper):
+def test_region_name_from_index(harvard_mapper):
     # If you know a numeric index, e.g. 7, check the region name.
-    region_name = harvard_mapper.region_name_for_index(7)
+    region_name = harvard_mapper.region_name_from(7)
     assert isinstance(region_name, str)
 
 
-def test_region_index_for_name(harvard_mapper):
-    idx = harvard_mapper.region_index_for_name("Precentral Gyrus")
+def test_region_index_from_name(harvard_mapper):
+    idx = harvard_mapper.region_index_from_name("Precentral Gyrus")
     assert isinstance(idx, (int, str)), f"Expected int or 'Unknown', got {idx}"
 
 
@@ -121,9 +121,9 @@ def test_batch_region_name_for_index(vectorized_mapper):
     assert len(region_names) == 3
 
 
-def test_batch_region_index_for_name(vectorized_mapper):
+def test_batch_region_index_from_name(vectorized_mapper):
     some_names = ["Frontal Pole", "Precentral Gyrus", "Unknown Region"]
-    region_indices = vectorized_mapper.batch_region_index_for_name(some_names)
+    region_indices = vectorized_mapper.batch_region_index_from_name(some_names)
     assert len(region_indices) == len(some_names)
 
 
@@ -142,3 +142,6 @@ def test_multiatlas_api():
     # example call:
     # c2r.batch_region_name_to_mni(["Frontal Pole", "Precentral Gyrus"])
     # etc.
+
+if __name__ == "__main__":
+    #harvard_data = harvard_data()
