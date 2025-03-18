@@ -1,7 +1,7 @@
 import numpy as np
 import mne
 from typing import Any, Dict, List, Optional, Union, Tuple
-from fetching import AtlasFetcher
+from .fetching import AtlasFetcher
 
 # TODO: Add getting region with the shortest distance to a given coordinate
 # TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
@@ -12,10 +12,13 @@ def _get_numeric_hemi(hemi: Union[str, int]) -> int:
     """
     if isinstance(hemi, int):
         return hemi
-    if hemi.lower() in ('l', 'lh', 'left'):
-        return 0
-    if hemi.lower() in ('r', 'rh', 'right'):
-        return 1
+    if hemi is None:
+        return None
+    if isinstance(hemi,str):
+        if hemi.lower() in ('l', 'lh', 'left'):
+            return 0
+        if hemi.lower() in ('r', 'rh', 'right'):
+            return 1
     raise ValueError("Invalid hemisphere value. Use 'L', 'R', 'LH', 'RH', 0, or 1.")
 class AtlasMapper:
     """
@@ -187,9 +190,8 @@ class AtlasMapper:
 
         if self.name.lower() == 'schaefer':
             parts = region.split('_', 1)
-            if len(parts) > 1:
-                return {'LH': 'L', 'RH': 'R'}.get(parts[1])
-            return None
+            lower = parts[-1].lower()
+            return 'L' if lower.startswith(('lh')) else 'R' if lower.startswith(('rh')) else None
 
         lower = region_name.lower()
         return 'L' if lower.endswith(('_lh', '-lh')) else 'R' if lower.endswith(('_rh', '-rh')) else None
@@ -255,7 +257,7 @@ class AtlasMapper:
             return coords[0]
         return coords
     
-    def vertex_to_mni(self, vertices: Union[List[int], np.ndarray], hemi: Union[list[int], int]) -> np.ndarray:
+    def vertex_to_mni(self, vertices: Union[List[int], np.ndarray], hemi: Union[List[int], int]) -> np.ndarray:
         """
         Convert vertices to MNI coordinates.
         Returns an array of shape (3,).
@@ -463,35 +465,3 @@ class MultiAtlasMapper:
         for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_region_name_to_mni(region_names)
         return results
-
-if __name__ == '__main__':
-# Fetch an atlas
-    af = AtlasFetcher()
-    # fetch aparc.a2009s
-    aparc = af.fetch_atlas('aparc.a2009s')
-    # fetch nilearn harvard-oxford
-    aparc_mapper = AtlasMapper(
-        name='aparc.a2009s',
-        vol=aparc['vol'],
-        hdr=aparc['hdr'],
-        labels=aparc['labels'],
-        index=aparc['indexes'],
-        subjects_dir=af.subjects_dir,
-
-    )
-    print(aparc_mapper.region_name_from_index(32))
-    print(aparc_mapper.region_index_from_name('S_oc_sup_and_transversal-lh'))
-    # print(aparc_mapper.list_all_regions())
-    print(aparc_mapper.infer_hemisphere("Lat_Fis-post-rh"))
-    print(aparc_mapper.convert_to_mni(32, hemi=0))
-    print(aparc_mapper.convert_to_source([-23.91684151, -78.48731995,  16.8182888]))
-    print(aparc_mapper.mni_to_region_name([-23.91684151, -78.48731995,  16.8182888]))
-    print(aparc_mapper.region_index_to_mni(32, 0))
-    print(aparc_mapper.region_name_to_mni("S_oc_sup_and_transversal-lh"))
-
-
-
-
-
-
-
