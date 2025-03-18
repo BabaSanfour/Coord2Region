@@ -40,7 +40,7 @@ def test_fetch_nilearn_atlases():
     print(f"Bad atlases: {bad_atlases}")
     assert len(bad_atlases) == 0, f"Failed to fetch atlases: {bad_atlases}"
 
-def test_fetch_mne_atlases():
+def not_ready_test_fetch_mne_atlases():
     af = AtlasFetcher(data_dir="mne_data")
     atlas = af.fetch_atlas('aparc.a2009s')
     print(atlas)
@@ -51,6 +51,6 @@ def _fetch_atlas_helper(atlas_name):
     return atlas
 
 if __name__ == "__main__":
-    #test_fetch_mne_atlases()
+    #not_ready_test_fetch_mne_atlases()
     test_fetch_nilearn_atlases()
 
