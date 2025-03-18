@@ -1,4 +1,5 @@
 import os
+import mne
 import logging
 import numpy as np
 from typing import Optional
@@ -11,7 +12,6 @@ logger.setLevel(logging.INFO)
 # TODO: test fetch from local file
 # TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
 # TODO add other nibabel, nilearn, mne atlases
-# TODO: UPDATE fetch mne atlases
 # TODO: add save/load methods for created objects!
 # TODO: add method to list available atlases
 # TODO: check for atlases that supported by both mne and nilearn if else
@@ -26,10 +26,12 @@ class AtlasFileHandler:
       - Package files into a standardized dictionary with keys:
           'vol', 'hdr', 'labels', 'description', and 'file'.
     """
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None):
         """
         :param data_dir: Directory to store/download atlas files.
-             Defaults to a 'data' folder within a hidden '.coord2region' folder in the user's home directory.
+             Defaults to a 'data' folder within a hidden 'coord2region' folder in 
+             the user's home directory.
+        :param subjects_dir: Directory with FreeSurfer subjects (where fsaverage is or will be downloaded).
         """
         home_dir = os.path.expanduser("~")
         if data_dir is None:
@@ -44,8 +46,14 @@ class AtlasFileHandler:
         except Exception as e:
             raise ValueError(f"Could not create data directory {self.data_dir}: {e}")
 
+        if not os.access(self.data_dir, os.W_OK):
+            raise ValueError(f"Data directory {self.data_dir} is not writable")
+
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
-        self.mne_data = os.path.join(home_dir, 'mne_data')
+        # When working with surf based or MNE atlases
+        self.subjects_dir = mne.get_config('SUBJECTS_DIR', None)
+        if subjects_dir is None:
+            logger.warning("Please provide a subjects_dir or set MNE's SUBJECTS_DIR in your environment.")
 
     def fetch_labels(self, labels: str):
         """
@@ -102,7 +110,7 @@ class AtlasFileHandler:
                     'hdr': hdr_matrix,
                 }
 
-    def pack_surf_output(self, subject: str='fsaverage', subjects_dir: str=None, parc: str = 'aparc', **kwargs):
+    def pack_surf_output(self, fetcher: mne.datasets, subject: str = 'fsaverage', subjects_dir: str = None, parc: str = 'aparc', **kwargs):
         """
         Load surface-based atlas using MNE from FreeSurfer annotation files.
 
@@ -114,38 +122,61 @@ class AtlasFileHandler:
         """
         import mne
 
-        if not subjects_dir:
+        # Determine subjects_dir: use self.subjects_dir if available, otherwise the provided one or default.
+        if hasattr(self, 'subjects_dir') and self.subjects_dir is not None:
+            subjects_dir = self.subjects_dir
+        elif subjects_dir is None:
             subjects_dir = mne.datasets.sample.data_path() / "subjects"
-            #mne.datasets.fetch_hcp_mmp_parcellation(subjects_dir=subjects_dir, verbose=True)
 
-            #mne.datasets.fetch_aparc_sub_parcellation(subjects_dir=subjects_dir, verbose=True)
+        # Read annotation labels; if missing, use fetcher to obtain the atlas.
+        try:
+            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
+        except Exception as e:
+            fetcher(subjects_dir=subjects_dir)
+            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
 
-        labels = mne.read_labels_from_annot(
-            subject, parc, subjects_dir=subjects_dir, **kwargs
-        )
+        # Set up source space to get vertex information.
+        src = mne.setup_source_space(subject, spacing='oct6', subjects_dir=subjects_dir, add_dist=False)
+        lh_vert = src[0]['vertno']  # Left hemisphere vertex numbers (sorted)
+        rh_vert = src[1]['vertno']  # Right hemisphere vertex numbers (sorted)
 
-        
-        labels
-        lh_vert = src[0]['vertno']
-        rh_vert = src[1]['vertno']
-    
-        cortex_dict = {
-            label.name: (np.searchsorted(lh_vert, np.intersect1d(lh_vert, label.vertices))
-                        if label.hemi == 'lh'
-                        else len(lh_vert) + np.searchsorted(rh_vert, np.intersect1d(rh_vert, label.vertices)))
-            for label in labels
+        # For each label, find the indices (positions in lh_vert/rh_vert) that are part of the label.
+        cortex_dict_lh = {
+            label.name: np.nonzero(np.in1d(lh_vert, label.vertices))[0]
+            for label in labels if label.hemi == 'lh'
+        }
+        cortex_dict_rh = {
+            label.name: np.nonzero(np.in1d(rh_vert, label.vertices))[0]
+            for label in labels if label.hemi == 'rh'
         }
 
-        labmap = {v: lab for lab, verts in cortex_dict.items() for v in np.atleast_1d(verts)}
+        # Build labmap: map from the index (position in the hemisphere vertex array) to the label name.
+        labmap_lh = {}
+        for lab, indices in cortex_dict_lh.items():
+            for idx in indices:
+                labmap_lh[idx] = lab
+        labmap_rh = {}
+        for lab, indices in cortex_dict_rh.items():
+            for idx in indices:
+                labmap_rh[idx] = lab
 
-        # Compute MNI coordinates for the cortical parts (assuming first two hemispheres)
-        mni_list = mne.vertex_to_mni([lh_vert, rh_vert], [0, 1], subject, subjects_dir=subjects_dir)
-        mni_coords = np.concatenate(mni_list, axis=0)
-        # TODO improve consistency in the output format
+        # Extract sorted indices and their corresponding labels, ensuring the order matches.
+        index_lh = np.sort(np.array(list(labmap_lh.keys())))
+        labels_lh = np.array([labmap_lh[i] for i in index_lh])
+        # Actual vertex numbers from lh_vert using the ordered indices.
+        vmap_lh = lh_vert[index_lh]
+
+        index_rh = np.sort(np.array(list(labmap_rh.keys())))
+        labels_rh = np.array([labmap_rh[i] for i in index_rh])
+        vmap_rh = rh_vert[index_rh]
+        labels = np.concatenate([labels_lh, labels_rh])
+        indexes = np.concatenate([vmap_lh, vmap_rh])
+
         return {
-            'vmap': cortex_dict,
-            'labmap': labmap,
-            'mni': mni_coords
+            'vol': [lh_vert, rh_vert],
+            'hdr': None,
+            'labels': labels,
+            'indexes': indexes,
         }
 
     def fetch_from_local(self, atlas: str, labels: str):
@@ -226,7 +257,7 @@ class AtlasFetcher:
         self.file_handler = AtlasFileHandler(data_dir=data_dir)
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
-        self.mne_data = self.file_handler.mne_data
+        self.subjects_dir = self.file_handler.subjects_dir
         from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
 
         def _fetch_atlas_yeo_version(version='thick_17', **kwargs):
@@ -263,11 +294,53 @@ class AtlasFetcher:
         }
 
         self._atlas_fetchers_mne = {
-            'aparc.a2009s': {'fetcher':self._fetch_atlas_aparc2009, 'default_kwargs':{'subject': 'fsaverage', 'subjects_dir': None, 'hemi': 'both'}},
+            'aparc.a2009s': {
+            'aliases': ['aparc.a2009s', 'destrieux', 'a2009s'],
+            'fetcher': mne.datasets.fetch_fsaverage,
+            'default_kwargs': {
+                'verbose': True
+            },
+            'new_atlas_name': 'aparc.a2009s'
+            },
+            'aparc_sub': {
+                'aliases': ['aparc_sub', 'aparc_subs'],
+                'fetcher': mne.datasets.fetch_aparc_sub_parcellation,
+                'default_kwargs': {
+                    'subjects_dir': self.subjects_dir,
+                    'verbose': True
+                },
+                'new_atlas_name': 'aparc_sub'
+            },
+            'aparc': {
+                'aliases': ['aparc', 'desikan', 'dk'],
+                'fetcher': mne.datasets.fetch_fsaverage,
+                'default_kwargs': {
+                    'verbose': True
+                },
+                'new_atlas_name': 'aparc'
+            },
+            'hcpmmp1': {
+                'aliases': ['hcp', 'hcpmmp', 'hcpmmp1'],
+                'fetcher': mne.datasets.fetch_hcp_mmp_parcellation,
+                'default_kwargs': {
+                    'subjects_dir': self.subjects_dir,
+                    'accept': True,
+                    'verbose': True
+                },
+                'new_atlas_name': 'HCPMMP1',
+                'validation': lambda kwargs: kwargs.get('accept_hcp', False) # Validation: require user to pass accept_hcp=True
+            },
+            'aparc.DKTatlas': {
+            'aliases': ['dkt', 'aparc.dktatlas'],
+            'fetcher': mne.datasets.fetch_fsaverage,
+            'default_kwargs': {
+                'verbose': True
+            },
+            'new_atlas_name': 'aparc.DKTatlas'
+            }
         }
 
-
-    # ---- Volumetric atlas fetchers using nilearn ----
+    # ---- atlas fetchers using nilearn/mne ----
 
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
@@ -276,11 +349,10 @@ class AtlasFetcher:
             logger.error(f"Failed to fetch atlas using primary data_dir: {self.file_handler.data_dir}", e, exc_info=True)
             logger.info(f"Attempting to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}")
             return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
-
-    # ---- MNE-based (surface annotation) atlas fetcher ----
-    
-    def _fetch_atlas_aparc2009(self,**kwargs):
-        return self.file_handler.pack_surf_output(**kwargs)
+        except Exception as e:
+            logger.error(f"Failed to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}", e, exc_info=True)
+            logger.info(f"Attempting to fetch atlas using subject's data_dir: {self.subjects_dir}")
+            return fetcher(data_dir=self.subjects_dir, **kwargs)
     
     # ---- Public method ----
 
@@ -311,12 +383,12 @@ class AtlasFetcher:
         labels = kwargs.get("labels") or kwargs.get("label_file")
 
         # Case (b/c): Local file path or Nifti1Image object.
-        atlas_file = kwargs.get("atlas_file", None)
-        if atlas_file is not None and os.path.isfile(atlas_file):
-            return self.file_handler.fetch_from_local(atlas_file, labels)
-        elif atlas_file is not None and os.path.isfile(os.path.join(self.data_dir, atlas_file)):
-        # elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
-            return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_file), labels)
+        atlas_file = kwargs.get("atlas_file", "None")
+        if atlas_file is not None:
+            if os.path.isfile(atlas_file):
+                return self.file_handler.fetch_from_local(atlas_file, labels)
+            elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
+                return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_file), labels)
         
         atlas_image = kwargs.get("atlas_image")
         if isinstance(atlas_image, (Nifti1Image, np.ndarray)):
@@ -352,18 +424,23 @@ class AtlasFetcher:
                     return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
                 else:
                     logger.error(f"Atlas {key} not found in available atlas urls")
-        
         fetcher_mne = self._atlas_fetchers_mne.get(key, None)
         if fetcher_mne:
             try:
-                this_kwargs = fetcher_mne['default_kwargs']
+                this_kwargs = fetcher_mne['default_kwargs'].copy()
                 this_kwargs.update(kwargs)
-                fetched = fetcher_mne['fetcher'](parc=atlas_name,**this_kwargs)
-                #maphdr = self.file_handler.pack_vol_output(fetched["maps"])
-                #fetched.update(maphdr)
-                #fetched['kwargs'] = this_kwargs
+                if 'validation' in fetcher_mne and not fetcher_mne['validation'](this_kwargs):
+                    raise ValueError("To fetch HCPMMP atlas, you must pass accept_hcp=True.")
+                # Instead of calling the raw fetcher, we now use pack_surf_output
+                subject = this_kwargs.get('subject', 'fsaverage')
+                fetched = self.file_handler.pack_surf_output(
+                    fetcher = fetcher_mne['fetcher'],
+                    subject=subject,
+                    parc=fetcher_mne['new_atlas_name'],
+                    **this_kwargs
+                )
+                # fetched['kwargs'] = this_kwargs
                 return fetched
             except Exception as e:
                 logger.error(f"Failed to fetch atlas {key} using mne", e, exc_info=True)
-                return None
-        raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
+        raise ValueError(f"Unrecognized atlas name '{atlas_name}'.") # ADD Available options: {list(self._atlas_fetchers.keys())

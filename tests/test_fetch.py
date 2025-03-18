@@ -21,7 +21,7 @@ from coord2region import AtlasFetcher
 }
 """
 def test_fetch_nilearn_atlases():
-    atlases = ["harvard-oxford"]#, "aparc2009"] #"brodmann", "aal", "yeo","juelich", "schaefer"
+    atlases = ["yeo","harvard-oxford","juelich", "schaefer"]#, "aparc2009"] #"brodmann", "aal",
     good_atlases = []
     bad_atlases = []
     for atlas in atlases:
@@ -45,6 +45,11 @@ def not_ready_test_fetch_mne_atlases():
     atlas = af.fetch_atlas('aparc.a2009s')
     print(atlas)
 
+def not_ready_test_fetch_mne_atlases():
+    af = AtlasFetcher(data_dir="mne_data")
+    atlas = af.fetch_atlas('aparc.a2009s')
+    print(atlas)
+
 def _fetch_atlas_helper(atlas_name):
     af = AtlasFetcher(data_dir="atlas_data")
     atlas = af.fetch_atlas(atlas_name)
@@ -53,5 +58,4 @@ def _fetch_atlas_helper(atlas_name):
 if __name__ == "__main__":
     #not_ready_test_fetch_mne_atlases()
     test_fetch_nilearn_atlases()
-    
 
