@@ -25,7 +25,7 @@ vol = af.fetch_atlas(atlas_name)
 # Create a volumetric mapper
 # ---------------------------
 # 
-# Create a volumetric mapper for the harvard-oxford atlas
+# The Atlas Mapper takes an Atlas and produces and AtlasMapper, which can be used to map between region names and indices.
 #
 
 vol_mapper = AtlasMapper(

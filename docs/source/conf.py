@@ -102,7 +102,9 @@ sphinx_gallery_conf = {
     "gallery_dirs": "auto_examples",
     "filename_pattern": "^((?!sgskip).)*$",
     "backreferences_dir": "generated",
-    'run_stale_examples': False, #Force (or not) re running examples
+    'run_stale_examples': True, #Force (or not) re running examples,
+    #"default_thumb_file": "_static/default_thumbnail.png",  # Set a global default thumbnail
+
 }
 
 # List of patterns, relative to source directory, that match files and
