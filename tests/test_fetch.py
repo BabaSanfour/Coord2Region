@@ -20,7 +20,7 @@ from coord2region import AtlasFetcher
 'file': fname
 }
 """
-def test_fetch_all_atlases():
+def test_fetch_nilearn_atlases():
     atlases = ["yeo","harvard-oxford","juelich", "schaefer"]#, "aparc2009"] #"brodmann", "aal",
     good_atlases = []
     bad_atlases = []
@@ -29,6 +29,10 @@ def test_fetch_all_atlases():
             output=_fetch_atlas_helper(atlas)
             print(output)
             good_atlases.append(atlas)
+            print('vol',output['vol'].shape)
+            print('hdr',output['hdr'].shape)
+            print('labels',len(output['labels']))
+
         except Exception as e:
             print(f"Error fetching atlas {atlas}: {e}")
             bad_atlases.append(atlas)
@@ -36,11 +40,17 @@ def test_fetch_all_atlases():
     print(f"Bad atlases: {bad_atlases}")
     assert len(bad_atlases) == 0, f"Failed to fetch atlases: {bad_atlases}"
 
+def test_fetch_mne_atlases():
+    af = AtlasFetcher(data_dir="mne_data")
+    atlas = af.fetch_atlas('aparc.a2009s')
+    print(atlas)
+
 def _fetch_atlas_helper(atlas_name):
     af = AtlasFetcher(data_dir="atlas_data")
     atlas = af.fetch_atlas(atlas_name)
     return atlas
 
 if __name__ == "__main__":
-    test_fetch_all_atlases()
+    #test_fetch_mne_atlases()
+    test_fetch_nilearn_atlases()
 

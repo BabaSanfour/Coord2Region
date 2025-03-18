@@ -83,7 +83,7 @@ class AtlasFileHandler:
                     'hdr': hdr_matrix,
                 }
 
-    def pack_surf_output(self, subject: str, subjects_dir: str, parc: str = 'aparc', **kwargs):
+    def pack_surf_output(self, subject: str='fsaverage', subjects_dir: str=None, parc: str = 'aparc', **kwargs):
         """
         Load surface-based atlas using MNE from FreeSurfer annotation files.
 
@@ -92,10 +92,21 @@ class AtlasFileHandler:
         :param parc: The parcellation name (e.g., 'aparc', 'aparc.a2009s').
         :param kwargs: Additional keyword arguments.
         :return: A dictionary with keys: 'vmap', 'labmap', 'mni'.
-                """
+        """
         import mne
-        src = mne.read_source_spaces(os.path.join(subjects_dir, subject, 'bem', f'{subject}-ico-5-src.fif'), verbose=False)
-        labels = mne.read_labels_from_annot(subject, parc=parc, subjects_dir=subjects_dir, verbose=False)
+
+        if not subjects_dir:
+            subjects_dir = mne.datasets.sample.data_path() / "subjects"
+            #mne.datasets.fetch_hcp_mmp_parcellation(subjects_dir=subjects_dir, verbose=True)
+
+            #mne.datasets.fetch_aparc_sub_parcellation(subjects_dir=subjects_dir, verbose=True)
+
+        labels = mne.read_labels_from_annot(
+            subject, parc, subjects_dir=subjects_dir, **kwargs
+        )
+
+        
+        labels
         lh_vert = src[0]['vertno']
         rh_vert = src[1]['vertno']
     
@@ -249,6 +260,10 @@ class AtlasFetcher:
             'yeo': {'fetcher':_fetch_atlas_yeo_version, 'default_kwargs': {'version': 'thick_17'}},
         }
 
+        self._atlas_fetchers_mne = {
+            'aparc.a2009s': {'fetcher':self._fetch_atlas_aparc2009, 'default_kwargs':{'subject': 'fsaverage', 'subjects_dir': None, 'hemi': 'both'}},
+        }
+
 
     # ---- Volumetric atlas fetchers using nilearn ----
 
@@ -262,8 +277,8 @@ class AtlasFetcher:
 
     # ---- MNE-based (surface annotation) atlas fetcher ----
     
-    def _fetch_atlas_aparc2009(self, **kwargs):
-        return self.file_handler.pack_surf_output(parc='aparc.a2009s', **kwargs)
+    def _fetch_atlas_aparc2009(self,**kwargs):
+        return self.file_handler.pack_surf_output(**kwargs)
     
     # ---- Public method ----
 
@@ -300,7 +315,7 @@ class AtlasFetcher:
     
         # Case (c): nilearn or mne atlases.
         key = atlas_name.lower()
-        fetcher_nilearn = self._atlas_fetchers_nilearn.get(key)
+        fetcher_nilearn = self._atlas_fetchers_nilearn.get(key, None)
         if fetcher_nilearn:
             try:
                 this_kwargs = fetcher_nilearn['default_kwargs']
@@ -320,7 +335,21 @@ class AtlasFetcher:
                     return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
                 else:
                     logger.error(f"Atlas {key} not found in available atlas urls")
+        
+        fetcher_mne = self._atlas_fetchers_mne.get(key, None)
 
+        if fetcher_mne:
+            try:
+                this_kwargs = fetcher_mne['default_kwargs']
+                this_kwargs.update(kwargs)
+                fetched = fetcher_mne['fetcher'](parc=atlas_name,**this_kwargs)
+                #maphdr = self.file_handler.pack_vol_output(fetched["maps"])
+                #fetched.update(maphdr)
+                #fetched['kwargs'] = this_kwargs
+                return fetched
+            except Exception as e:
+                logger.error(f"Failed to fetch atlas {key} using mne", e, exc_info=True)
+                return None
         raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {list(self._atlas_fetchers.keys())}.")
 
 
