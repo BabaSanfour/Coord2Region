@@ -2,7 +2,6 @@ import os
 import logging
 import numpy as np
 from typing import Optional
-from nibabel.nifti1 import Nifti1Image
   
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -42,25 +41,23 @@ class AtlasFileHandler:
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
-    def pack_vol_output(self, fname: str, desc: str = None):
+    def pack_vol_output(self, file: str):
         """
         Load an atlas file into a nibabel image (or numpy archive) and package it.
         
-        :param fname: Path to the atlas file.
-        :param desc: Short description.
-        :return: A dictionary with keys: 'vol', 'hdr', 'labels', 'description', 'file'.
+        :param file: Path to the atlas image file (NIfTI, NPZ) or a Nifti1Image object.
+        :return: A dictionary with keys: 'vol', 'hdr'.
         :raises ValueError: If file format is unrecognized.
         """
 
-        if isinstance(fname, str):
-            path = os.path.abspath(fname)
-            _, ext = os.path.splitext(fname)
+        if isinstance(file, str):
+            path = os.path.abspath(file)
+            _, ext = os.path.splitext(file)
             ext = ext.lower()
 
             if ext in ['.nii', '.gz', '.nii.gz']:
-                # TODO add try-except block for loading the image
                 import nibabel as nib
-                img = nib.load(fname)
+                img = nib.load(file)
                 vol_data = img.get_fdata(dtype=np.float32)
                 hdr_matrix = img.affine
                 return {
@@ -69,13 +66,9 @@ class AtlasFileHandler:
                 }
  
             elif ext == '.npz':
-                # TODO add try-except block for loading the archive
                 arch = np.load(path, allow_pickle=True)
                 vol_data = arch['vol']
                 hdr_matrix = arch['hdr']
-                # labels = None
-                # if 'labels' in arch and 'index' in arch:
-                #     labels = {idx: name for idx, name in zip(arch['index'], arch['labels'])}
                 return {
                     'vol': vol_data,
                     'hdr': hdr_matrix,
@@ -83,7 +76,8 @@ class AtlasFileHandler:
             else:
                 raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
         else:
-            if isinstance(fname,Nifti1Image):
+            from nibabel.nifti1 import Nifti1Image
+            if isinstance(file, Nifti1Image):
                 vol_data = fname.get_fdata(dtype=np.float32)
                 hdr_matrix = fname.affine
                 return {
