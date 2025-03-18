@@ -1,4 +1,5 @@
 # File: .\code_extractor.py
+# File: .\code_extractor.py
 import os
 
 # Set the directory to your repository root
@@ -381,12 +382,32 @@ from typing import Any, Dict, List, Optional, Union, Tuple
 
 
 class VolumetricAtlasMapper:
+import numpy as np
+from typing import Any, Dict, List, Optional, Union, Tuple
+
+
+class VolumetricAtlasMapper:
     """
+    Stores a single 3D volumetric atlas (a 3D numpy array + 4x4 affine) and provides
+    coordinate <-> voxel <-> region lookups.
     Stores a single 3D volumetric atlas (a 3D numpy array + 4x4 affine) and provides
     coordinate <-> voxel <-> region lookups.
 
     Parameters
     ----------
+    name : str
+        Identifier for the atlas (e.g. "aal" or "brodmann").
+    vol : np.ndarray
+        A 3D array where each voxel stores an integer (region index).
+    hdr : np.ndarray
+        A 4x4 affine transform mapping voxel indices -> MNI/world coordinates.
+    labels : dict or list or None
+        Region labels. If a dict, keys should be strings for numeric indices, 
+        and values are region names. If a list/array, it should match `index`.
+    index : list or np.ndarray or None
+        Region indices (numeric) corresponding to the labels list/array. Not needed if `labels` is a dict.
+    system : str
+        The anatomical coordinate space (e.g. "mni", "tal").
     name : str
         Identifier for the atlas (e.g. "aal" or "brodmann").
     vol : np.ndarray
@@ -411,6 +432,14 @@ class VolumetricAtlasMapper:
     system : str
     shape : tuple
         Shape of the volumetric atlas (vol.shape).
+    name : str
+    vol : np.ndarray
+    hdr : np.ndarray
+    labels : dict or list or None
+    index : list or np.ndarray or None
+    system : str
+    shape : tuple
+        Shape of the volumetric atlas (vol.shape).
     """
 
     def __init__(self,
@@ -420,6 +449,7 @@ class VolumetricAtlasMapper:
                  labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
                  index: Optional[Union[List[int], np.ndarray]] = None,
                  system: str = 'mni') -> None:
+
 
         self.name = name
         self.vol = np.asarray(vol)
@@ -431,6 +461,10 @@ class VolumetricAtlasMapper:
         # Basic shape checks
         # if self.vol.ndim != 3:
         #     raise ValueError("`vol` must be a 3D numpy array.")
+
+        # Basic shape checks
+        # if self.vol.ndim != 3:
+        #     raise ValueError("`vol` must be a 3D numpy array.")
         if self.hdr.shape != (4, 4):
             raise ValueError("`hdr` must be a 4x4 transform matrix.")
 
@@ -438,7 +472,10 @@ class VolumetricAtlasMapper:
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
+        # If labels is a dict, prepare an inverse mapping:
+        #   region_name -> region_index
         if isinstance(self.labels, dict):
+            # Here we assume keys are index strings, values are region names
             # Here we assume keys are index strings, values are region names
             self._label2index = {v: k for k, v in self.labels.items()}
         else:
@@ -448,19 +485,28 @@ class VolumetricAtlasMapper:
     # Internal lookups (private)
     # -------------------------------------------------------------------------
     def _lookup_region_name(self, value: Union[int, str]) -> str:
+    # -------------------------------------------------------------------------
+    # Internal lookups (private)
+    # -------------------------------------------------------------------------
+    def _lookup_region_name(self, value: Union[int, str]) -> str:
         """
+        Return the region name corresponding to the given region index (int/str).
         Return the region name corresponding to the given region index (int/str).
         Returns "Unknown" if not found.
         """
         if not isinstance(value, (int, str)):
             raise ValueError("value must be int or str")
 
+            raise ValueError("value must be int or str")
+
         value_str = str(value)
         if isinstance(self.labels, dict):
             return self.labels.get(value_str, "Unknown")
 
+
         if self.index is not None and self.labels is not None:
             try:
+                # If the index array is a list, we use index(); if np.ndarray, we do np.where
                 # If the index array is a list, we use index(); if np.ndarray, we do np.where
                 if isinstance(self.index, list):
                     pos = self.index.index(int(value))
@@ -471,23 +517,29 @@ class VolumetricAtlasMapper:
                 return "Unknown"
         elif self.labels is not None:
             # labels might just be a list or array with no separate index
+            # labels might just be a list or array with no separate index
             try:
                 return self.labels[int(value)]
             except (ValueError, IndexError):
                 return "Unknown"
 
+
         return "Unknown"
 
     def _lookup_region_index(self, label: str) -> Union[int, str]:
+    def _lookup_region_index(self, label: str) -> Union[int, str]:
         """
+        Return the numeric region index corresponding to the given region name.
         Return the numeric region index corresponding to the given region name.
         Returns "Unknown" if not found.
         """
         if not isinstance(label, str):
             raise ValueError("label must be a string")
 
+
         if self._label2index is not None:
             return self._label2index.get(label, "Unknown")
+
 
         if self.index is not None and self.labels is not None:
             try:
@@ -496,18 +548,22 @@ class VolumetricAtlasMapper:
                 else:
                     pos = int(np.where(np.array(self.labels) == label)[0][0])
                 # Return the corresponding numeric index from self.index
+                # Return the corresponding numeric index from self.index
                 if isinstance(self.index, list):
                     return self.index[pos]
                 else:
+                    return int(self.index[pos])
                     return int(self.index[pos])
             except (ValueError, IndexError):
                 return "Unknown"
         elif self.labels is not None:
             # If self.labels is just a list of strings
+            # If self.labels is just a list of strings
             try:
                 return int(np.where(np.array(self.labels) == label)[0][0])
             except (ValueError, IndexError):
                 return "Unknown"
+
 
         return "Unknown"
 
@@ -515,17 +571,31 @@ class VolumetricAtlasMapper:
     # Region name / index
     # -------------------------------------------------------------------------
     def region_name_from_index(self, region_idx: Union[int, str]) -> str:
+
+    # -------------------------------------------------------------------------
+    # Region name / index
+    # -------------------------------------------------------------------------
+    def region_name_from_index(self, region_idx: Union[int, str]) -> str:
         """
+        Public method: Return region name from numeric region index.
         Public method: Return region name from numeric region index.
         """
         return self._lookup_region_name(region_idx)
+        return self._lookup_region_name(region_idx)
 
+    def region_index_from_name(self, region_name: str) -> Union[int, str]:
     def region_index_from_name(self, region_name: str) -> Union[int, str]:
         """
         Public method: Return region index from region name.
         """
         return self._lookup_region_index(region_name)
+        Public method: Return region index from region name.
+        """
+        return self._lookup_region_index(region_name)
 
+    def list_all_regions(self) -> List[str]:
+        """
+        Return a list of all region names in this atlas.
     def list_all_regions(self) -> List[str]:
         """
         Return a list of all region names in this atlas.
@@ -538,7 +608,13 @@ class VolumetricAtlasMapper:
             return []
 
     def infer_hemisphere(self, region: Union[int, str]) -> Optional[str]:
+    def infer_hemisphere(self, region: Union[int, str]) -> Optional[str]:
         """
+        Return the hemisphere ('L' or 'R') inferred from the region name,
+        or None if not found or not applicable.
+        """
+        # Convert numeric region to string name, if needed:
+        region_name = region if isinstance(region, str) else self._lookup_region_name(region)
         Return the hemisphere ('L' or 'R') inferred from the region name,
         or None if not found or not applicable.
         """
@@ -563,7 +639,28 @@ class VolumetricAtlasMapper:
             return 'R'
         else:
             return None
+        
+        if self.name == 'schaefer':
+            hemi = region.split('_')[1]
+            if hemi == 'LH':
+                return 'L'
+            if hemi == 'RH':
+                return 'R'
+            else:
+                #TODO:logger.warn
+                return None
+        lower = region_name.lower()
+        if lower.endswith('_l'):
+            return 'L'
+        elif lower.endswith('_r'):
+            return 'R'
+        else:
+            return None
 
+    # -------------------------------------------------------------------------
+    # MNI <--> voxel conversions
+    # -------------------------------------------------------------------------
+    def mni_to_voxel(self, mni_coord: Union[List[float], np.ndarray]) -> Tuple[int, int, int]:
     # -------------------------------------------------------------------------
     # MNI <--> voxel conversions
     # -------------------------------------------------------------------------
@@ -571,11 +668,19 @@ class VolumetricAtlasMapper:
         """
         Convert an (x,y,z) MNI/world coordinate to voxel indices (i,j,k).
         Returns (i, j, k) as integers (rounded).
+        Convert an (x,y,z) MNI/world coordinate to voxel indices (i,j,k).
+        Returns (i, j, k) as integers (rounded).
         """
         if not isinstance(mni_coord, (list, np.ndarray)):
             raise ValueError("`mni_coord` must be a list or numpy array.")
         pos_arr = np.asarray(mni_coord)
+        if not isinstance(mni_coord, (list, np.ndarray)):
+            raise ValueError("`mni_coord` must be a list or numpy array.")
+        pos_arr = np.asarray(mni_coord)
         if pos_arr.shape != (3,):
+            raise ValueError("`mni_coord` must be a 3-element (x,y,z).")
+
+        # MNI coordinates are usually in 3D (x, y, z), but to apply affine transformations, we need homogeneous coordinates (x, y, z, 1)
             raise ValueError("`mni_coord` must be a 3-element (x,y,z).")
 
         # MNI coordinates are usually in 3D (x, y, z), but to apply affine transformations, we need homogeneous coordinates (x, y, z, 1)
@@ -586,12 +691,39 @@ class VolumetricAtlasMapper:
         #@ homogeneous applies the matrix multiplication.
         ijk = tuple(map(int, np.round(voxel[:3])))
         return ijk
+        #self.hdr is a 4×4 affine transformation matrix that maps voxel indices ↔ MNI coordinates.
+        #np.linalg.inv(self.hdr) computes the inverse of the affine matrix, which transforms MNI back to voxel space.
+        #@ homogeneous applies the matrix multiplication.
+        ijk = tuple(map(int, np.round(voxel[:3])))
+        return ijk
 
+    def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
     def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
         """
         Convert voxel indices (i,j,k) to MNI/world coordinates.
         Returns an array of shape (3,).
+        Convert voxel indices (i,j,k) to MNI/world coordinates.
+        Returns an array of shape (3,).
         """
+        if not isinstance(voxel_ijk, (list, np.ndarray)):
+            raise ValueError("`voxel_ijk` must be list or numpy array.")
+        src_arr = np.atleast_2d(voxel_ijk)
+        ones = np.ones((src_arr.shape[0], 1))
+        homogeneous = np.hstack([src_arr, ones])
+        transformed = homogeneous @ self.hdr.T
+        coords = transformed[:, :3] / transformed[:, 3, np.newaxis]
+        if src_arr.shape[0] == 1:
+            return coords[0]
+        return coords
+
+    # -------------------------------------------------------------------------
+    # MNI <--> region
+    # -------------------------------------------------------------------------
+    def mni_to_region_index(self, mni_coord: Union[List[float], np.ndarray]) -> Union[int, str]:
+        """
+        Return the region index for a given MNI coordinate.
+        """
+        ijk = self.mni_to_voxel(mni_coord)
         if not isinstance(voxel_ijk, (list, np.ndarray)):
             raise ValueError("`voxel_ijk` must be list or numpy array.")
         src_arr = np.atleast_2d(voxel_ijk)
@@ -616,8 +748,12 @@ class VolumetricAtlasMapper:
         return int(self.vol[ijk])
 
     def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
+    def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
         """
         Return the region name for a given MNI coordinate.
+        """
+        region_idx = self.mni_to_region_index(mni_coord)
+        if region_idx == "Unknown":
         """
         region_idx = self.mni_to_region_index(mni_coord)
         if region_idx == "Unknown":
@@ -628,20 +764,34 @@ class VolumetricAtlasMapper:
     # region index/name <--> all voxel coords
     # -------------------------------------------------------------------------
     def region_index_to_mni(self, region_idx: Union[int, str]) -> np.ndarray:
+        return self._lookup_region_name(region_idx)
+
+    # -------------------------------------------------------------------------
+    # region index/name <--> all voxel coords
+    # -------------------------------------------------------------------------
+    def region_index_to_mni(self, region_idx: Union[int, str]) -> np.ndarray:
         """
+        Return an Nx3 array of MNI coords for all voxels matching the specified region index.
+        Returns an empty array if none found.
         Return an Nx3 array of MNI coords for all voxels matching the specified region index.
         Returns an empty array if none found.
         """
         # Make sure region_idx is an integer:
+        # Make sure region_idx is an integer:
         try:
+            idx_val = int(region_idx)
+        except (ValueError, TypeError):
             idx_val = int(region_idx)
         except (ValueError, TypeError):
             return np.empty((0, 3))
         coords = np.argwhere(self.vol == idx_val)
+        coords = np.argwhere(self.vol == idx_val)
         if coords.size == 0:
             return np.empty((0, 3))
         return self.voxel_to_mni(coords)
+        return self.voxel_to_mni(coords)
 
+    def region_name_to_mni(self, region_name: str) -> np.ndarray:
     def region_name_to_mni(self, region_name: str) -> np.ndarray:
         """
         Return an Nx3 array of MNI coords for all voxels matching the specified region name.
@@ -649,11 +799,26 @@ class VolumetricAtlasMapper:
         """
         region_idx = self.region_index_from_name(region_name)
         if region_idx == "Unknown":
+        Return an Nx3 array of MNI coords for all voxels matching the specified region name.
+        Returns an empty array if none found.
+        """
+        region_idx = self.region_index_from_name(region_name)
+        if region_idx == "Unknown":
             return np.empty((0, 3))
+        return self.region_index_to_mni(region_idx)
         return self.region_index_to_mni(region_idx)
 
 class BatchAtlasMapper:
+class BatchAtlasMapper:
     """
+    Provides batch (vectorized) conversions over many coordinates for a single VolumetricAtlasMapper.
+
+    Example:
+    --------
+    mapper = VolumetricAtlasMapper(...)
+    batch = BatchAtlasMapper(mapper)
+
+    regions = batch.batch_mni_to_region_name([[0, 0, 0], [10, -20, 30]])
     Provides batch (vectorized) conversions over many coordinates for a single VolumetricAtlasMapper.
 
     Example:
@@ -667,30 +832,56 @@ class BatchAtlasMapper:
     def __init__(self, mapper: VolumetricAtlasMapper) -> None:
         if not isinstance(mapper, VolumetricAtlasMapper):
             raise ValueError("mapper must be an instance of VolumetricAtlasMapper")
+    def __init__(self, mapper: VolumetricAtlasMapper) -> None:
+        if not isinstance(mapper, VolumetricAtlasMapper):
+            raise ValueError("mapper must be an instance of VolumetricAtlasMapper")
         self.mapper = mapper
 
     # ---- region name <-> index (batch) ---------------------------------------
     def batch_region_name_from_index(self, values: List[Union[int, str]]) -> List[str]:
+    # ---- region name <-> index (batch) ---------------------------------------
+    def batch_region_name_from_index(self, values: List[Union[int, str]]) -> List[str]:
         """
+        For each region index in `values`, return the corresponding region name.
         For each region index in `values`, return the corresponding region name.
         """
         return [self.mapper.region_name_from_index(val) for val in values]
+        return [self.mapper.region_name_from_index(val) for val in values]
 
+    def batch_region_index_from_name(self, labels: List[str]) -> List[Union[int, str]]:
     def batch_region_index_from_name(self, labels: List[str]) -> List[Union[int, str]]:
         """
         For each region name in `labels`, return the corresponding region index.
+        For each region name in `labels`, return the corresponding region index.
         """
+        return [self.mapper.region_index_from_name(label) for label in labels]
         return [self.mapper.region_index_from_name(label) for label in labels]
 
     # ---- MNI <-> voxel (batch) -----------------------------------------------
     def batch_mni_to_voxel(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
+    # ---- MNI <-> voxel (batch) -----------------------------------------------
+    def batch_mni_to_voxel(self, positions: Union[List[List[float]], np.ndarray]) -> List[tuple]:
         """
+        Convert a batch of MNI coordinates to voxel indices (i,j,k).
         Convert a batch of MNI coordinates to voxel indices (i,j,k).
         """
         positions_arr = np.atleast_2d(positions)
         return [self.mapper.mni_to_voxel(pos) for pos in positions_arr]
+        return [self.mapper.mni_to_voxel(pos) for pos in positions_arr]
 
     def batch_voxel_to_mni(self, sources: Union[List[List[int]], np.ndarray]) -> np.ndarray:
+    def batch_voxel_to_mni(self, sources: Union[List[List[int]], np.ndarray]) -> np.ndarray:
+        """
+        Convert a batch of voxel indices (i,j,k) to MNI coords.
+        Returns an Nx3 array.
+        """
+        sources_arr = np.atleast_2d(sources)
+        return np.array([self.mapper.voxel_to_mni(s) for s in sources_arr])
+
+    # ---- MNI -> region (batch) -----------------------------------------------
+    def batch_mni_to_region_index(self, positions: Union[List[List[float]], np.ndarray]) -> List[Union[int, str]]:
+        """
+        For each MNI coordinate, return the corresponding region index.
         """
         Convert a batch of voxel indices (i,j,k) to MNI coords.
         Returns an Nx3 array.
@@ -705,23 +896,55 @@ class BatchAtlasMapper:
         """
         positions_arr = np.atleast_2d(positions)
         return [self.mapper.mni_to_region_index(pos) for pos in positions_arr]
+        return [self.mapper.mni_to_region_index(pos) for pos in positions_arr]
 
     def batch_mni_to_region_name(self, positions: Union[List[List[float]], np.ndarray]) -> List[str]:
+    def batch_mni_to_region_name(self, positions: Union[List[List[float]], np.ndarray]) -> List[str]:
         """
+        For each MNI coordinate, return the corresponding region name.
         For each MNI coordinate, return the corresponding region name.
         """
         positions_arr = np.atleast_2d(positions)
         return [self.mapper.mni_to_region_name(pos) for pos in positions_arr]
+        return [self.mapper.mni_to_region_name(pos) for pos in positions_arr]
 
+    # ---- region index/name -> MNI coords (batch) -----------------------------
+    def batch_region_index_to_mni(self, indices: List[Union[int, str]]) -> List[np.ndarray]:
     # ---- region index/name -> MNI coords (batch) -----------------------------
     def batch_region_index_to_mni(self, indices: List[Union[int, str]]) -> List[np.ndarray]:
         """
         For each region index, return an array of MNI coords (Nx3) for that region.
+        For each region index, return an array of MNI coords (Nx3) for that region.
         """
+        return [self.mapper.region_index_to_mni(idx) for idx in indices]
         return [self.mapper.region_index_to_mni(idx) for idx in indices]
 
     def batch_region_name_to_mni(self, regions: List[str]) -> List[np.ndarray]:
+    def batch_region_name_to_mni(self, regions: List[str]) -> List[np.ndarray]:
         """
+        For each region name, return an array of MNI coords (Nx3) for that region.
+        """
+        return [self.mapper.region_name_to_mni(r) for r in regions]
+
+from .fetching import AtlasFetcher  
+class MultiAtlasMapper:
+    """
+    Manages multiple volumetric atlases by name, providing batch MNI->region or region->MNI queries
+    across all atlases at once.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory for atlas data.
+    atlases : dict
+        Dictionary of {atlas_name: fetch_kwargs}, used by AtlasFetcher to retrieve each atlas.
+
+    Attributes
+    ----------
+    mappers : dict
+        Each entry {atlas_name: BatchAtlasMapper}
+    """
+
         For each region name, return an array of MNI coords (Nx3) for that region.
         """
         return [self.mapper.region_name_to_mni(r) for r in regions]
@@ -749,7 +972,27 @@ class MultiAtlasMapper:
         self.mappers = {}
 
         atlas_fetcher = AtlasFetcher(data_dir=data_dir)
+
+        atlas_fetcher = AtlasFetcher(data_dir=data_dir)
         for name, kwargs in atlases.items():
+            atlas_data = atlas_fetcher.fetch_atlas(name, **kwargs)
+            # Create a VolumetricAtlasMapper for this atlas_data
+            vol = atlas_data["vol"]
+            hdr = atlas_data["hdr"]
+            labels = atlas_data.get("labels")
+            index = atlas_data.get("index")
+            # system = atlas_data.get("system", "mni")
+
+            single_mapper = VolumetricAtlasMapper(
+                name=name,
+                vol=vol,
+                hdr=hdr,
+                labels=labels,
+                index=index,
+                system="mni"   # or read from atlas_data if you store that
+            )
+            batch_mapper = BatchAtlasMapper(single_mapper)
+            self.mappers[name] = batch_mapper
             atlas_data = atlas_fetcher.fetch_atlas(name, **kwargs)
             # Create a VolumetricAtlasMapper for this atlas_data
             vol = atlas_data["vol"]
@@ -770,6 +1013,10 @@ class MultiAtlasMapper:
             self.mappers[name] = batch_mapper
 
     def batch_mni_to_region_names(self, coords: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
+    def batch_mni_to_region_names(self, coords: Union[List[List[float]], np.ndarray]) -> Dict[str, List[str]]:
+        """
+        Convert a batch of MNI coordinates to region names for ALL atlases.
+        Returns a dict {atlas_name: [region_name, region_name, ...], ...}.
         """
         Convert a batch of MNI coordinates to region names for ALL atlases.
         Returns a dict {atlas_name: [region_name, region_name, ...], ...}.
@@ -777,9 +1024,14 @@ class MultiAtlasMapper:
         results = {}
         for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_mni_to_region_name(coords)
+            results[atlas_name] = mapper.batch_mni_to_region_name(coords)
         return results
 
     def batch_region_name_to_mni(self, region_names: List[str]) -> Dict[str, List[np.ndarray]]:
+    def batch_region_name_to_mni(self, region_names: List[str]) -> Dict[str, List[np.ndarray]]:
+        """
+        Convert a list of region names to MNI coordinates for ALL atlases.
+        Returns a dict {atlas_name: [np.array_of_coords_per_region, ...], ...}.
         """
         Convert a list of region names to MNI coordinates for ALL atlases.
         Returns a dict {atlas_name: [np.array_of_coords_per_region, ...], ...}.
@@ -787,7 +1039,193 @@ class MultiAtlasMapper:
         results = {}
         for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_region_name_to_mni(region_names)
+            results[atlas_name] = mapper.batch_region_name_to_mni(region_names)
         return results
+
+
+# File: .\coord2region\coord2study.py
+#!/usr/bin/env python3
+import os
+import sys
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from nimare.extract import fetch_neurosynth, fetch_neuroquery
+from nimare.io import convert_neurosynth_to_dataset
+from nimare.dataset import Dataset
+
+# Setup logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stderr)
+formatter = logging.Formatter("%(levelname)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+try:
+    from Bio import Entrez, Medline
+    BIO_AVAILABLE = True
+except ImportError:
+    BIO_AVAILABLE = False
+    logger.warning("Biopython not found. Abstract fetching will be disabled.")
+
+
+def fetch_datasets(data_dir: str) -> Dict[str, Dataset]:
+    """
+    Fetch and convert Neurosynth and NeuroQuery datasets into NiMARE Dataset objects.
+    
+    :param data_dir: Directory to store downloaded data.
+    :return: Dictionary of NiMARE Dataset objects indexed by dataset name.        
+    """
+    datasets: Dict[str, Dataset] = {}
+    os.makedirs(data_dir, exist_ok=True)
+    
+    # Fetch Neurosynth data
+    try:
+        ns_files = fetch_neurosynth(
+            data_dir=data_dir,
+            version="7",
+            source="abstract",
+            vocab="terms",
+            overwrite=False
+        )
+        ns_data = ns_files[0]  # fetch_neurosynth returns a list of dicts
+        neurosynth_dset = convert_neurosynth_to_dataset(
+            coordinates_file=ns_data["coordinates"],
+            metadata_file=ns_data["metadata"],
+            annotations_files=ns_data.get("features")
+        )
+        datasets["Neurosynth"] = neurosynth_dset
+        logger.info("Neurosynth dataset loaded successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to fetch/convert Neurosynth dataset: {e}")
+
+    # Fetch NeuroQuery data
+    try:
+        nq_files = fetch_neuroquery(
+            data_dir=data_dir,
+            version="1",
+            source="combined",
+            vocab="neuroquery6308",
+            type="tfidf",
+            overwrite=False
+        )
+        nq_data = nq_files[0]
+        neuroquery_dset = convert_neurosynth_to_dataset(
+            coordinates_file=nq_data["coordinates"],
+            metadata_file=nq_data["metadata"],
+            annotations_files=nq_data.get("features")
+        )
+        datasets["NeuroQuery"] = neuroquery_dset
+        logger.info("NeuroQuery dataset loaded successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to fetch/convert NeuroQuery dataset: {e}")
+
+    if not datasets:
+        sys.exit("Error: No datasets could be loaded. Ensure you have internet access and NiMARE supports the datasets.")
+    #TODO: Add more datasets as needed.
+    return datasets
+
+
+def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
+    """
+    Given a study ID from a NiMARE Dataset, extract study metadata (title and abstract if available).
+    
+    :param dset: A NiMARE Dataset.
+    :param sid: Study ID.
+    :return: A dictionary with keys "id", "source", "title", and optionally "abstract".
+    """
+    study_entry: Dict[str, Any] = {"id": str(sid)}
+    
+    title: Optional[str] = None
+    try:
+        titles = dset.get_metadata(ids=[sid], field="title")
+        if titles and titles[0] not in (None, "", "NaN"):
+            title = titles[0]
+    except Exception:
+        try:
+            authors = dset.get_metadata(ids=[sid], field="authors")
+            year = dset.get_metadata(ids=[sid], field="year")
+            if authors and year:
+                title = f"{authors[0]} ({year[0]})"
+        except Exception:
+            title = None
+    if title:
+        study_entry["title"] = title
+
+    # Optionally, retrieve abstract using PubMed via Entrez if email provided and Bio is available.
+    if BIO_AVAILABLE and study_entry.get("id") and "email" in study_entry:
+        pmid = str(sid).split("-")[0]  
+        try:
+            handle = Entrez.efetch(db="pubmed", id=pmid, rettype="medline", retmode="text")
+            records = list(Medline.parse(handle))
+            if records:
+                rec = records[0]
+                abstract_text = rec.get("AB")
+                if abstract_text:
+                    study_entry["abstract"] = abstract_text.strip()
+                if "title" not in study_entry:
+                    pub_title = rec.get("TI")
+                    if pub_title:
+                        study_entry["title"] = pub_title.strip()
+        except Exception as e:
+            logger.warning(f"Failed to fetch abstract for PMID {pmid}: {e}")
+    return study_entry
+
+
+def get_studies_for_coordinate(
+    datasets: Dict[str, Dataset],
+    coord: Union[List[float], Tuple[float, float, float]],
+    email: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Given an MNI coordinate and a dict of NiMARE datasets, return study metadata for studies
+    that report that coordinate.
+    
+    :param datasets: Dictionary of NiMARE Dataset objects keyed by source name.
+    :param coord: MNI coordinate [x, y, z].
+    :param email: Email address to use with Entrez for abstract fetching (if available).
+    :return: List of study metadata dictionaries.
+    """
+    # NiMARE expects a list of coordinates.
+    coord_list = [list(coord)]
+    studies_info: List[Dict[str, Any]] = []
+
+    for source, dset in datasets.items():
+        try:
+            study_ids = dset.get_studies_by_coordinate(coord_list, r=0)
+        except Exception as e:
+            logger.warning(f"Failed to search coordinate {coord} in {source} dataset: {e}")
+            continue
+        if not study_ids:
+            continue
+
+        for sid in study_ids:
+            study_entry = {"id": str(sid), "source": source}
+            if email:
+                Entrez.email = email
+                study_entry["email"] = email  
+
+            study_metadata = _extract_study_metadata(dset, sid)
+            study_entry.update(study_metadata)
+            studies_info.append(study_entry)
+
+    return studies_info
+
+
+# Example usage:
+if __name__ == '__main__':
+    DATA_DIR = "nimare_data"
+    # Fetch datasets (Neurosynth and NeuroQuery)
+    nimare_datasets = fetch_datasets(DATA_DIR)
+    # Example coordinate (MNI)
+    coordinate = [-30, -22, 50]
+    # Optionally, provide an email for fetching PubMed abstracts.
+    email_address = "babasanfour1503@gmail.com"  
+    studies = get_studies_for_coordinate(nimare_datasets, coordinate, email=email_address)
+    for study in studies:
+        print(study)
+
 
 
 # File: .\coord2region\coord2study.py
@@ -1027,6 +1465,7 @@ class AtlasFileHandler:
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
+    def pack_vol_output(self, fname: str, desc: str = None):
     def fetch_labels(self, labels: str):
         """
         :param labels: Path to the labels file or a list of labels.
@@ -1063,6 +1502,7 @@ class AtlasFileHandler:
                     'hdr': hdr_matrix,
                 }
  
+ 
             elif ext == '.npz':
                 arch = np.load(path, allow_pickle=True)
                 vol_data = arch['vol']
@@ -1083,6 +1523,7 @@ class AtlasFileHandler:
                 }
 
     def pack_surf_output(self, subject: str='fsaverage', subjects_dir: str=None, parc: str = 'aparc', **kwargs):
+    def pack_surf_output(self, subject: str='fsaverage', subjects_dir: str=None, parc: str = 'aparc', **kwargs):
         """
         Load surface-based atlas using MNE from FreeSurfer annotation files.
 
@@ -1092,7 +1533,21 @@ class AtlasFileHandler:
         :param kwargs: Additional keyword arguments.
         :return: A dictionary with keys: 'vmap', 'labmap', 'mni'.
         """
+        """
         import mne
+
+        if not subjects_dir:
+            subjects_dir = mne.datasets.sample.data_path() / "subjects"
+            #mne.datasets.fetch_hcp_mmp_parcellation(subjects_dir=subjects_dir, verbose=True)
+
+            #mne.datasets.fetch_aparc_sub_parcellation(subjects_dir=subjects_dir, verbose=True)
+
+        labels = mne.read_labels_from_annot(
+            subject, parc, subjects_dir=subjects_dir, **kwargs
+        )
+
+        
+        labels
 
         if not subjects_dir:
             subjects_dir = mne.datasets.sample.data_path() / "subjects"
@@ -1226,6 +1681,7 @@ class AtlasFetcher:
             # replace any number of spaces with a single space in all lines
             lines = [re.sub(' +', ' ', line) for line in lines]
             labels = [line.strip().split(' ')[1] for idx, line in enumerate(lines)]
+            labels = [line.strip().split(' ')[1] for idx, line in enumerate(lines)]
             output = {}
             output['labels'] = labels
             output['description'] = fetched['description']
@@ -1245,7 +1701,12 @@ class AtlasFetcher:
         self._atlas_fetchers_mne = {
             'aparc.a2009s': {'fetcher':self._fetch_atlas_aparc2009, 'default_kwargs':{'subject': 'fsaverage', 'subjects_dir': None, 'hemi': 'both'}},
         }
+        self._atlas_fetchers_mne = {
+            'aparc.a2009s': {'fetcher':self._fetch_atlas_aparc2009, 'default_kwargs':{'subject': 'fsaverage', 'subjects_dir': None, 'hemi': 'both'}},
+        }
 
+
+    # ---- Volumetric atlas fetchers using nilearn ----
 
     # ---- Volumetric atlas fetchers using nilearn ----
 
@@ -1259,6 +1720,8 @@ class AtlasFetcher:
 
     # ---- MNE-based (surface annotation) atlas fetcher ----
     
+    def _fetch_atlas_aparc2009(self,**kwargs):
+        return self.file_handler.pack_surf_output(**kwargs)
     def _fetch_atlas_aparc2009(self,**kwargs):
         return self.file_handler.pack_surf_output(**kwargs)
     
@@ -1306,6 +1769,7 @@ class AtlasFetcher:
         # Case (d): nilearn or mne atlases.
         key = atlas_name.lower()
         fetcher_nilearn = self._atlas_fetchers_nilearn.get(key, None)
+        fetcher_nilearn = self._atlas_fetchers_nilearn.get(key, None)
         if fetcher_nilearn:
             try:
                 this_kwargs = fetcher_nilearn['default_kwargs']
@@ -1317,7 +1781,13 @@ class AtlasFetcher:
                 maphdr = self.file_handler.pack_vol_output(fetched["maps"])
                 fetched.update(maphdr)
                 fetched['vol']=np.squeeze(fetched['vol'])
+                fetched['vol']=np.squeeze(fetched['vol'])
                 fetched['kwargs'] = this_kwargs
+                if fetched.get('labels', None) is not None and isinstance(fetched['labels'], np.ndarray):
+                    labels = fetched['labels'].tolist()
+                    if isinstance(labels[0], bytes):
+                        labels = [label.decode('utf-8') for label in labels]
+                    fetched['labels'] = labels
                 if fetched.get('labels', None) is not None and isinstance(fetched['labels'], np.ndarray):
                     labels = fetched['labels'].tolist()
                     if isinstance(labels[0], bytes):
@@ -1331,6 +1801,21 @@ class AtlasFetcher:
                     return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
                 else:
                     logger.error(f"Atlas {key} not found in available atlas urls")
+        
+        fetcher_mne = self._atlas_fetchers_mne.get(key, None)
+
+        if fetcher_mne:
+            try:
+                this_kwargs = fetcher_mne['default_kwargs']
+                this_kwargs.update(kwargs)
+                fetched = fetcher_mne['fetcher'](parc=atlas_name,**this_kwargs)
+                #maphdr = self.file_handler.pack_vol_output(fetched["maps"])
+                #fetched.update(maphdr)
+                #fetched['kwargs'] = this_kwargs
+                return fetched
+            except Exception as e:
+                logger.error(f"Failed to fetch atlas {key} using mne", e, exc_info=True)
+                return None
         
         fetcher_mne = self._atlas_fetchers_mne.get(key, None)
         if fetcher_mne:
@@ -1353,7 +1838,13 @@ from .coord2region import (
     BatchAtlasMapper,
     MultiAtlasMapper
 )
+from .coord2region import (
+    VolumetricAtlasMapper,
+    BatchAtlasMapper,
+    MultiAtlasMapper
+)
 from .fetching import AtlasFetcher
+
 
 
 # File: .\coord2region\utils\utils.py
@@ -1481,9 +1972,130 @@ def test_batch_mni_to_region_name(vectorized_mapper, volumetric_mapper):
 
     if not coords_for_tests:
         pytest.skip("No valid coords found for testing batch MNI->region")
+from coord2region.fetching import AtlasFetcher
+from coord2region.coord2region import VolumetricAtlasMapper, BatchAtlasMapper, MultiAtlasMapper
+
+# Atlas Properties for Validation
+PROPERTIES = {
+    "harvard-oxford": {
+        "infer_hemisphere": [('Frontal Pole', None)],
+        "region2index": [('Insular Cortex', 2)],
+        "allregions": 49,
+    },
+    "juelich": {
+        "infer_hemisphere": [('GM Primary motor cortex BA4p', None)],
+        "region2index": [('GM Amygdala_laterobasal group', 2)],
+        "allregions": 63,
+    },
+    "schaefer": {
+        "infer_hemisphere": [('7Networks_LH_Vis_1', 'L'), ('7Networks_RH_Default_PFCv_4', 'R')],
+        "region2index": [('7Networks_LH_Vis_3', 2)],
+        "allregions": 400,
+    },
+    "yeo": {
+        "infer_hemisphere": [('17Networks_9', None)],
+        "region2index": [('17Networks_2', 2)],
+        "allregions": 18,
+    }
+}
+
+# Test coordinates (ground truth needed)
+TEST_MNIS = [[-54., 36., -4.],[10., 20., 30.]]
+TEST_VOXELS = [[30, 40, 50]]
+
+
+# Fixture: Load Fresh Atlas Data Per Test
+@pytest.fixture(scope="function")
+def fresh_atlas_data(request):
+    """Loads and returns atlas data ('vol', 'hdr', 'labels') for a given atlas."""
+    atlas_name = request.param
+    print(f"\nLoading atlas: {atlas_name}")  # Debugging
+    af = AtlasFetcher(data_dir="coord2region_data")
+    return atlas_name, af.fetch_atlas(atlas_name)
+
+
+# Fixture: Create Volumetric Mapper
+@pytest.fixture(scope="function")
+def volumetric_mapper(fresh_atlas_data):
+    """Creates a fresh VolumetricAtlasMapper per test."""
+    atlas_name, data = fresh_atlas_data
+    return VolumetricAtlasMapper(
+        name=atlas_name,
+        vol=data["vol"],
+        hdr=data["hdr"],
+        labels=data.get("labels", None)
+    )
+
+
+# Fixture: Create BatchAtlasMapper for Generalized Atlas
+@pytest.fixture(scope="function")
+def vectorized_mapper(fresh_atlas_data):
+    """Creates a BatchAtlasMapper for a given atlas."""
+    atlas_name, data = fresh_atlas_data
+    return BatchAtlasMapper(
+        VolumetricAtlasMapper(
+            name=atlas_name,
+            vol=data["vol"],
+            hdr=data["hdr"],
+            labels=data.get("labels", None)
+        )
+    )
+
+
+# Test: Debug Parameterization
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_debug_parametrize(fresh_atlas_data):
+    atlas_name, _ = fresh_atlas_data
+    print(f"\nRunning test for atlas: {atlas_name}")
+    assert atlas_name in PROPERTIES.keys()
+
+
+# Test: Atlas Structure
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_atlas_structure(fresh_atlas_data):
+    atlas_name, data = fresh_atlas_data
+    assert "vol" in data and data["vol"] is not None, f"{atlas_name} missing 'vol'"
+    assert "hdr" in data and data["hdr"].shape == (4, 4), f"{atlas_name} missing 'hdr'"
+    assert "labels" in data and len(data["labels"]) > 0, f"{atlas_name} missing 'labels'"
+
+
+# Test: Hemisphere Inference
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_infer_hemisphere(volumetric_mapper, fresh_atlas_data):
+    atlas_name, _ = fresh_atlas_data
+    for region, expected in PROPERTIES[atlas_name]['infer_hemisphere']:
+        result = volumetric_mapper.infer_hemisphere(region)
+        assert result == expected, f"Error in infer_hemisphere for {atlas_name}: expected {expected}, got {result}"
+
+
+# Test: Region Index Lookup
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_region_to_index(volumetric_mapper, fresh_atlas_data):
+    atlas_name, _ = fresh_atlas_data
+    for region, expected_index in PROPERTIES[atlas_name]['region2index']:
+        idx = volumetric_mapper.region_index_from_name(region)
+        assert idx == expected_index, f"Error in region2index for {atlas_name}: expected {expected_index}, got {idx}"
+
+
+# Test: Batch MNI to Region Name
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_batch_mni_to_region_name(vectorized_mapper, volumetric_mapper):
+    labels = volumetric_mapper.list_all_regions()[:5]
+    coords_for_tests = [volumetric_mapper.region_name_to_mni(label)[0] for label in labels if volumetric_mapper.region_name_to_mni(label).shape[0] > 0]
+
+    if not coords_for_tests:
+        pytest.skip("No valid coords found for testing batch MNI->region")
 
     result = vectorized_mapper.batch_mni_to_region_name(coords_for_tests)
+    result = vectorized_mapper.batch_mni_to_region_name(coords_for_tests)
     assert len(result) == len(coords_for_tests)
+    assert all(isinstance(r, str) for r in result)
+
+
+# Test: Batch Region Index to Name
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_batch_region_name_from_index(vectorized_mapper):
+    region_names = vectorized_mapper.batch_region_name_from_index([2, 3, 4])
     assert all(isinstance(r, str) for r in result)
 
 
@@ -1494,6 +2106,57 @@ def test_batch_region_name_from_index(vectorized_mapper):
     assert len(region_names) == 3
 
 
+# Test: Batch Region Name to Index
+@pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
+def test_batch_region_index_from_name(vectorized_mapper):
+    example_region1=PROPERTIES[vectorized_mapper.mapper.name]['region2index'][0][0]
+    example_region2=PROPERTIES[vectorized_mapper.mapper.name]['infer_hemisphere'][0][0]
+    region_indices = vectorized_mapper.batch_region_index_from_name([example_region1,example_region2, "Unknown Region"])
+    assert len(region_indices) == 3
+
+
+# Test: MultiAtlasMapper API
+def test_multiatlas_api():
+    """Test the high-level MultiAtlasMapper class."""
+    c2r = MultiAtlasMapper(data_dir="coord2region_data", atlases={x: {} for x in PROPERTIES.keys()})
+    coords = TEST_MNIS
+    
+    result_dict = c2r.batch_mni_to_region_names(coords)
+    for atlas_name in PROPERTIES.keys():
+        assert atlas_name in result_dict
+        assert len(result_dict[atlas_name]) == len(coords)
+
+    for region, _ in PROPERTIES[atlas_name]['region2index']:
+        idx = c2r.batch_region_name_to_mni([region])
+
+        for atlas2 in PROPERTIES.keys():
+            if atlas2 == atlas_name:
+                assert idx[atlas2][0].shape[0]!=0, f"Expected non-empty array for {atlas2} when querying {atlas_name} region"
+            else:
+                assert idx[atlas2][0].shape[0]==0, f"Expected empty array for {atlas2} when querying {atlas_name} region"
+
+if __name__ == "__main__":
+    # pytest.main([__file__])
+    
+    """
+    to debug in vscode use this configuration in launch.json:
+    {
+        "name": "Pytest Debugger: Specific Test File",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "pytest",
+        "args": [
+            "tests/test_coord2region.py", // Specify the test file
+            "-s",  // Show print statements
+            "-v",  // Verbose output
+            "--maxfail=1",  // Stop after first failure
+            "--disable-warnings" // Suppress pytest warnings
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false // Show full stack trace for debugging
+    }
+    """
+    print('')
 # Test: Batch Region Name to Index
 @pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
 def test_batch_region_index_from_name(vectorized_mapper):
@@ -1570,6 +2233,8 @@ from coord2region import AtlasFetcher
 }
 """
 def test_fetch_nilearn_atlases():
+    atlases = ["yeo","harvard-oxford","juelich", "schaefer"]#, "aparc2009"] #"brodmann", "aal",
+def test_fetch_nilearn_atlases():
     atlases = ["harvard-oxford"]#, "aparc2009"] #"brodmann", "aal", "yeo","juelich", "schaefer"
     good_atlases = []
     bad_atlases = []
@@ -1578,6 +2243,10 @@ def test_fetch_nilearn_atlases():
             output=_fetch_atlas_helper(atlas)
             print(output)
             good_atlases.append(atlas)
+            print('vol',output['vol'].shape)
+            print('hdr',output['hdr'].shape)
+            print('labels',len(output['labels']))
+
             print('vol',output['vol'].shape)
             print('hdr',output['hdr'].shape)
             print('labels',len(output['labels']))
@@ -1594,12 +2263,19 @@ def not_ready_test_fetch_mne_atlases():
     atlas = af.fetch_atlas('aparc.a2009s')
     print(atlas)
 
+def not_ready_test_fetch_mne_atlases():
+    af = AtlasFetcher(data_dir="mne_data")
+    atlas = af.fetch_atlas('aparc.a2009s')
+    print(atlas)
+
 def _fetch_atlas_helper(atlas_name):
     af = AtlasFetcher(data_dir="atlas_data")
     atlas = af.fetch_atlas(atlas_name)
     return atlas
 
 if __name__ == "__main__":
+    #not_ready_test_fetch_mne_atlases()
+    test_fetch_nilearn_atlases()
     #not_ready_test_fetch_mne_atlases()
     test_fetch_nilearn_atlases()
     
