@@ -41,6 +41,18 @@ class AtlasFileHandler:
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
         self.mne_data = os.path.join(home_dir, 'mne_data')
 
+    def fetch_labels(self, labels: str):
+        """
+        :param labels: Path to the labels file or a list of labels.
+        :return: A list of labels.
+        """
+        if isinstance(labels, str):
+            raise NotImplementedError("Reading labels from file is not yet implemented.")
+        elif isinstance(labels, list):
+            return labels
+        else:
+            raise ValueError(f"Invalid labels type: {type(labels)}")
+
     def pack_vol_output(self, file: str):
         """
         Load an atlas file into a nibabel image (or numpy archive) and package it.
@@ -131,15 +143,17 @@ class AtlasFileHandler:
             'mni': mni_coords
         }
 
-    def fetch_from_local(self, atlas_path: str):
+    def fetch_from_local(self, atlas: str, labels: str):
         """
         Load an atlas from a local file.
         
-        :param atlas_path: Path to the local atlas file.
+        :param atlas: Path to the atlas file or a Nifti1Image object.
         :return: The standardized atlas dictionary.
         """
-        logger.info(f"Loading local atlas file: {atlas_path}")
-        return self.pack_vol_output(atlas_path, desc="Local file")
+        logger.info(f"Loading local atlas file: {atlas}")
+        output = self.pack_vol_output(atlas)
+        output['labels'] = self.fetch_labels(labels)
+        return output
 
     def fetch_from_url(self, atlas_url: str, **kwargs):
         """
@@ -150,14 +164,13 @@ class AtlasFileHandler:
         :return: The standardized atlas dictionary.
         :raises RuntimeError: if the download fails.
         """
-        # TODO document that the file name is expected to be in the URL
+        import warnings
+        warnings.warn("The file name is expected to be in the URL", UserWarning)
         import urllib.parse
         import requests
         #requests.packages.urllib3.disable_warnings()
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
-        if not file_name:
-            file_name = "atlas_download.nii.gz"
         local_path = os.path.join(self.data_dir, file_name)
 
         if not os.path.exists(local_path):
