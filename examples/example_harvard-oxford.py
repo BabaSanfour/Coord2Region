@@ -21,7 +21,7 @@ from coord2region.coord2region import AtlasMapper
 
 # %%
 # ## 2. Fetch the Harvard-Oxford Atlas
-# We use `AtlasFetcher` to download the atlas into `atlas_data/`.
+# We use `AtlasFetcher` to download the atlas into default package data_dir.
 
 atlas_name = "harvard-oxford"
 af = AtlasFetcher()  # Download into default package directory; you can specify a custom directory data_dir="path/to/dir"
