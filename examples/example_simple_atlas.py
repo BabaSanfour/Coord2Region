@@ -3,16 +3,16 @@
 Using `AtlasMapper` for Brain Atlas Processing
 ================================================
 
-This tutorial demonstrates how to use `AtlasMapper` to work with brain atlases,
+This tutorial demonstrates how to use the `AtlasMapper` class to work with a volumetric brain atlas,
 including converting between coordinate systems and querying brain regions.
 
 We will cover:
 
+- Creating a simple synthetic atlas
 - Initializing an `AtlasMapper`
 - Converting MNI coordinates to voxel indices
 - Retrieving region names from indices
 - Listing available regions
-- Using a surface-based atlas
 
 """
 
@@ -59,14 +59,17 @@ atlas = AtlasMapper(
 print(f"Atlas Name: {atlas.name}")
 print(f"Atlas Shape: {atlas.shape}")
 print(f"Atlas Coordinate System: {atlas.system}")
+print(f"Atlas Coordinate System: {atlas.atlas_type}") # The AtlasMapper can detect the type of atlas
 
 # %%
 # ## 4. Converting MNI Coordinates to Voxel Indices
-# We use `mni_to_voxel()` to convert an MNI coordinate (x, y, z) into voxel space.
+# We use `convert_to_source()` to convert an MNI coordinate (x, y, z) into voxel space.
+# This method works for both volumetric and surface atlases. `mni_to_voxel()` function works for volumetric atlases 
+# and  `mni_to_vertex()` works for surface atlases.
 # Since our affine matrix is the identity matrix, this is a simple rounding operation.
 
 mni_coord = [3, 3, 3]
-voxel_idx = atlas.mni_to_voxel(mni_coord)
+voxel_idx = atlas.convert_to_source(mni_coord)
 
 print(f"MNI Coordinate {mni_coord} maps to Voxel Index {voxel_idx}")
 
@@ -95,15 +98,18 @@ print(f"Region Index {region_idx} has {len(region_mni_coords)} coordinates in MN
 
 # %%
 # ## 8. Converting Voxel Indices Back to MNI
-# We use `voxel_to_mni()` to reverse the voxel-to-MNI conversion.
+# We use `convert_to_mni()` to reverse the voxel-to-MNI conversion. The method works for both volumetric and surface atlases.
+# `voxel_to_mni()` works for volumetric atlases and `vertext_to_mni()` works for surface atlases. 
 
-mni_from_voxel = atlas.voxel_to_mni([voxel_idx])
+mni_from_voxel = atlas.convert_to_mni([voxel_idx])
 print(f"Voxel {voxel_idx} maps back to MNI coordinates: {mni_from_voxel}")
 
 # %%
 # ## 9. Handling Surface Atlases
 # We can also use `AtlasMapper` for **surface-based** atlases.
 # In this case, we define a list of vertices instead of a volumetric atlas.
+# You can test 'convert_to_source()' and 'convert_to_mni()' methods with surface atlases.
+# Or you can use 'mni_to_vertex()' and 'vertex_to_mni()' methods.
 
 surface_vertices = np.array([100, 200, 300])  # Example vertex indices
 atlas_surface = AtlasMapper(
