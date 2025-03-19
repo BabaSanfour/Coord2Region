@@ -63,7 +63,8 @@ print(f"Saved mapped coordinates to {mapped_csv_filename}")
 # Step 5: Fetch NiMARE datasets (only NIDM-Pain for speed)
 # --------------------------------------------------------
 dataset_dir = af.data_dir
-datasets = fetch_datasets(dataset_dir, neurosynth=True, neuroquery=True)
+# neurosynth and neuroquey take a long time to download for the sake of this example we will only use NIDM-Pain
+datasets = fetch_datasets(dataset_dir, neurosynth=False, neuroquery=False)
 # %%
 # Step 6: Query studies for each coordinate and save to JSON
 # ----------------------------------------------------------
