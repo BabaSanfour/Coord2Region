@@ -4,6 +4,8 @@
 [![Test Status](https://img.shields.io/github/actions/workflow/status/BabaSanfour/Coord2Region/python-tests.yml?branch=main&label=tests)](https://github.com/BabaSanfour/Coord2Region/actions?query=workflow%3Apython-tests)
 [![Documentation Status](https://readthedocs.org/projects/coord2region/badge/?version=latest)](https://coord2region.readthedocs.io/en/latest/?badge=latest)
 [![GitHub Repository](https://img.shields.io/badge/Source%20Code-BabaSanfour%2FCoord2Region-blue)](https://github.com/BabaSanfour/Coord2Region)
+[![Preprint](https://img.shields.io/badge/Preprint-Zenodo-orange)](https://zenodo.org/records/15048848)
+[![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD3Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 **coord2region** is an open‐source Python package designed to simplify neuroimaging workflows by automatically mapping Montreal Neurological Institute (MNI) coordinates to anatomical brain regions. It supports both single-coordinate lookups and high-throughput batch processing across multiple brain atlases. The package also integrates with meta-analytic resources like Neurosynth and NeuroQuery to link anatomical regions with published neuroimaging literature.
 
