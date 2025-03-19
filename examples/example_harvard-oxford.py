@@ -1,10 +1,10 @@
 """
-============================================
-Using Harvard-Oxford Atlas with AtlasMapper
-============================================
+====================================================================
+Fetching Harvard-Oxford Atlas withAtlasFetcher and using AtlasMapper
+====================================================================
 
-This example demonstrates how to use `AtlasMapper` with the 
-Harvard-Oxford brain atlas using `AtlasFetcher`.
+This example demonstrates how to fetch Harvard-Oxford brain atlas using `AtlasFetcher` class
+and manipulate it using the `AtlasMapper` class.
 
 We will:
 - Fetch the atlas using `AtlasFetcher`
@@ -16,7 +16,6 @@ We will:
 # ## 1. Import Required Libraries
 # We start by importing the necessary libraries.
 
-import numpy as np
 from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import AtlasMapper
 
@@ -25,7 +24,7 @@ from coord2region.coord2region import AtlasMapper
 # We use `AtlasFetcher` to download the atlas into `atlas_data/`.
 
 atlas_name = "harvard-oxford"
-af = AtlasFetcher(data_dir="atlas_data")  # Download into "atlas_data" directory
+af = AtlasFetcher()  # Download into default package directory; you can specify a custom directory data_dir="path/to/dir"
 atlas = af.fetch_atlas(atlas_name)
 
 # The fetched atlas contains:
@@ -45,7 +44,7 @@ atlas_mapper = AtlasMapper(
 print(f"Atlas '{atlas_name}' initialized with {len(atlas['labels'])} regions.")
 
 # %%
-# ## 4. List All Available Regions
+# ## 4. List Available Regions
 # The `list_all_regions()` method returns the names of all regions in the atlas.
 
 all_regions = atlas_mapper.list_all_regions()
@@ -72,31 +71,38 @@ print(f"Region '{region_query}' corresponds to index: {region_index}")
 # %%
 # ## 7. Convert MNI Coordinates to Voxel Space
 # We use `mni_to_voxel()` to find the **voxel location** of an MNI coordinate.
-
+# You could also use `mni_to_vertices()` for surface atlases or `convert_to_mni()` that supports both.
 mni_coord = [-20, 30, 40]  # Example MNI coordinate
-voxel_index = atlas_mapper.mni_to_voxel(mni_coord)
+voxel_index = atlas_mapper.mni_to_voxel(mni_coord) 
 
 print(f"MNI coordinate {mni_coord} maps to voxel index {voxel_index}")
 
 # %%
 # ## 8. Convert MNI Coordinates to Region Name
-# Finally, let's find which **region** corresponds to an MNI coordinate.
+# Now, let's find which **region** corresponds to an MNI coordinate.
 
 region_from_mni = atlas_mapper.mni_to_region_name(mni_coord)
 print(f"MNI coordinate {mni_coord} is in region: {region_from_mni}")
 
 # %%
-# ## 9. Infer Hemisphere from Region Name
-# We can infer the **hemisphere** of a region if its name follows a standard format.
-# For this we will use a region that is not on Harvard-Oxford atlas, as those are not hemisphere-specific.
-# For example, "Lat_Fis-post-rh" implies the right hemisphere.
+# ## 9. Infer Hemisphere from Region Name (1.0)
+# Finally, we can infer the **hemisphere** of a region if its name follows a standard format.
+region_name = "Frontal Pole" 
+hemisphere = atlas_mapper.infer_hemisphere(region_name)
+
+print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
+
+# %% 10. Infer Hemisphere from Region Name (1.0)
+# As you have seen the **Frontal Pole** does not belong to any **hemisphere**. This is because 
+# some atlases do not provide hemisphere information for regions.
+# Let's try another region that has hemisphere information.
 region_name = "Lat_Fis-post-rh"  # Example
 hemisphere = atlas_mapper.infer_hemisphere(region_name)
 
 print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
 
 # %%
-# ## 10. Summary
+# ## 11. Summary
 #
 # In this tutorial, we:
 # - Downloaded the Harvard-Oxford atlas using `AtlasFetcher`
