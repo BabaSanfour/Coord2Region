@@ -16,14 +16,14 @@ by setting `neurosynth=True` and `neuroquery=True` in `fetch_datasets`.
 """
 
 # %%
-# ## 1. Import Required Libraries
+# 1. Import Required Libraries
 # We start by importing the necessary libraries.
 
 import os
 from coord2region.coord2study import fetch_datasets, get_studies_for_coordinate
 
 # %%
-# ## 2. Fetch the NIDM-Pain Dataset
+# 2. Fetch the NIDM-Pain Dataset
 # 
 # We use `fetch_datasets` to download the **NIDM-Pain dataset**, which contains **neuroimaging meta-analysis studies**.
 
@@ -36,7 +36,7 @@ datasets = fetch_datasets(data_dir=data_dir, neurosynth=False, neuroquery=False)
 print(f"Loaded datasets: {list(datasets.keys())}")
 
 # %%
-# ## 3. Query Studies for an MNI Coordinate
+# 3. Query Studies for an MNI Coordinate
 # 
 # We specify an **MNI coordinate** to find studies reporting activation at that location.
 
@@ -53,7 +53,7 @@ for study in study_results[:5]:  # Show only first 5 studies for brevity
     print("-" * 40)
 
 # %%
-# ## 4. Extract and Display Study Metadata
+# 4. Extract and Display Study Metadata
 # 
 # If available, we can retrieve additional metadata **such as abstracts** using **PubMed**.
 
@@ -65,7 +65,7 @@ for study in study_results[:3]:  # Limit to first 3 studies
     print("=" * 60)
 
 # %%
-# ## 5. Summary
+# 5. Summary
 #
 # In this tutorial, we:
 # - Loaded the **NIDM-Pain** dataset using `fetch_datasets`
