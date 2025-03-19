@@ -1,0 +1,74 @@
+Id,Name,Shape Library,Page ID,Contained By,Group,Line Source,Line Destination,Source Arrow,Destination Arrow,Status,Text Area 1,Comments
+1,Document,,,,,,,,,Draft,Flowchart,
+2,Page,,,,,,,,,,Page 1,
+3,Process,Flowchart Shapes/Containers,2,,,,,,,,,
+4,Process,Flowchart Shapes/Containers,2,,,,,,,,Coordinate ,
+5,Process,Flowchart Shapes/Containers,2,,,,,,,,AtlasMapper,
+6,Process,Flowchart Shapes/Containers,2,,,,,,,,AtlasFetcher,
+7,Process,Flowchart Shapes/Containers,2,,,,,,,,Atlas name,
+8,Process,Flowchart Shapes/Containers,2,,,,,,,,Brain Region,
+9,Text,Standard,2,,,,,,,,Single Coordinate to Brain Region,
+10,Process,Flowchart Shapes/Containers,2,,,,,,,,,
+11,Process,Flowchart Shapes/Containers,2,,,,,,,,"Coordinate 1
+Coordinate 2
+Coordinate 3
+.
+.
+.
+",
+12,Process,Flowchart Shapes/Containers,2,,,,,,,,BatchAtlasMapper,
+13,Process,Flowchart Shapes/Containers,2,,,,,,,,"Brain Region 1
+Brain Region 2
+Brain Region 3
+.
+.
+.
+",
+14,Process,Flowchart Shapes/Containers,2,,,,,,,,Atlas name,
+15,Text,Standard,2,,,,,,,,Multiple Coordinates to Brain Regions,
+16,Process,Flowchart Shapes/Containers,2,,,,,,,,,
+17,Process,Flowchart Shapes/Containers,2,,,,,,,,Atlas 1,
+18,Process,Flowchart Shapes/Containers,2,,,,,,,,Atlas 2,
+19,Process,Flowchart Shapes/Containers,2,,,,,,,,MultiAtlasMapper,
+20,Process,Flowchart Shapes/Containers,2,,,,,,,,AtlasMapper 1,
+21,Process,Flowchart Shapes/Containers,2,,,,,,,,"Brain Region
+based on Atlas1",
+22,Process,Flowchart Shapes/Containers,2,,,,,,,,Brain Region based on Atlas2,
+23,Process,Flowchart Shapes/Containers,2,,,,,,,,Coordinate,
+24,Process,Flowchart Shapes/Containers,2,,,,,,,,AtlasMapper 2,
+25,Text,Standard,2,,,,,,,,Coordinate to Brain Region according to different atlases,
+26,Process,Flowchart Shapes/Containers,2,,,,,,,,,
+27,Text,Standard,2,,,,,,,,Coordinate to associated studies,
+28,Process,Flowchart Shapes/Containers,2,,,,,,,,Coordinate,
+29,Process,Flowchart Shapes/Containers,2,,,,,,,,"NiMARE  database
+
+NeuroSynth database
+
+NeuroQuery database",
+30,Process,Flowchart Shapes/Containers,2,,,,,,,,"Metadata
+Structure",
+31,Process,Flowchart Shapes/Containers,2,,,,,,,,Duplicate Cleaning,
+32,Process,Flowchart Shapes/Containers,2,,,,,,,,"Study 1
+Study 2
+Study 3
+.
+.
+.
+",
+33,Line,,2,,,4,5,None,Arrow,,,
+34,Line,,2,,,7,6,None,Arrow,,,
+35,Line,,2,,,6,5,None,Arrow,,,
+36,Line,,2,,,5,8,None,Arrow,,,
+37,Line,,2,,,11,12,None,Arrow,,,
+38,Line,,2,,,12,13,None,Arrow,,,
+39,Line,,2,,,14,12,None,Arrow,,,
+40,Line,,2,,,17,20,None,Arrow,,,
+41,Line,,2,,,18,24,None,Arrow,,,
+42,Line,,2,,,20,21,None,Arrow,,,
+43,Line,,2,,,24,22,None,Arrow,,,
+44,Line,,2,,,23,24,None,Arrow,,,
+45,Line,,2,,,23,20,None,Arrow,,,
+46,Line,,2,,,28,29,None,Arrow,,,
+47,Line,,2,,,29,30,None,Arrow,,,
+48,Line,,2,,,30,31,None,Arrow,,,
+49,Line,,2,,,31,32,None,Arrow,,,
