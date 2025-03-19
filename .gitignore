@@ -24,6 +24,8 @@ coverage.xml
 .pytest_cache/
 
 
+study_data/
+
 # Sphinx documentation
 docs/_build/
 make.bat

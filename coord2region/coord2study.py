@@ -177,7 +177,7 @@ def get_studies_for_coordinate(
 
     for source, dset in datasets.items():
         try:
-            study_ids = dset.get_studies_by_coordinate(coord_list, r=0)
+            study_ids = dset.get_studies_by_coordinate(coord_list, r=1) #TODO: make this a parameter
         except Exception as e:
             logger.warning(f"Failed to search coordinate {coord} in {source} dataset: {e}")
             continue
