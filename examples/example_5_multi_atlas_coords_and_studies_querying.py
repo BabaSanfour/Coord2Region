@@ -1,4 +1,3 @@
-# %%
 """
 =====================================================
 End-to End Pipeline: Multi-Atlas Coordinate Querying
