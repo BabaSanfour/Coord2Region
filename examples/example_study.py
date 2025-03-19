@@ -11,7 +11,8 @@ We will:
 - Query **studies related to a given brain coordinate**
 - Extract **study metadata** such as title and abstract (if available)
 
-**Note:** To speed up execution, we limit this example to **NIDM-Pain only**.
+**Note:** To speed up execution, we limit this example to **NIDM-Pain only**, but you can include other datasets 
+by setting `neurosynth=True` and `neuroquery=True` in `fetch_datasets`.
 """
 
 # %%
@@ -26,7 +27,8 @@ from coord2region.coord2study import fetch_datasets, get_studies_for_coordinate
 # 
 # We use `fetch_datasets` to download the **NIDM-Pain dataset**, which contains **neuroimaging meta-analysis studies**.
 
-data_dir = "study_data"  # Directory to store datasets
+home_dir = os.path.expanduser("~")
+data_dir = os.path.join(home_dir, 'coord2region') # Use package directory for data storage
 os.makedirs(data_dir, exist_ok=True)
 
 datasets = fetch_datasets(data_dir=data_dir, neurosynth=False, neuroquery=False)  # Only use NIDM-Pain
