@@ -101,9 +101,10 @@ print("Batch mapped regions:", region_names)
 
 For more examples and detailed API usage, please refer to the code in `combined_python_code.txt` and the examples in the repository.
 
-## Documentation
+## Documentation, Examples and Paper
 
-- **Paper:** For a comprehensive overview and detailed description of the package design, please see the [coord2region](https://coord2region.readthedocs.io/en/latest/).
+For a comprehensive overview and detailed description of the package design, please see the 
+**coord2region** [documentation](https://coord2region.readthedocs.io/en/latest/) and [Preprint](https://zenodo.org/records/15048848)
 
 ## Contributing
 
