@@ -3,7 +3,8 @@ import pytest
 from coord2region import AtlasFetcher
 import warnings
 # List of nilearn atlases to test
-NILEARN_ATLASES = ["yeo", "harvard-oxford", "juelich", "schaefer", "brodmann", "aal"]
+NILEARN_ATLASES = ["yeo", "harvard-oxford", "juelich", "schaefer", "brodmann", "aal",
+                   'destrieux', 'pauli', 'basc']
 
 @pytest.mark.parametrize("atlas_name", NILEARN_ATLASES)
 def test_fetch_nilearn_atlases(atlas_name):
