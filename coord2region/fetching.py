@@ -258,7 +258,10 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.subjects_dir = self.file_handler.subjects_dir
-        from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
+        from nilearn.datasets import fetch_atlas_destrieux_2009, fetch_atlas_aal, fetch_atlas_talairach, \
+            fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, \
+            fetch_atlas_yeo_2011, fetch_atlas_pauli_2017, \
+            fetch_atlas_basc_multiscale_2015
 
         self._atlas_fetchers_nilearn = {
             'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': '3v2'}},
@@ -267,6 +270,17 @@ class AtlasFetcher:
             'juelich': {'fetcher':fetch_atlas_juelich, 'default_kwargs': {'atlas_name': 'maxprob-thr0-1mm'}},
             'schaefer': {'fetcher':fetch_atlas_schaefer_2018, 'default_kwargs': {'n_rois': 400, 'yeo_networks': 7, 'resolution_mm': 1}},
             'yeo': {'fetcher':fetch_atlas_yeo_2011, 'default_kwargs': {'n_networks': 7, 'thickness': 'thick'}},
+            'destrieux': {'fetcher':fetch_atlas_destrieux_2009, 'default_kwargs': {'lateralized': True}},
+            'pauli': {'fetcher':fetch_atlas_pauli_2017, 'default_kwargs': {'atlas_type': 'deterministic'}},
+            'basc': {'fetcher':fetch_atlas_basc_multiscale_2015, 'default_kwargs': {'resolution': 444, 'version': 'sym'}},
+        }
+
+        # some atlases return directly the coordinates in mni space
+        from nilearn.datasets import fetch_coords_dosenbach_2010, fetch_coords_power_2011, fetch_coords_seitzman_2018
+        self._coords_fetchers_nilearn = {
+            'dosenbach': { 'fetcher':fetch_coords_dosenbach_2010, 'default_kwargs': {}},
+            'power': { 'fetcher':fetch_coords_power_2011, 'default_kwargs': {}},
+            'seitzman': { 'fetcher':fetch_coords_seitzman_2018, 'default_kwargs': {}},
         }
 
         self._atlas_fetchers_mne = {
@@ -320,6 +334,7 @@ class AtlasFetcher:
 
     def _fetch_atlas(self, fetcher, **kwargs):
         try:
+            logger.info(f"Attempting to fetch atlas using primary data_dir: {self.file_handler.data_dir}")
             return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
         except Exception as e:
             logger.error(f"Failed to fetch atlas using primary data_dir: {self.file_handler.data_dir}", e, exc_info=True)
@@ -344,16 +359,42 @@ class AtlasFetcher:
         description["atlas_name"] = atlas_name
         description.update({k: v for k, v in {
             'atlas_type': fetched.get('atlas_type'),
-            'atlas_template': fetched.get('template')
+            'atlas_template': fetched.get('template'),
+            'networks': fetched.get('networks'),
+            'radius': fetched.get('radius'),
         }.items() if v is not None})
         version = kwargs.get('atlas_name') or kwargs.get('version')
         description['coordinate system'] = kwargs.get('coordinate_system', 'Unknown')
         template = fetched.get('template', '')
-        description['coordinate system'] = 'MNI' if 'MNI' in template else description.get('coordinate system', 'Unknown')
-        description['type'] = 'volumetric' # check for surface! 
+        description['coordinate system'] = 'MNI' if 'MNI' in template else kwargs.get('coordinate system', 'Unknown')
+        description['type'] = kwargs.get('type', 'volumetric')
         if version is not None:
             description['version'] = version
         return description
+    
+    def _fetch_coords_nilearn(self, atlas_name, fetcher_nilearn, **kwargs):
+        """
+        Fetch coordinates using nilearn.
+        
+        :param atlas_name: The atlas identifier.
+        :param fetcher_nilearn: The fetcher function from nilearn.
+        :param kwargs: Additional keyword arguments.
+        :return: A standardized atlas dictionary.
+        """
+        this_kwargs = fetcher_nilearn['default_kwargs']
+        this_kwargs.update(kwargs)
+        fetched = fetcher_nilearn['fetcher'](**this_kwargs)
+        description = self._get_description(atlas_name, fetched, {"type": "coords", 'coordinate system': 'MNI'})
+        labels = fetched.get('labels') or fetched.get('regions') 
+        if labels is None: 
+            labels = fetched['rois']['roi'].tolist()
+        return {
+            'vol': fetched['rois'],
+            'hdr': None,
+            'labels': labels,
+            'description': description,
+        }
+    
 
     def _fetch_atlas_nilearn(self, atlas_name, fetcher_nilearn, **kwargs):
         """
@@ -438,6 +479,18 @@ class AtlasFetcher:
                     return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
                 else:
                     logger.error(f"Atlas {key} not found in available atlas urls")
+        fetcher_coords = self._coords_fetchers_nilearn.get(key, None)
+        if fetcher_coords:
+            try:
+                return self._fetch_coords_nilearn(key, fetcher_coords, **kwargs)
+            except Exception as e:
+                logger.error(f"Failed to fetch atlas {key} using nilearn", e, exc_info=True)
+                logger.warning(f"Attempting to fetch atlas {key} using url")
+                if key in self.ATLAS_URLS:
+                    return self.file_handler.fetch_from_url(self.ATLAS_URLS[key])
+                else:
+                    logger.error(f"Atlas {key} not found in available atlas urls")
+
         fetcher_mne = self._atlas_fetchers_mne.get(key, None)
         if fetcher_mne:
             try:
