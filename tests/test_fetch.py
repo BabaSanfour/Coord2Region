@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from coord2region import AtlasFetcher
 import warnings
@@ -19,7 +20,7 @@ def test_fetch_nilearn_atlases(atlas_name):
 
 
     for key in ["vol", "hdr", "labels"]:
-        assert key in atlas, f"Key '{key}' missing in atlas '{atlas_name}' output."
+        assert atlas[key] is not None, f"Key '{key}' missing in atlas '{atlas_name}' output."
 
 
     assert isinstance(atlas["vol"], np.ndarray), (
@@ -45,6 +46,29 @@ def test_fetch_nilearn_atlases(atlas_name):
     assert isinstance(atlas["labels"], list) and len(atlas["labels"]) > 0, (
         f"Labels should be a non-empty list for atlas '{atlas_name}'."
     )
+
+# List of nilearn coord based atlases to test
+NILEARN_COORDS = ["dosenbach", "power", "seitzman",]
+@pytest.mark.parametrize("atlas_name", NILEARN_COORDS)
+def test_fetch_nilearn_coords(atlas_name):
+    """Test fetching of nilearn atlases using AtlasFetcher."""
+    af = AtlasFetcher()
+    atlas = af.fetch_atlas(atlas_name)
+
+    for key in ["vol", "labels"]:
+        assert atlas[key] is not None, f"Key '{key}' missing in atlas '{atlas_name}' output."
+
+
+    assert isinstance(atlas["vol"], pd.DataFrame), (
+        f"'vol' should be a pandas DataFrame for atlas '{atlas_name}'."
+    )
+    expected_columns = ["x", "y", "z"]
+    for col in expected_columns:
+        assert col in atlas["vol"].columns, f"DataFrame missing '{col}' column for atlas '{atlas_name}'."
+    assert atlas["vol"].shape[0] > 0, f"'vol' DataFrame is empty for atlas '{atlas_name}'."
+
+    assert ((isinstance(atlas["labels"], list) or isinstance(atlas["labels"], np.ndarray)) and 
+            len(atlas["labels"]) > 0), f"Labels should be a non-empty list or numpy array for atlas '{atlas_name}'."
 
 def test_fetch_mne_atlases():
     """Test fetching of an MNE-based atlas."""
