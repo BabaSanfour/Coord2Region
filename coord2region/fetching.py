@@ -260,37 +260,13 @@ class AtlasFetcher:
         self.subjects_dir = self.file_handler.subjects_dir
         from nilearn.datasets import fetch_atlas_aal, fetch_atlas_talairach, fetch_atlas_harvard_oxford, fetch_atlas_juelich, fetch_atlas_schaefer_2018, fetch_atlas_yeo_2011
 
-        def _fetch_atlas_yeo_version(version='thick_17', **kwargs):
-            from nilearn.datasets import fetch_atlas_yeo_2011
-            fetched = self._fetch_atlas(fetch_atlas_yeo_2011, **kwargs)
-            version = kwargs.get('version', 'thick_17')
-
-            # Needs special care
-            # thin/thick keys are the images
-            # colors are the labels
-            num = version.split('_')[-1]
-            labels_file = fetched[f'colors_{num}']
-            # read the labels file
-            with open(labels_file, 'r') as f:
-                lines = f.readlines()
-            import re
-            # replace any number of spaces with a single space in all lines
-            lines = [re.sub(' +', ' ', line) for line in lines]
-            labels = [line.strip().split(' ')[1] for idx, line in enumerate(lines)]
-            output = {}
-            output['labels'] = labels
-            output['description'] = fetched['description']
-            output['file'] = fetched[version]
-            output['maps']=fetched[version] # this will be taken care of to make it an array later
-            return output
-
         self._atlas_fetchers_nilearn = {
-            'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': 'SPM12'}},
+            'aal':  {'fetcher':fetch_atlas_aal,'default_kwargs': {'version': '3v2'}},
             'brodmann': {'fetcher':fetch_atlas_talairach,'default_kwargs': {'level_name': 'ba'}},
             'harvard-oxford': {'fetcher':fetch_atlas_harvard_oxford, 'default_kwargs': {'atlas_name': 'cort-maxprob-thr25-2mm'}},
             'juelich': {'fetcher':fetch_atlas_juelich, 'default_kwargs': {'atlas_name': 'maxprob-thr0-1mm'}},
-            'schaefer': {'fetcher':fetch_atlas_schaefer_2018, 'default_kwargs': {}},
-            'yeo': {'fetcher':_fetch_atlas_yeo_version, 'default_kwargs': {'version': 'thick_17'}},
+            'schaefer': {'fetcher':fetch_atlas_schaefer_2018, 'default_kwargs': {'n_rois': 400, 'yeo_networks': 7, 'resolution_mm': 1}},
+            'yeo': {'fetcher':fetch_atlas_yeo_2011, 'default_kwargs': {'n_networks': 7, 'thickness': 'thick'}},
         }
 
         self._atlas_fetchers_mne = {
@@ -353,7 +329,60 @@ class AtlasFetcher:
             logger.error(f"Failed to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}", e, exc_info=True)
             logger.info(f"Attempting to fetch atlas using subject's data_dir: {self.subjects_dir}")
             return fetcher(data_dir=self.subjects_dir, **kwargs)
-    
+
+    def _get_description(self, atlas_name, fetched, kwargs):
+        """
+        Get the description of the atlas.
+        
+        :param atlas_name: The atlas name.
+        :param fetched: The fetched atlas data.
+        :param kwargs: Additional keyword arguments.
+        :return: A dictionary with atlas description.
+        """
+        description = {}
+        description.update(kwargs)
+        description["atlas_name"] = atlas_name
+        description.update({k: v for k, v in {
+            'atlas_type': fetched.get('atlas_type'),
+            'atlas_template': fetched.get('template')
+        }.items() if v is not None})
+        version = kwargs.get('atlas_name') or kwargs.get('version')
+        description['coordinate system'] = kwargs.get('coordinate_system', 'Unknown')
+        template = fetched.get('template', '')
+        description['coordinate system'] = 'MNI' if 'MNI' in template else description.get('coordinate system', 'Unknown')
+        description['type'] = 'volumetric' # check for surface! 
+        if version is not None:
+            description['version'] = version
+        return description
+
+    def _fetch_atlas_nilearn(self, atlas_name, fetcher_nilearn, **kwargs):
+        """
+        Fetch an atlas using nilearn.
+        
+        :param atlas_name: The atlas identifier.
+        :param fetcher_nilearn: The fetcher function from nilearn.
+        :param kwargs: Additional keyword arguments.
+        :return: A standardized atlas dictionary.
+        """
+        this_kwargs = fetcher_nilearn['default_kwargs']
+        this_kwargs.update(kwargs)
+        fetched = fetcher_nilearn['fetcher'](**this_kwargs)
+        maphdr = self.file_handler.pack_vol_output(fetched["maps"])
+        fetched.update(maphdr)
+        fetched['vol']=np.squeeze(fetched['vol'])
+        fetched['description'] = self._get_description(atlas_name, fetched, this_kwargs)
+        if fetched.get('labels', None) is not None and isinstance(fetched['labels'], np.ndarray):
+            labels = fetched['labels'].tolist()
+            if labels and isinstance(labels[0], bytes):
+                labels = [label.decode('utf-8') for label in labels]
+            fetched['labels'] = labels
+        return {
+            'vol': fetched['vol'],
+            'hdr': fetched['hdr'],
+            'labels': fetched['labels'],
+            'description': fetched['description'],
+        }
+
     # ---- Public method ----
 
     def fetch_atlas(self, atlas_name: str, atlas_url: str = None, **kwargs):
@@ -401,22 +430,7 @@ class AtlasFetcher:
         fetcher_nilearn = self._atlas_fetchers_nilearn.get(key, None)
         if fetcher_nilearn:
             try:
-                this_kwargs = fetcher_nilearn['default_kwargs']
-                this_kwargs.update(kwargs)
-                if atlas_name != 'yeo':
-                    fetched = self._fetch_atlas(fetcher_nilearn['fetcher'],**this_kwargs)
-                else:
-                    fetched = fetcher_nilearn['fetcher'](**this_kwargs)
-                maphdr = self.file_handler.pack_vol_output(fetched["maps"])
-                fetched.update(maphdr)
-                fetched['vol']=np.squeeze(fetched['vol'])
-                fetched['kwargs'] = this_kwargs
-                if fetched.get('labels', None) is not None and isinstance(fetched['labels'], np.ndarray):
-                    labels = fetched['labels'].tolist()
-                    if isinstance(labels[0], bytes):
-                        labels = [label.decode('utf-8') for label in labels]
-                    fetched['labels'] = labels
-                return fetched
+                return self._fetch_atlas_nilearn(key, fetcher_nilearn, **kwargs)
             except Exception as e:
                 logger.error(f"Failed to fetch atlas {key} using nilearn", e, exc_info=True)
                 logger.warning(f"Attempting to fetch atlas {key} using url")
