@@ -10,7 +10,6 @@ logger.setLevel(logging.INFO)
 
 # TODO: Raise SSL issue for URL not working suggest to download the file manually and provide the path (aal, brodmann, talairach)
 # TODO: test fetch from local file
-# TODO add "destrieux": self._fetch_atlas_destrieux, similar to mne-annot
 # TODO add other nibabel, nilearn, mne atlases
 # TODO: add save/load methods for created objects!
 # TODO: add method to list available atlases
