@@ -1,4 +1,4 @@
-nilearn
+nilearn @ git+https://github.com/BabaSanfour/nilearn.git@dev#egg=nilearn
 nibabel
 mne
 pytest-cov
