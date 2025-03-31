@@ -94,8 +94,12 @@ MNE_ATLASES = [
 ]
 
 @pytest.mark.parametrize("atlas_name", MNE_ATLASES)
-def test_fetch_mne_atlases(atlas_name):
+def test_fetch_mne_atlases(atlas_name, monkeypatch):
     """Test fetching of MNE-based atlases using AtlasFetcher."""
+    # For the "human-connectum project" atlas, auto-accept the license.
+    if atlas_name == "human-connectum project":
+        monkeypatch.setattr("builtins.input", lambda prompt: "y")
+
     af = AtlasFetcher()
     atlas = af.fetch_atlas(atlas_name)
     
