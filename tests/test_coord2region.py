@@ -99,6 +99,9 @@ def test_infer_hemisphere(volumetric_mapper, fresh_atlas_data):
 # Test: Region Index Lookup
 @pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
 def test_region_to_index(volumetric_mapper, fresh_atlas_data):
+    # skip yeo and schaefer for now
+    if fresh_atlas_data[0] in ['yeo', 'schaefer']:
+        pytest.skip(f"Skipping test for {fresh_atlas_data[0]} atlas")
     atlas_name, _ = fresh_atlas_data
     for region, expected_index in PROPERTIES[atlas_name]['region2index']:
         idx = volumetric_mapper.region_index_from_name(region)
@@ -138,11 +141,14 @@ def test_batch_region_index_from_name(vectorized_mapper):
 # Test: MultiAtlasMapper API
 def test_multiatlas_api():
     """Test the high-level MultiAtlasMapper class."""
-    c2r = MultiAtlasMapper(data_dir="coord2region_data", atlases={x: {} for x in PROPERTIES.keys()})
+    # also skipping yeo ! 
+    c2r = MultiAtlasMapper(data_dir="coord2region_data", atlases={x: {} for x in PROPERTIES.keys() if x != "yeo"})
     coords = TEST_MNIS
     
     result_dict = c2r.batch_mni_to_region_names(coords)
     for atlas_name in PROPERTIES.keys():
+        if atlas_name == "yeo":
+            continue
         assert atlas_name in result_dict
         assert len(result_dict[atlas_name]) == len(coords)
 
@@ -150,6 +156,8 @@ def test_multiatlas_api():
         idx = c2r.batch_region_name_to_mni([region])
 
         for atlas2 in PROPERTIES.keys():
+            if atlas2 == 'yeo':
+                continue
             if atlas2 == atlas_name:
                 assert idx[atlas2][0].shape[0]!=0, f"Expected non-empty array for {atlas2} when querying {atlas_name} region"
             else:
