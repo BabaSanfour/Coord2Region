@@ -162,7 +162,7 @@ class AtlasFetcher:
             'description': fetched['description'],
         }
     
-    def _fetch_atlas_mne(self, atlas_name: str, fetcher_mne: Union[None, mne.datasets], **kwargs):
+    def _fetch_atlas_mne(self, atlas_name: str, fetcher_mne, **kwargs):
         """
         Fetch an atlas using MNE.
 
