@@ -100,6 +100,8 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
         if subjects_dir is None:
             import os
             subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
+    from pathlib import Path
+    subjects_dir = Path(subjects_dir)
     if fetcher is None:
         try:
             labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
