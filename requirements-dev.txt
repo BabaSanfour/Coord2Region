@@ -2,7 +2,7 @@ nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn
 nibabel
 mne
 pytest-cov
-nimare==0.4.2
+nimare>=4.0.0
 bio
 sphinx>=4.0.0
 insegel
