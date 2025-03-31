@@ -1,7 +1,7 @@
 import os
 import logging
 import pickle
-from typing import Optional
+from typing import Optional, Union, List
 import mne
 from .utils import pack_vol_output, pack_surf_output, fetch_labels
 
@@ -71,13 +71,31 @@ class AtlasFileHandler:
         else:
             return None
 
-    def fetch_from_local(self, atlas: str, labels: str):
+    def fetch_from_local(self, atlas_file: str, atlas_dir: str, labels: Union[str, List]):
         """
         Load an atlas from a local file.
         """
-        logger.info(f"Loading local atlas file: {atlas}")
-        output = pack_vol_output(atlas)
-        output['labels'] = fetch_labels(labels)
+        logger.info(f"Loading local atlas file: {atlas_file}")
+        found_path = next(
+            (os.path.join(root, atlas_file) for root, _, files in os.walk(atlas_dir) if atlas_file in files),
+            None
+        )
+        if found_path is None:
+            raise FileNotFoundError(f"Atlas file {atlas_file} not found in {atlas_dir} or its subdirectories")
+        logger.info(f"Atlas file found at {found_path}")
+
+        output = pack_vol_output(found_path)
+        if isinstance(labels, str):
+            found_path = next(
+                (os.path.join(root, labels) for root, _, files in os.walk(atlas_dir) if labels in files),
+                None
+            )
+            if found_path is None:
+                raise FileNotFoundError(f"Labels file {labels} not found in {atlas_dir} or its subdirectories")
+            logger.info(f"Labels file found at {found_path}")
+            output['labels'] = fetch_labels(found_path)
+        elif isinstance(labels, list):
+            output['labels'] = fetch_labels(labels)
         return output
 
     def fetch_from_url(self, atlas_url: str, **kwargs):
@@ -88,6 +106,10 @@ class AtlasFileHandler:
         warnings.warn("The file name is expected to be in the URL", UserWarning)
         import urllib.parse
         import requests
+        import zipfile
+        import tarfile
+        import gzip
+        import shutil
 
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
@@ -111,4 +133,32 @@ class AtlasFileHandler:
         else:
             logger.info(f"Atlas already exists: {local_path}. Skipping download.")
 
-        return local_path
+        # Check if the downloaded file is compressed and decompress if necessary.
+        decompressed_path = local_path
+        if zipfile.is_zipfile(local_path):
+            logger.info(f"Extracting zip file {local_path}")
+            extract_dir = os.path.join(self.data_dir, file_name.rstrip('.zip'))
+            with zipfile.ZipFile(local_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+                decompressed_path = extract_dir
+        elif tarfile.is_tarfile(local_path):
+            logger.info(f"Extracting tar archive {local_path}")
+            # Remove possible extensions to form the extract directory name
+            base_name = file_name
+            for ext in ['.tar.gz', '.tgz', '.tar']:
+                if base_name.endswith(ext):
+                    base_name = base_name[:-len(ext)]
+                    break
+            extract_dir = os.path.join(self.data_dir, base_name)
+            with tarfile.open(local_path, 'r:*') as tar_ref:
+                tar_ref.extractall(extract_dir)
+                decompressed_path = extract_dir
+        elif local_path.endswith('.gz') and not local_path.endswith('.tar.gz'):
+            logger.info(f"Decompressing gzip file {local_path}")
+            decompressed_file = local_path[:-3]
+            with gzip.open(local_path, 'rb') as f_in:
+                with open(decompressed_file, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                decompressed_path = decompressed_file
+
+        return decompressed_path

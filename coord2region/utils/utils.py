@@ -8,7 +8,23 @@ def fetch_labels(labels):
     - If a filename is provided, raise NotImplementedError.
     """
     if isinstance(labels, str):
-        raise NotImplementedError("Reading labels from file is not yet implemented.")
+        import xml.etree.ElementTree as ET
+        try:
+            tree = ET.parse(labels)
+            root = tree.getroot()
+            data = root.find('data')
+            if data is None:
+                raise ValueError("Invalid XML file: missing 'data' element.")
+            label_list = []
+            for label in data.findall('label'):
+                name_elem = label.find('name')
+                if name_elem is not None:
+                    label_list.append(name_elem.text)
+                if not label_list:
+                    raise ValueError("No labels found in the XML file.")
+            return label_list
+        except Exception as e:
+            raise ValueError(f"Error processing XML file {labels}: {e}")
     elif isinstance(labels, list):
         return labels
     else:

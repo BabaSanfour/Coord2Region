@@ -9,8 +9,6 @@ from .utils import pack_vol_output, pack_surf_output
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# TODO: Raise SSL issue for URL not working suggest to download the file manually and provide the path (aal, brodmann, talairach)
-# TODO: test fetch from local file
 
 class AtlasFetcher:
     """
@@ -22,7 +20,11 @@ class AtlasFetcher:
     """
     ATLAS_URLS = {
         'talairach': 'https://www.talairach.org/talairach.nii',
-        'aal': 'http://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
+        'aal': {
+            'atlas_url': 'http://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz',
+            'atlas_file': 'AAL3v1.nii.gz',
+            'labels': 'AAL3v1.xml',
+        },
     }
 
     def __init__(self, data_dir: str = None):
@@ -141,6 +143,15 @@ class AtlasFetcher:
         fetched['description'] = description
         return fetched
 
+    def _fetch_from_url(self, atlas_name, atlas_url, **kwargs):
+        """
+        Fetch an atlas from a URL.
+        """
+        local_path = self.file_handler.fetch_from_url(atlas_url, **kwargs)
+        output = self.file_handler.fetch_from_local(kwargs.get("atlas_file"), local_path, kwargs.get("labels"))
+        output['description'] = self._get_description(atlas_name, output, kwargs)
+        return output
+
     def list_available_atlases(self):
         """
         Returns a sorted list of available atlas identifiers.
@@ -161,8 +172,10 @@ class AtlasFetcher:
         """
         key = atlas_name.lower()
         if atlas_url is not None and atlas_url.startswith(('http://', 'https://')):
-            local_path = self.file_handler.fetch_from_url(atlas_url, **kwargs)
-            return self.file_handler.fetch_from_local(local_path, kwargs.get("labels"))
+            return self._fetch_from_url(key, atlas_url, **kwargs)
+        if key in self.ATLAS_URLS:
+            kwargs.update(self.ATLAS_URLS[key])
+            return self._fetch_from_url(key, **kwargs)
 
         # Local file or image cases.
         atlas_file = kwargs.get("atlas_file", None)
