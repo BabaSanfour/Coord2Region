@@ -2,7 +2,7 @@ import os
 import mne
 import logging
 import numpy as np
-from typing import Optional
+from typing import Optional, Union
 from nibabel.nifti1 import Nifti1Image
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,6 @@ logger.setLevel(logging.INFO)
 
 # TODO: Raise SSL issue for URL not working suggest to download the file manually and provide the path (aal, brodmann, talairach)
 # TODO: test fetch from local file
-# TODO add other nibabel, nilearn, mne atlases
 # TODO: add save/load methods for created objects!
 # TODO: add method to list available atlases
 # TODO: check for atlases that supported by both mne and nilearn if else
@@ -109,7 +108,7 @@ class AtlasFileHandler:
                     'hdr': hdr_matrix,
                 }
 
-    def pack_surf_output(self, fetcher: mne.datasets, subject: str = 'fsaverage', subjects_dir: str = None, parc: str = 'aparc', **kwargs):
+    def pack_surf_output(self, atlas_name, fetcher: Union[mne.datasets, None], subject: str = 'fsaverage', subjects_dir: str = None, **kwargs):
         """
         Load surface-based atlas using MNE from FreeSurfer annotation files.
 
@@ -125,15 +124,25 @@ class AtlasFileHandler:
         if hasattr(self, 'subjects_dir') and self.subjects_dir is not None:
             subjects_dir = self.subjects_dir
         elif subjects_dir is None:
-            subjects_dir = mne.datasets.sample.data_path() / "subjects"
+            subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
 
-        # Read annotation labels; if missing, use fetcher to obtain the atlas.
-        try:
-            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
-        except Exception as e:
-            fetcher(subjects_dir=subjects_dir)
-            labels = mne.read_labels_from_annot(subject, parc, subjects_dir=subjects_dir, **kwargs)
-
+        if fetcher is None:
+            try:
+                labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+            except Exception as e:
+                mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
+                labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+        else:
+            try:
+                labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
+            except Exception as e:
+                fetcher(subjects_dir=subjects_dir, **kwargs)
+                labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+            except Exception as e:
+                mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
+                fetcher(subjects_dir=subjects_dir, **kwargs)
+                labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+        
         # Set up source space to get vertex information.
         src = mne.setup_source_space(subject, spacing='oct6', subjects_dir=subjects_dir, add_dist=False)
         lh_vert = src[0]['vertno']  # Left hemisphere vertex numbers (sorted)
@@ -283,66 +292,20 @@ class AtlasFetcher:
         }
 
         self._atlas_fetchers_mne = {
-            'aparc.a2009s': {
-            'aliases': ['aparc.a2009s', 'destrieux', 'a2009s'],
-            'fetcher': mne.datasets.fetch_fsaverage,
-            'default_kwargs': {
-                'verbose': True
-            },
-            'new_atlas_name': 'aparc.a2009s'
-            },
-            'aparc_sub': {
-                'aliases': ['aparc_sub', 'aparc_subs'],
-                'fetcher': mne.datasets.fetch_aparc_sub_parcellation,
-                'default_kwargs': {
-                    'subjects_dir': self.subjects_dir,
-                    'verbose': True
-                },
-                'new_atlas_name': 'aparc_sub'
-            },
-            'aparc': {
-                'aliases': ['aparc', 'desikan', 'dk'],
-                'fetcher': mne.datasets.fetch_fsaverage,
-                'default_kwargs': {
-                    'verbose': True
-                },
-                'new_atlas_name': 'aparc'
-            },
-            'hcpmmp1': {
-                'aliases': ['hcp', 'hcpmmp', 'hcpmmp1'],
-                'fetcher': mne.datasets.fetch_hcp_mmp_parcellation,
-                'default_kwargs': {
-                    'subjects_dir': self.subjects_dir,
-                    'accept': True,
-                    'verbose': True
-                },
-                'new_atlas_name': 'HCPMMP1',
-                'validation': lambda kwargs: kwargs.get('accept_hcp', False) # Validation: require user to pass accept_hcp=True
-            },
-            'aparc.DKTatlas': {
-            'aliases': ['dkt', 'aparc.dktatlas'],
-            'fetcher': mne.datasets.fetch_fsaverage,
-            'default_kwargs': {
-                'verbose': True
-            },
-            'new_atlas_name': 'aparc.DKTatlas'
-            }
+            'brodmann': {'fetcher': None, 'default_kwargs': {'version': 'PALS_B12_Brodmann'}},
+            'human-connectum project': {'fetcher': mne.datasets.fetch_hcp_mmp_parcellation, 'default_kwargs': {'version': 'HCPMMP1_combined'},}, # also HCPMMP1
+            'pals_b12_lobes': {'fetcher': None, 'default_kwargs': {'version': 'PALS_B12_Lobes'},},
+            'pals_b12_orbitofrontal': {'fetcher': None,'default_kwargs': {'version': 'PALS_B12_OrbitoFrontal'},},
+            'pals_b12_visuotopic': {'fetcher': None, 'default_kwargs': {'version': 'PALS_B12_Visuotopic'},},
+            'aparc_sub': {'fetcher': mne.datasets.fetch_aparc_sub_parcellation, 'default_kwargs': {}},
+            'aparc': {'fetcher': None, 'default_kwargs': {},},
+            'aparc.a2009s': {'fetcher': None, 'default_kwargs': {},},
+            'aparc.a2005s': {'fetcher': None, 'default_kwargs': {},},
+            'oasis.chubs': {'fetcher': None,'default_kwargs': {},},
+            'yeo2011': {'fetcher': None,'default_kwargs': {'version': 'Yeo2011_17Networks_N1000'},},
         }
 
     # ---- atlas fetchers using nilearn/mne ----
-
-    def _fetch_atlas(self, fetcher, **kwargs):
-        try:
-            logger.info(f"Attempting to fetch atlas using primary data_dir: {self.file_handler.data_dir}")
-            return fetcher(data_dir=self.file_handler.data_dir, **kwargs)
-        except Exception as e:
-            logger.error(f"Failed to fetch atlas using primary data_dir: {self.file_handler.data_dir}", e, exc_info=True)
-            logger.info(f"Attempting to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}")
-            return fetcher(data_dir=self.file_handler.nilearn_data, **kwargs)
-        except Exception as e:
-            logger.error(f"Failed to fetch atlas using nilearn_data: {self.file_handler.nilearn_data}", e, exc_info=True)
-            logger.info(f"Attempting to fetch atlas using subject's data_dir: {self.subjects_dir}")
-            return fetcher(data_dir=self.subjects_dir, **kwargs)
 
     def _get_description(self, atlas_name, fetched, kwargs):
         """
@@ -363,7 +326,6 @@ class AtlasFetcher:
             'radius': fetched.get('radius'),
         }.items() if v is not None})
         version = kwargs.get('atlas_name') or kwargs.get('version')
-        description['coordinate system'] = kwargs.get('coordinate_system', 'Unknown')
         template = fetched.get('template', '')
         description['coordinate system'] = 'MNI' if 'MNI' in template else kwargs.get('coordinate system', 'Unknown')
         description['type'] = kwargs.get('type', 'volumetric')
@@ -422,6 +384,31 @@ class AtlasFetcher:
             'labels': fetched['labels'],
             'description': fetched['description'],
         }
+    
+    def _fetch_atlas_mne(self, atlas_name, fetcher_mne, **kwargs):
+        """
+        Fetch an atlas using MNE.
+        
+        :param atlas_name: The atlas identifier.
+        :param fetcher_mne: The fetcher function from MNE.
+        :param kwargs: Additional keyword arguments.
+        :return: A standardized atlas dictionary.
+        """
+        kwargs['subject'] = kwargs.get('subject', 'fsaverage')
+        this_kwargs = fetcher_mne['default_kwargs']
+        this_kwargs.update(kwargs)
+        atlas_name_mne = this_kwargs.pop('version', atlas_name)
+        fetched = self.file_handler.pack_surf_output(
+            atlas_name = atlas_name_mne,
+            fetcher = fetcher_mne['fetcher'],
+            **this_kwargs
+        )
+        this_kwargs.update({'type': 'surface'})
+        this_kwargs['coordinate system'] = 'MNI'
+        this_kwargs['version'] = atlas_name_mne
+        description = self._get_description(atlas_name, fetcher_mne, this_kwargs)
+        fetched['description'] = description
+        return fetched
 
     # ---- Public method ----
 
@@ -493,20 +480,7 @@ class AtlasFetcher:
         fetcher_mne = self._atlas_fetchers_mne.get(key, None)
         if fetcher_mne:
             try:
-                this_kwargs = fetcher_mne['default_kwargs'].copy()
-                this_kwargs.update(kwargs)
-                if 'validation' in fetcher_mne and not fetcher_mne['validation'](this_kwargs):
-                    raise ValueError("To fetch HCPMMP atlas, you must pass accept_hcp=True.")
-                # Instead of calling the raw fetcher, we now use pack_surf_output
-                subject = this_kwargs.get('subject', 'fsaverage')
-                fetched = self.file_handler.pack_surf_output(
-                    fetcher = fetcher_mne['fetcher'],
-                    subject=subject,
-                    parc=fetcher_mne['new_atlas_name'],
-                    **this_kwargs
-                )
-                # fetched['kwargs'] = this_kwargs
-                return fetched
+                return self._fetch_atlas_mne(key, fetcher_mne, **kwargs)
             except Exception as e:
                 logger.error(f"Failed to fetch atlas {key} using mne", e, exc_info=True)
         raise ValueError(f"Unrecognized atlas name '{atlas_name}'.") # ADD Available options: {list(self._atlas_fetchers.keys())

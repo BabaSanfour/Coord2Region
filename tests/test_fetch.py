@@ -49,6 +49,7 @@ def test_fetch_nilearn_atlases(atlas_name):
 
 # List of nilearn coord based atlases to test
 NILEARN_COORDS = ["dosenbach", "power", "seitzman",]
+
 @pytest.mark.parametrize("atlas_name", NILEARN_COORDS)
 def test_fetch_nilearn_coords(atlas_name):
     """Test fetching of nilearn atlases using AtlasFetcher."""
@@ -70,10 +71,14 @@ def test_fetch_nilearn_coords(atlas_name):
     assert ((isinstance(atlas["labels"], list) or isinstance(atlas["labels"], np.ndarray)) and 
             len(atlas["labels"]) > 0), f"Labels should be a non-empty list or numpy array for atlas '{atlas_name}'."
 
-def test_fetch_mne_atlases():
+MNE_ATLASES = ["brodmann", "human-connectum project", "pals_b12_lobes", "pals_b12_orbitofrontal", 
+               "pals_b12_visuotopic", "aparc_sub", "aparc.a2009s", "aparc", "aparc.a2005s",
+                'oasis.chubs', 'yeo2011']
+@pytest.mark.parametrize("atlas_name", MNE_ATLASES)
+def test_fetch_mne_atlases(atlas_name):
     """Test fetching of an MNE-based atlas."""
-    af = AtlasFetcher(data_dir="mne_data")
-    atlas = af.fetch_atlas("aparc.a2009s")
+    af = AtlasFetcher()
+    atlas = af.fetch_atlas(atlas_name)
 
     # Validate expected keys for MNE atlases; these might differ slightly from nilearn atlases.
     for key in ["vol", "labels", "indexes"]:
@@ -81,17 +86,17 @@ def test_fetch_mne_atlases():
 
     # Validate that 'vol' is a list (as pack_surf_output returns left/right hemisphere arrays)
     assert isinstance(atlas["vol"], list), (
-        "'vol' should be a list for MNE-based atlas 'aparc.a2009s'."
+        f"'vol' should be a list for MNE-Based atlas '{atlas_name}."
     )
 
     # Validate that 'indexes' is a numpy array
     assert isinstance(atlas["indexes"], np.ndarray), (
-        "'indexes' should be a numpy array for MNE-based atlas 'aparc.a2009s'."
+        f"'indexes' should be a numpy array for MNE-Based atlas '{atlas_name}."
     )
 
     # Validate that the labels list is not empty
     assert isinstance(atlas["labels"], np.ndarray) or isinstance(atlas["labels"], list), (
-        "Labels should be a numpy array or list for MNE-based atlas 'aparc.a2009s'."
+        "Labels should be a numpy array or list for MNE-Based atlas '{atlas_name}.."
     )
     labels = atlas["labels"] if isinstance(atlas["labels"], list) else atlas["labels"].tolist()
-    assert len(labels) > 0, "Labels are empty for MNE-based atlas 'aparc.a2009s'."
+    assert len(labels) > 0, "Labels are empty for MNE-Based atlas '{atlas_name}."
