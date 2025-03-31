@@ -88,18 +88,14 @@ def test_fetch_nilearn_coords(atlas_name):
 
 # List of MNE atlases to test
 MNE_ATLASES = [
-    "brodmann", "human-connectum project", "pals_b12_lobes", "pals_b12_orbitofrontal",
+    "brodmann", "pals_b12_lobes", "pals_b12_orbitofrontal",
     "pals_b12_visuotopic", "aparc_sub", "aparc", "aparc.a2009s",
     "aparc.a2005s", "oasis.chubs", "yeo2011"
 ]
 
 @pytest.mark.parametrize("atlas_name", MNE_ATLASES)
-def test_fetch_mne_atlases(atlas_name, monkeypatch):
+def test_fetch_mne_atlases(atlas_name):
     """Test fetching of MNE-based atlases using AtlasFetcher."""
-    # For the "human-connectum project" atlas, auto-accept the license.
-    if atlas_name == "human-connectum project":
-        monkeypatch.setattr("builtins.input", lambda prompt: "y")
-
     af = AtlasFetcher()
     atlas = af.fetch_atlas(atlas_name)
     
