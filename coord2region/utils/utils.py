@@ -6,6 +6,10 @@ def fetch_labels(labels):
     Process the labels input.
     - If a list is provided, return it.
     - If a filename is provided, raise NotImplementedError.
+
+    :param labels: A list of labels or a filename.
+    :raises NotImplementedError: If a filename is provided.
+    :return: A list of labels.
     """
     if isinstance(labels, str):
         import xml.etree.ElementTree as ET
@@ -35,7 +39,9 @@ def pack_vol_output(file):
     """
     Load an atlas file (NIfTI, NPZ, or Nifti1Image) and package the output.
 
-    Returns a dictionary with keys: 'vol' and 'hdr'.
+    :param file: The atlas file (NIfTI, NPZ, or Nifti1Image).
+    :raises ValueError: If the file format is not recognized.
+    :return: A dictionary with keys: 'vol' and 'hdr'.
     """
     if isinstance(file, str):
         path = os.path.abspath(file)
@@ -79,7 +85,13 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     """
     Load a surface-based atlas using MNE (from FreeSurfer annotation files).
 
-    Returns a dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
+    :param atlas_name: The name of the atlas (e.g., 'aparc', 'aparc.a2009s').
+    :param fetcher: Function to fetch the atlas data.
+    :param subject: The subject name (default: 'fsaverage').
+    :param subjects_dir: The directory containing the FreeSurfer subjects (default: None).
+    :param kwargs: Additional keyword arguments for the fetcher function.
+    :raises ValueError: If the atlas name is not recognized.
+    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne

@@ -17,6 +17,11 @@ class AtlasFileHandler:
       - Loading local atlas files.
       - Downloading atlas files from a URL.
       - Caching objects to reduce repeated computation.
+    
+    Attributes:
+    :attr data_dir: Directory for storing downloaded atlas files.
+    :attr subjects_dir: Directory for MNE data.
+    :attr nilearn_data: Directory for storing Nilearn data.
     """
     def __init__(self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None):
         home_dir = os.path.expanduser("~")
@@ -43,6 +48,11 @@ class AtlasFileHandler:
     def save(self, obj, filename: str):
         """
         Save an object to the data directory using pickle.
+
+        :param obj: The object to save.
+        :param filename: The name of the file to save the object to.
+        :raises ValueError: If the data directory is not writable.
+        :raises Exception: If there is an error during saving.
         """
         filepath = os.path.join(self.data_dir, filename)
         try:
@@ -56,7 +66,10 @@ class AtlasFileHandler:
     def load(self, filename: str):
         """
         Load an object from the data directory.
-        Returns None if the file is not found.
+
+        :param filename: The name of the file to load the object from.
+        :raises Exception: If there is an error during loading.
+        :return: The loaded object or None if the file does not exist.
         """
         filepath = os.path.join(self.data_dir, filename)
         if os.path.exists(filepath):
@@ -74,6 +87,13 @@ class AtlasFileHandler:
     def fetch_from_local(self, atlas_file: str, atlas_dir: str, labels: Union[str, List]):
         """
         Load an atlas from a local file.
+
+        :param atlas_file: The name of the atlas file.
+        :param atlas_dir: The directory where the atlas file is located.
+        :param labels: The labels file or a list of labels.
+        :raises FileNotFoundError: If the atlas file or labels file is not found.
+        :raises Exception: If there is an error during loading.
+        :return: A dictionary containing the atlas data.
         """
         logger.info(f"Loading local atlas file: {atlas_file}")
         found_path = next(
@@ -101,6 +121,13 @@ class AtlasFileHandler:
     def fetch_from_url(self, atlas_url: str, **kwargs):
         """
         Download an atlas from a URL (if not already present) and return the local file path.
+
+        :param atlas_url: The URL of the atlas file.
+        :param kwargs: Additional arguments for the download.
+        :raises RuntimeError: If the download fails.
+        :return: The local path to the downloaded atlas file.
+        :raises ValueError: If the data directory is not writable.
+        :raises Exception: If there is an error during downloading.
         """
         import warnings
         warnings.warn("The file name is expected to be in the URL", UserWarning)
