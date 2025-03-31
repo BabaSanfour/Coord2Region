@@ -36,7 +36,7 @@ setuptools.setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@dev#egg=nilearn',
+        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn',
     ],
     include_package_data=True,
 )
