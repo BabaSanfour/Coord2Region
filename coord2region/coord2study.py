@@ -395,6 +395,105 @@ def get_studies_for_coordinate_dedup(
     return studies_info
 
 
+# Prompt Generation Functions
+def generate_llm_prompt(
+    studies: List[Dict[str, Any]], 
+    coordinate: Union[List[float], Tuple[float, float, float]],
+    prompt_type: str = "summary"
+) -> str:
+    """
+    Generate a detailed prompt for language models based on studies found for a coordinate.
+    
+    This function creates a structured prompt that includes all study data (IDs, titles, abstracts)
+    formatted for optimal language model analysis and summarization.
+    
+    Parameters
+    ----------
+    studies : List[Dict[str, Any]]
+        List of study metadata dictionaries from get_studies_for_coordinate functions
+    coordinate : Union[List[float], Tuple[float, float, float]]
+        The MNI coordinate [x, y, z] that was searched
+    prompt_type : str, default="summary"
+        Type of prompt to generate ("summary", "region_name", "function", etc.)
+        
+    Returns
+    -------
+    str
+        A detailed prompt for language models including all study information
+    """
+    if not studies:
+        return f"No neuroimaging studies were found reporting activation at MNI coordinate {coordinate}."
+    
+    # Format the coordinate as a string
+    coord_str = f"[{coordinate[0]}, {coordinate[1]}, {coordinate[2]}]"
+    
+    # Build the prompt header with clear instructions
+    if prompt_type == "summary":
+        prompt = f"""
+You are a neuroscience expert assistant. I need a comprehensive yet concise summary of the brain region at MNI coordinate {coord_str}.
+
+Below are {len(studies)} neuroimaging studies that report activation at this coordinate.
+Analyze these studies and provide:
+1. The most likely brain region name(s) at this coordinate
+2. The functional role of this region based on the studies
+3. A synthesis of the key findings across studies
+4. Any patterns or common themes in the experimental tasks/conditions
+
+Do not summarize each study separately. Instead, integrate information across studies to provide a cohesive picture of this brain region.
+
+STUDIES REPORTING ACTIVATION AT MNI COORDINATE {coord_str}:
+"""
+    elif prompt_type == "region_name":
+        prompt = f"""
+You are a neuroanatomy expert. Based on the following neuroimaging studies reporting activation at MNI coordinate {coord_str}, 
+determine the most likely anatomical name(s) of this brain region. Consider all possible anatomical labels at different scales 
+(gyrus, sulcus, specific nucleus, etc.) and provide confidence levels for each possible label.
+
+STUDIES REPORTING ACTIVATION AT MNI COORDINATE {coord_str}:
+"""
+    elif prompt_type == "function":
+        prompt = f"""
+You are a cognitive neuroscience expert. Based on the following neuroimaging studies reporting activation at MNI coordinate {coord_str},
+provide a detailed functional profile of this brain region. Describe:
+1. Primary cognitive functions associated with this region
+2. Secondary or context-dependent functions
+3. Functional connectivity patterns if mentioned
+4. How this region fits into larger brain networks
+5. Any contradictions or debates about this region's function
+
+STUDIES REPORTING ACTIVATION AT MNI COORDINATE {coord_str}:
+"""
+    else:
+        # Default to basic summary prompt
+        prompt = f"""
+Please analyze the following neuroimaging studies reporting activation at MNI coordinate {coord_str} and 
+provide a comprehensive summary of this brain region's anatomical location and functional role.
+
+STUDIES REPORTING ACTIVATION AT MNI COORDINATE {coord_str}:
+"""
+    
+    # Add each study's information to the prompt
+    for i, study in enumerate(studies, 1):
+        prompt += f"\n\n--- STUDY {i} ---"
+        prompt += f"\nID: {study.get('id', 'Unknown ID')}"
+        prompt += f"\nTitle: {study.get('title', 'No title available')}"
+        
+        if 'abstract' in study and study['abstract']:
+            prompt += f"\nAbstract: {study['abstract']}"
+        else:
+            prompt += "\nAbstract: Not available"
+    
+    # Add final instructions
+    prompt += f"""
+
+Based on ALL the studies above, provide a comprehensive analysis of the brain region at MNI coordinate {coord_str}.
+Be specific about anatomical labels and functional roles. Use evidence from the studies to support your conclusions.
+Do not list or summarize individual studies; instead, synthesize across them to provide an integrated view of this brain region.
+"""
+    
+    return prompt
+
+
 # Example usage
 if __name__ == '__main__':
     DATA_DIR = "nimare_data"
@@ -427,15 +526,62 @@ if __name__ == '__main__':
         
         print(f"Found {len(studies)} studies for coordinate {coordinate}")
         
-        # Print study information
-        for i, study in enumerate(studies, 1):
-            print(f"\nStudy {i}:")
-            print(f"  ID: {study.get('id')}")
-            print(f"  Title: {study.get('title', 'N/A')}")
-            if 'abstract' in study:
-                abstract = study['abstract']
-                # Truncate long abstracts for display
-                if len(abstract) > 200:
-                    abstract = abstract[:200] + "..."
-                print(f"  Abstract: {abstract}")
+        # # Print study information
+        # for i, study in enumerate(studies, 1):
+        #     print(f"\nStudy {i}:")
+        #     print(f"  ID: {study.get('id')}")
+        #     print(f"  Title: {study.get('title', 'N/A')}")
+        #     if 'abstract' in study:
+        #         abstract = study['abstract']
+        #         # Truncate long abstracts for display
+        #         if len(abstract) > 200:
+        #             abstract = abstract[:200] + "..."
+        #         print(f"  Abstract: {abstract}")
+        
+        # Generate a prompt for LLM about this coordinate
+        prompt = generate_llm_prompt(studies, coordinate, prompt_type="summary")
+        print("\n" + "="*80)
+        print("GENERATED PROMPT FOR LANGUAGE MODEL:")
+        print("="*80)
+        print(prompt[:500] + "..." if len(prompt) > 500 else prompt)
+        print("="*80)
+        
+        # Example of using the prompt with AIModelInterface
+        try:
+            # Use conditional import approach to handle both direct script execution and package import
+            try:
+                # Try relative import first (when used as part of package)
+                from .ai_model_interface import AIModelInterface
+            except ImportError:
+                # Fall back to direct import (when script is run directly)
+                try:
+                    from ai_model_interface import AIModelInterface
+                except ImportError:
+                    # If in the same directory but not installed as package
+                    import sys
+                    import os
+                    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    from coord2region.ai_model_interface import AIModelInterface
+            
+            print("\nAttempting to generate summary using AIModelInterface...")
+            # Initialize the AI interface with your API keys
+            ai = AIModelInterface(
+                gemini_api_key="AIzaSyBXQFQ4PbB29BteSFs1zDq5dD8o8YkbKxg",
+                openrouter_api_key="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"
+            )
+            
+            # Generate a summary using one of the models (adjust as needed)
+            summary = ai.generate_text(
+                model="gemini-2.0-flash",  # Using a more capable model for complex reasoning
+                prompt=prompt
+            )
+            
+            print("\n" + "="*80)
+            print("AI-GENERATED REGION SUMMARY:")
+            print("="*80)
+            print(summary)
+            
+        except (ImportError, Exception) as e:
+            print(f"\nCouldn't generate AI summary: {e}")
+            print("You can copy the prompt above and use it with any AI model of your choice.")
             
