@@ -23,6 +23,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+nimare_data/
 
 study_data/
 
