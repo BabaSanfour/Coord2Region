@@ -20,72 +20,87 @@ class AIModelInterface:
     
     Attributes
     ----------
-    model_configs : Dict
-        Configuration details for supported models
+    model_configs : Dict[str, Dict]
+        Configuration details for supported models.
+    gemini_client : Optional[genai.Client]
+        Client for Gemini (Google GenAI) if initialized.
     """
-    
-    def __init__(self, gemini_api_key: Optional[str] = None, openrouter_api_key: Optional[str] = None):
+
+    def __init__(
+        self, 
+        gemini_api_key: Optional[str] = None, 
+        openrouter_api_key: Optional[str] = None
+    ):
         """
         Initialize the AI model interface with API keys.
         
         Parameters
         ----------
         gemini_api_key : Optional[str]
-            API key for Google's Generative AI (Gemini) models
+            API key for Google's Generative AI (Gemini) models.
         openrouter_api_key : Optional[str]
-            API key for OpenRouter to access DeepSeek models
+            API key for OpenRouter to access DeepSeek models.
         """
         self.model_configs = {
-            # Gemini models
+            # Example Gemini models
             "gemini-1.0-pro": {"type": "gemini", "model_name": "gemini-1.0-pro"},
             "gemini-1.5-pro": {"type": "gemini", "model_name": "gemini-1.5-pro"},
             "gemini-2.0-flash": {"type": "gemini", "model_name": "gemini-2.0-flash"},
             
-            # DeepSeek models
+            # Example DeepSeek models
             "deepseek-r1": {"type": "deepseek", "model_name": "deepseek/deepseek-r1:free"},
-            "deepseek-chat-v3-0324": {"type": "deepseek", "model_name": "deepseek/deepseek-chat-v3-0324:free"}
+            "deepseek-chat-v3-0324": {
+                "type": "deepseek", 
+                "model_name": "deepseek/deepseek-chat-v3-0324:free"
+            }
         }
         
-        # Initialize API clients if keys are provided
+        # Initialize Gemini client if key provided
         self.gemini_client = None
         if gemini_api_key:
             self.gemini_client = genai.Client(api_key=gemini_api_key)
         
+        # Configure OpenRouter if key provided
         if openrouter_api_key:
             openai.api_base = "https://openrouter.ai/api/v1"
             openai.api_key = openrouter_api_key
     
-    def generate_text(self, 
-                     model: str, 
-                     prompt: Union[str, List[Dict[str, str]]], 
-                     max_tokens: int = 1000) -> str:
+    def generate_text(
+        self, 
+        model: str, 
+        prompt: Union[str, List[Dict[str, str]]], 
+        max_tokens: int = 1000
+    ) -> str:
         """
         Generate text using the specified AI model.
         
         Parameters
         ----------
         model : str
-            Name of the model to use (e.g., "gemini-2.0-flash", "deepseek-chat-v3-0324")
+            Name of the model to use (e.g., "gemini-2.0-flash", "deepseek-chat-v3-0324").
         prompt : Union[str, List[Dict[str, str]]]
             Either a string prompt for simple queries or a list of message dictionaries
-            for chat-based models in the format [{"role": "user", "content": "..."}]
+            for chat-based models in the format [{"role": "user", "content": "..."}].
         max_tokens : int, default=1000
-            Maximum number of tokens to generate
+            Maximum number of tokens to generate.
         
         Returns
         -------
         str
-            Generated text response from the model
+            Generated text response from the model.
         
         Raises
         ------
         ValueError
-            If the model is not supported or API keys aren't configured
+            If the model is not supported or required API key isn't set.
         RuntimeError
-            If there's an error generating the response
+            If there's an error generating the response.
         """
         if model not in self.model_configs:
-            raise ValueError(f"Model '{model}' not supported. Available models: {list(self.model_configs.keys())}")
+            raise ValueError(
+                f"Model '{model}' not supported. "
+                f"Available models: {list(self.model_configs.keys())}"
+            )
         
         config = self.model_configs[model]
         model_type = config["type"]
@@ -95,13 +110,17 @@ class AIModelInterface:
             # Handle Gemini models
             if model_type == "gemini":
                 if not self.gemini_client:
-                    raise ValueError("Gemini API key not provided. Initialize with gemini_api_key.")
+                    raise ValueError(
+                        "Gemini API key not provided. Initialize AIModelInterface with gemini_api_key."
+                    )
                 
-                # Convert to string if it's a message list
+                # Convert chat-style messages to a single string if needed
                 if isinstance(prompt, list):
-                    # Simple conversion - just extract content from user messages
-                    prompt = " ".join([msg["content"] for msg in prompt if msg["role"] == "user"])
+                    prompt = " ".join(
+                        msg["content"] for msg in prompt if msg["role"] == "user"
+                    )
                 
+                # Generate text with the Gemini client
                 response = self.gemini_client.models.generate_content(
                     model=model_name,
                     contents=[prompt]
@@ -111,7 +130,9 @@ class AIModelInterface:
             # Handle DeepSeek models via OpenRouter
             elif model_type == "deepseek":
                 if not openai.api_key:
-                    raise ValueError("OpenRouter API key not provided. Initialize with openrouter_api_key.")
+                    raise ValueError(
+                        "OpenRouter API key not provided. Initialize AIModelInterface with openrouter_api_key."
+                    )
                 
                 # Format messages for chat completion
                 if isinstance(prompt, str):
@@ -121,7 +142,7 @@ class AIModelInterface:
                 
                 response = openai.ChatCompletion.create(
                     model=model_name,
-                    messages=messages
+                    messages=messages,
                 )
                 return response['choices'][0]['message']['content']
             
@@ -138,20 +159,20 @@ class AIModelInterface:
         Returns
         -------
         List[str]
-            List of model names that can be used with this interface
+            List of model names that can be used with this interface.
         """
         return list(self.model_configs.keys())
 
 
 # Example usage
 if __name__ == "__main__":
-    # Initialize with API keys
+    # Initialize with (fake) API keys
     ai_interface = AIModelInterface(
-        gemini_api_key="AIzaSyBXQFQ4PbB29BteSFs1zDq5dD8o8YkbKxg",
-        openrouter_api_key="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"
+        gemini_api_key="AIzaSyBXXXXXX",
+        openrouter_api_key="sk-or-v1-XXXXXXXXXXXXXXXXXXXXXXXX"
     )
     
-    # Example: Use Gemini model
+    # Example: Use a Gemini model
     gemini_response = ai_interface.generate_text(
         model="gemini-2.0-flash",
         prompt="How does AI work?"
@@ -160,10 +181,10 @@ if __name__ == "__main__":
     print(gemini_response)
     print("\n" + "-"*50 + "\n")
     
-    # Example: Use DeepSeek model
+    # Example: Use a DeepSeek model
     deepseek_response = ai_interface.generate_text(
         model="deepseek-r1",
         prompt="What is the meaning of life?"
     )
     print("DeepSeek response:")
-    print(deepseek_response) 
+    print(deepseek_response)
