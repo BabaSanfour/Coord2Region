@@ -1,3 +1,9 @@
+"""Fetch and handle neuroimaging datasets using NiMARE.
+
+This module provides functions to download, convert, and query neuroimaging
+datasets such as Neurosynth, NeuroQuery, and NIDM-Pain using the NiMARE library.
+"""
+
 import os
 import sys
 import logging
@@ -18,6 +24,7 @@ logger.addHandler(handler)
 
 try:
     from Bio import Entrez, Medline
+
     BIO_AVAILABLE = True
 except ImportError:
     BIO_AVAILABLE = False
@@ -25,16 +32,18 @@ except ImportError:
 
 # TODO: Add more nimare datasets ! and optinally private datasets
 
-def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = True) -> Dict[str, Dataset]:
+def fetch_datasets(
+    data_dir: str, neurosynth: bool = True, neuroquery: bool = True
+) -> Dict[str, Dataset]:
     """
     Fetch and convert Neurosynth and NeuroQuery datasets into NiMARE Dataset objects.
-    
+
     :param data_dir: Directory to store downloaded data.
-    :return: Dictionary of NiMARE Dataset objects indexed by dataset name.        
+    :return: Dictionary of NiMARE Dataset objects indexed by dataset name.
     """
     datasets: Dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
-    
+
     if neurosynth:
         # Fetch Neurosynth data
         try:
@@ -43,13 +52,13 @@ def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = Tr
                 version="7",
                 source="abstract",
                 vocab="terms",
-                overwrite=False
+                overwrite=False,
             )
             ns_data = ns_files[0]  # fetch_neurosynth returns a list of dicts
             neurosynth_dset = convert_neurosynth_to_dataset(
                 coordinates_file=ns_data["coordinates"],
                 metadata_file=ns_data["metadata"],
-                annotations_files=ns_data.get("features")
+                annotations_files=ns_data.get("features"),
             )
             datasets["Neurosynth"] = neurosynth_dset
             logger.info("Neurosynth dataset loaded successfully.")
@@ -65,13 +74,13 @@ def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = Tr
                 source="combined",
                 vocab="neuroquery6308",
                 type="tfidf",
-                overwrite=False
+                overwrite=False,
             )
             nq_data = nq_files[0]
             neuroquery_dset = convert_neurosynth_to_dataset(
                 coordinates_file=nq_data["coordinates"],
                 metadata_file=nq_data["metadata"],
-                annotations_files=nq_data.get("features")
+                annotations_files=nq_data.get("features"),
             )
             datasets["NeuroQuery"] = neuroquery_dset
             logger.info("NeuroQuery dataset loaded successfully.")
@@ -80,30 +89,35 @@ def fetch_datasets(data_dir: str, neurosynth: bool = True, neuroquery: bool = Tr
 
     # Fetch NIDM-Pain data
     try:
-        nidm_pain_file = download_nidm_pain(data_dir=data_dir, overwrite=False)
+        _ = download_nidm_pain(data_dir=data_dir, overwrite=False)
         dset_file = os.path.join(get_resource_path(), "nidm_pain_dset.json")
-        nidm_pain_dset = Dataset(dset_file,target="mni152_2mm", mask=None)
+        nidm_pain_dset = Dataset(dset_file, target="mni152_2mm", mask=None)
         datasets["NIDM-Pain"] = nidm_pain_dset
         logger.info("NIDM-Pain dataset loaded successfully.")
     except Exception as e:
         logger.warning(f"Failed to fetch/convert NIDM-Pain dataset: {e}")
 
     if not datasets:
-        sys.exit("Error: No datasets could be loaded. Ensure you have internet access and NiMARE supports the datasets.")
-    #TODO: Add more datasets as needed.
+        sys.exit(
+            "Error: No datasets could be loaded. Ensure you have internet access"
+            " and NiMARE supports the datasets."
+        )
+    # TODO: Add more datasets as needed.
     return datasets
 
 
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     """
-    Given a study ID from a NiMARE Dataset, extract study metadata (title and abstract if available).
-    
+    Given a study ID from a NiMARE Dataset, extract study metadata
+    (title and abstract if available).
+
     :param dset: A NiMARE Dataset.
     :param sid: Study ID.
-    :return: A dictionary with keys "id", "source", "title", and optionally "abstract".
+    :return: A dictionary with keys "id", "source", "title", and optionally
+        "abstract".
     """
     study_entry: Dict[str, Any] = {"id": str(sid)}
-    
+
     title: Optional[str] = None
     try:
         titles = dset.get_metadata(ids=[sid], field="title")
@@ -122,9 +136,11 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
 
     # Optionally, retrieve abstract using PubMed via Entrez if email provided and Bio is available.
     if BIO_AVAILABLE and study_entry.get("id") and "email" in study_entry:
-        pmid = str(sid).split("-")[0]  
+        pmid = str(sid).split("-")[0]
         try:
-            handle = Entrez.efetch(db="pubmed", id=pmid, rettype="medline", retmode="text")
+            handle = Entrez.efetch(
+                db="pubmed", id=pmid, rettype="medline", retmode="text"
+            )
             records = list(Medline.parse(handle))
             if records:
                 rec = records[0]
@@ -138,6 +154,7 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"Failed to fetch abstract for PMID {pmid}: {e}")
     return study_entry
+
 
 def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     unique = {}
@@ -160,15 +177,17 @@ def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, An
 def get_studies_for_coordinate(
     datasets: Dict[str, Dataset],
     coord: Union[List[float], Tuple[float, float, float]],
-    email: Optional[str] = None
+    email: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Given an MNI coordinate and a dict of NiMARE datasets, return study metadata for studies
-    that report that coordinate.
-    
-    :param datasets: Dictionary of NiMARE Dataset objects keyed by source name.
+    Given an MNI coordinate and a dict of NiMARE datasets, return study
+    metadata for studies that report that coordinate.
+
+    :param datasets: Dictionary of NiMARE Dataset objects keyed by source
+        name.
     :param coord: MNI coordinate [x, y, z].
-    :param email: Email address to use with Entrez for abstract fetching (if available).
+    :param email: Email address to use with Entrez for abstract fetching
+        (if available).
     :return: List of study metadata dictionaries.
     """
     # NiMARE expects a list of coordinates.
@@ -177,9 +196,13 @@ def get_studies_for_coordinate(
 
     for source, dset in datasets.items():
         try:
-            study_ids = dset.get_studies_by_coordinate(coord_list, r=1) #TODO: make this a parameter
+            study_ids = dset.get_studies_by_coordinate(
+                coord_list, r=1
+            )  # TODO: make this a parameter
         except Exception as e:
-            logger.warning(f"Failed to search coordinate {coord} in {source} dataset: {e}")
+            logger.warning(
+                f"Failed to search coordinate {coord} in {source} dataset: {e}"
+            )
             continue
         if not study_ids:
             continue
@@ -188,7 +211,7 @@ def get_studies_for_coordinate(
             study_entry = {"id": str(sid), "source": source}
             if email:
                 Entrez.email = email
-                study_entry["email"] = email  
+                study_entry["email"] = email
 
             study_metadata = _extract_study_metadata(dset, sid)
             study_entry.update(study_metadata)

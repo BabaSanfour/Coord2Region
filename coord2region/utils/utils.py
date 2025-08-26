@@ -1,15 +1,42 @@
+"""Utility functions for handling atlas files and labels.
+
+This module provides functions to parse label files, load atlas volumes,
+and manage surface-based atlases using FreeSurfer annotations.
+"""
+
 import os
 import numpy as np
 
-def fetch_labels(labels):
-    """
-    Process the labels input.
-    - If a list is provided, return it.
-    - If a filename is provided, raise NotImplementedError.
 
-    :param labels: A list of labels or a filename.
-    :raises NotImplementedError: If a filename is provided.
-    :return: A list of labels.
+def fetch_labels(labels):
+    """Parse a labels input.
+
+    A list is returned as-is. If ``labels`` is a string, it is treated as the
+    path to an XML file and parsed for entries within a
+    ``<data><label><name>...</name></label></data>`` structure.
+
+    Parameters
+    ----------
+    labels : list of str or str
+        A list of label names or a path to an XML file containing labels.
+
+    Returns
+    -------
+    list of str
+        Parsed label names.
+
+    Raises
+    ------
+    ValueError
+        If the XML file is invalid, cannot be parsed, contains no labels, or
+        if ``labels`` is neither a list nor a string.
+
+    Examples
+    --------
+    >>> fetch_labels(['A', 'B'])
+    ['A', 'B']
+    >>> fetch_labels('atlas.xml')  # doctest: +SKIP
+    ['Region1', 'Region2']
     """
     if isinstance(labels, str):
         import xml.etree.ElementTree as ET
@@ -24,8 +51,8 @@ def fetch_labels(labels):
                 name_elem = label.find('name')
                 if name_elem is not None:
                     label_list.append(name_elem.text)
-                if not label_list:
-                    raise ValueError("No labels found in the XML file.")
+            if not label_list:
+                raise ValueError("No labels found in the XML file.")
             return label_list
         except Exception as e:
             raise ValueError(f"Error processing XML file {labels}: {e}")
@@ -36,12 +63,28 @@ def fetch_labels(labels):
 
 
 def pack_vol_output(file):
-    """
-    Load an atlas file (NIfTI, NPZ, or Nifti1Image) and package the output.
+    """Load an atlas file and return volume data and header.
 
-    :param file: The atlas file (NIfTI, NPZ, or Nifti1Image).
-    :raises ValueError: If the file format is not recognized.
-    :return: A dictionary with keys: 'vol' and 'hdr'.
+    Parameters
+    ----------
+    file : str or Nifti1Image
+        Path to a NIfTI/NPZ file or a loaded
+        :class:`~nibabel.nifti1.Nifti1Image`.
+
+    Returns
+    -------
+    dict
+        Dictionary with ``'vol'`` and ``'hdr'`` entries.
+
+    Raises
+    ------
+    ValueError
+        If the file format or object type is not supported.
+
+    Examples
+    --------
+    >>> pack_vol_output('atlas.nii.gz')  # doctest: +SKIP
+    {'vol': array(...), 'hdr': array(...)}
     """
     if isinstance(file, str):
         path = os.path.abspath(file)
@@ -57,7 +100,7 @@ def pack_vol_output(file):
                 'vol': vol_data,
                 'hdr': hdr_matrix,
             }
- 
+
         elif ext == '.npz':
             arch = np.load(path, allow_pickle=True)
             vol_data = arch['vol']
@@ -81,17 +124,38 @@ def pack_vol_output(file):
             raise ValueError("Unsupported type for pack_vol_output")
 
 
-def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_dir: str = None, **kwargs):
-    """
-    Load a surface-based atlas using MNE (from FreeSurfer annotation files).
+def pack_surf_output(
+    atlas_name, fetcher, subject: str = "fsaverage", subjects_dir: str = None, **kwargs
+):
+    """Load a surface-based atlas using FreeSurfer annotations.
 
-    :param atlas_name: The name of the atlas (e.g., 'aparc', 'aparc.a2009s').
-    :param fetcher: Function to fetch the atlas data.
-    :param subject: The subject name (default: 'fsaverage').
-    :param subjects_dir: The directory containing the FreeSurfer subjects (default: None).
-    :param kwargs: Additional keyword arguments for the fetcher function.
-    :raises ValueError: If the atlas name is not recognized.
-    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
+    Parameters
+    ----------
+    atlas_name : str
+        Name of the atlas (e.g., ``'aparc'``).
+    fetcher : callable or None
+        Function used to download the atlas if necessary.
+    subject : str, optional
+        Subject identifier, by default ``'fsaverage'``.
+    subjects_dir : str or None, optional
+        FreeSurfer subjects directory, by default ``None``.
+    **kwargs
+        Additional keyword arguments passed to the fetcher.
+
+    Returns
+    -------
+    dict
+        Dictionary with ``'vol'``, ``'hdr'``, ``'labels'`` and ``'indexes'`` keys.
+
+    Raises
+    ------
+    ValueError
+        If the atlas cannot be located or fetched.
+
+    Examples
+    --------
+    >>> pack_surf_output('aparc', None)  # doctest: +SKIP
+    {'vol': [...], 'hdr': None, 'labels': array([...]), 'indexes': array([...])}
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
@@ -104,28 +168,48 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     subjects_dir = Path(subjects_dir)
     if fetcher is None:
         try:
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
-        except Exception as e:
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
+        except Exception:
             mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
     else:
         try:
             labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
-        except Exception as e:
+        except Exception:
             fetcher(subjects_dir=subjects_dir, **kwargs)
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
-    
-    src = mne.setup_source_space(subject, spacing='oct6', subjects_dir=subjects_dir, add_dist=False)
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
+
+    src = mne.setup_source_space(
+        subject,
+        spacing='oct6',
+        subjects_dir=subjects_dir,
+        add_dist=False,
+    )
     lh_vert = src[0]['vertno']  # Left hemisphere vertices
     rh_vert = src[1]['vertno']  # Right hemisphere vertices
 
     # Map label names to indices in the vertex arrays.
     cortex_dict_lh = {
-        label.name: np.nonzero(np.in1d(lh_vert, label.vertices))[0]
+        label.name: np.nonzero(np.isin(lh_vert, label.vertices))[0]
         for label in labels if label.hemi == 'lh'
     }
     cortex_dict_rh = {
-        label.name: np.nonzero(np.in1d(rh_vert, label.vertices))[0]
+        label.name: np.nonzero(np.isin(rh_vert, label.vertices))[0]
         for label in labels if label.hemi == 'rh'
     }
 
@@ -138,13 +222,13 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
         for idx in indices:
             labmap_rh[idx] = lab
 
-    index_lh = np.sort(np.array(list(labmap_lh.keys())))
-    labels_lh = np.array([labmap_lh[i] for i in index_lh])
-    vmap_lh = lh_vert[index_lh]
+    indexes_lh = np.sort(np.array(list(labmap_lh.keys())))
+    labels_lh = np.array([labmap_lh[i] for i in indexes_lh])
+    vmap_lh = lh_vert[indexes_lh]
 
-    index_rh = np.sort(np.array(list(labmap_rh.keys())))
-    labels_rh = np.array([labmap_rh[i] for i in index_rh])
-    vmap_rh = rh_vert[index_rh]
+    indexes_rh = np.sort(np.array(list(labmap_rh.keys())))
+    labels_rh = np.array([labmap_rh[i] for i in indexes_rh])
+    vmap_rh = rh_vert[indexes_rh]
 
     labels_combined = np.concatenate([labels_lh, labels_rh])
     indexes_combined = np.concatenate([vmap_lh, vmap_rh])

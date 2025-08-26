@@ -22,13 +22,16 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.venv_coord2region
 
 
 study_data/
+examples/studies*/
 
 # Sphinx documentation
 docs/_build/
 make.bat
 docs/source/generated
 docs/source/auto_examples
+
 
