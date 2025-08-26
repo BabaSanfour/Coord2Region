@@ -10,34 +10,49 @@ logger.setLevel(logging.INFO)
 
 
 class AtlasFileHandler:
-    """
-    Handles file operations for atlas fetching.
+    """Handle file operations for atlas fetching.
 
-    Provides utilities for:
-      - Loading local atlas files.
-      - Downloading atlas files from a URL.
-      - Caching objects to reduce repeated computation.
-    
-    Attributes:
-    :attr data_dir: Directory for storing downloaded atlas files.
-    :attr subjects_dir: Directory for MNE data. Provided during
-        initialization or inferred from ``mne.get_config('SUBJECTS_DIR')``.
-    :attr nilearn_data: Directory for storing Nilearn data.
+    Parameters
+    ----------
+    data_dir : str or None, optional
+        Directory for downloaded atlas files. Defaults to ``~/coord2region``.
+    subjects_dir : str or None, optional
+        FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is inferred from
+        :func:`mne.get_config`.
+
+    Attributes
+    ----------
+    data_dir : str
+        Directory where atlas files are stored.
+    subjects_dir : str or None
+        Path to the FreeSurfer subjects directory.
+    nilearn_data : str
+        Directory for caching Nilearn datasets.
+
+    Examples
+    --------
+    >>> handler = AtlasFileHandler()  # doctest: +SKIP
+    >>> handler.data_dir  # doctest: +SKIP
+    '/home/user/coord2region'
     """
     def __init__(self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None):
         """Initialize the file handler.
 
-        Parameters
-        ----------
-        data_dir : str | None
-            Directory for storing downloaded atlas files. If ``None``,
-            ``~/coord2region`` is used. Relative paths are resolved relative
-            to the user's home directory.
-        subjects_dir : str | None
-            Path to the FreeSurfer ``SUBJECTS_DIR``. When provided, this value
-            is stored in :attr:`subjects_dir`. Otherwise, the value is looked
-            up via :func:`mne.get_config` and a warning is emitted if no value
-            can be found.
+        data_dir : str or None, optional
+            Directory for storing downloaded atlas files. Defaults to
+            ``~/coord2region``.
+        subjects_dir : str or None, optional
+            Path to the FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is
+            looked up via :func:`mne.get_config`.
+
+        Raises
+        ------
+        ValueError
+            If the data directory cannot be created or is not writable.
+
+        Examples
+        --------
+        >>> AtlasFileHandler()  # doctest: +SKIP
         """
         home_dir = os.path.expanduser("~")
         if data_dir is None:
@@ -64,13 +79,26 @@ class AtlasFileHandler:
                 logger.warning("Please provide a subjects_dir or set MNE's SUBJECTS_DIR in your environment.")
 
     def save(self, obj, filename: str):
-        """
-        Save an object to the data directory using pickle.
+        """Save an object to the data directory using pickle.
 
-        :param obj: The object to save.
-        :param filename: The name of the file to save the object to.
-        :raises ValueError: If the data directory is not writable.
-        :raises Exception: If there is an error during saving.
+        Parameters
+        ----------
+        obj : Any
+            The object to serialize.
+        filename : str
+            Name of the file to save the object to.
+
+        Raises
+        ------
+        ValueError
+            If the data directory is not writable.
+        Exception
+            If there is an error during saving.
+
+        Examples
+        --------
+        >>> handler = AtlasFileHandler()
+        >>> handler.save({'a': 1}, 'example.pkl')  # doctest: +SKIP
         """
         filepath = os.path.join(self.data_dir, filename)
         try:
@@ -82,12 +110,28 @@ class AtlasFileHandler:
             raise
 
     def load(self, filename: str):
-        """
-        Load an object from the data directory.
+        """Load an object from the data directory.
 
-        :param filename: The name of the file to load the object from.
-        :raises Exception: If there is an error during loading.
-        :return: The loaded object or None if the file does not exist.
+        Parameters
+        ----------
+        filename : str
+            Name of the file to load the object from.
+        
+        Returns
+        -------
+        object or None
+            The loaded object, or ``None`` if the file does not exist.
+
+        Raises
+        ------
+        Exception
+            If there is an error during loading.
+
+        Examples
+        --------
+        >>> handler = AtlasFileHandler()
+        >>> handler.load('missing.pkl')  # doctest: +SKIP
+        None
         """
         filepath = os.path.join(self.data_dir, filename)
         if os.path.exists(filepath):
@@ -103,15 +147,34 @@ class AtlasFileHandler:
             return None
 
     def fetch_from_local(self, atlas_file: str, atlas_dir: str, labels: Union[str, List]):
-        """
-        Load an atlas from a local file.
+        """Load an atlas from a local file.
 
-        :param atlas_file: The name of the atlas file.
-        :param atlas_dir: The directory where the atlas file is located.
-        :param labels: The labels file or a list of labels.
-        :raises FileNotFoundError: If the atlas file or labels file is not found.
-        :raises Exception: If there is an error during loading.
-        :return: A dictionary containing the atlas data.
+        Parameters
+        ----------
+        atlas_file : str
+            The name of the atlas file.
+        atlas_dir : str
+            Directory where the atlas file is located.
+        labels : str or list
+            Labels file or a list of label names.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the atlas data.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the atlas or labels file is not found.
+        Exception
+            If there is an error during loading.
+
+        Examples
+        --------
+        >>> handler = AtlasFileHandler()
+        >>> handler.fetch_from_local('atlas.nii.gz', '.', ['A', 'B'])  # doctest: +SKIP
+        {'vol': array(...), 'hdr': array(...), 'labels': ['A', 'B']}
         """
         logger.info(f"Loading local atlas file: {atlas_file}")
         found_path = next(
@@ -137,15 +200,34 @@ class AtlasFileHandler:
         return output
 
     def fetch_from_url(self, atlas_url: str, **kwargs):
-        """
-        Download an atlas from a URL (if not already present) and return the local file path.
+        """Download an atlas from a URL.
 
-        :param atlas_url: The URL of the atlas file.
-        :param kwargs: Additional arguments for the download.
-        :raises RuntimeError: If the download fails.
-        :return: The local path to the downloaded atlas file.
-        :raises ValueError: If the data directory is not writable.
-        :raises Exception: If there is an error during downloading.
+        Parameters
+        ----------
+        atlas_url : str
+            The URL of the atlas file.
+        **kwargs
+            Additional arguments for the download.
+
+        Returns
+        -------
+        str
+            Local path to the downloaded (and possibly decompressed) file.
+
+        Raises
+        ------
+        RuntimeError
+            If the download fails.
+        ValueError
+            If the data directory is not writable.
+        Exception
+            If there is an error during downloading.
+
+        Examples
+        --------
+        >>> handler = AtlasFileHandler()
+        >>> handler.fetch_from_url('http://example.com/atlas.nii.gz')  # doctest: +SKIP
+        '/path/to/atlas.nii.gz'
         """
         import warnings
         warnings.warn("The file name is expected to be in the URL", UserWarning)
@@ -207,3 +289,4 @@ class AtlasFileHandler:
                 decompressed_path = decompressed_file
 
         return decompressed_path
+        

@@ -13,23 +13,38 @@ logger.setLevel(logging.INFO)
 
 
 class AtlasFetcher:
-    """
-    Fetches atlases from various sources (local files, URLs, Nilearn datasets, or MNE annotations).
-    
-    Supported identifiers include volumetric atlases (e.g., "aal", "harvard-oxford") and
-    surface-based atlases (e.g., "aparc", "brodmann"). A fallback mechanism is provided
-    when an atlas is available via both Nilearn and MNE.
+    """Fetch atlases from multiple sources.
 
-    Attributes:
-    :attr file_handler: An instance of AtlasFileHandler for managing file operations.
-    :attr data_dir: Directory for storing downloaded atlas files.
-    :attr subjects_dir: Directory for MNE data.
-    :attr nilearn_data: Directory for storing Nilearn data.
-    :attr atlas_fetchers_nilearn: Dictionary mapping atlas names to Nilearn fetcher functions.
-    :attr coords_fetchers_nilearn: Dictionary mapping atlas names to Nilearn fetcher functions for coordinates.
-    :attr atlas_fetchers_mne: Dictionary mapping atlas names to MNE fetcher functions.
-    :attr ATLAS_URLS: Dictionary mapping atlas names to URLs for downloading atlases.
+    Parameters
+    ----------
+    data_dir : str or None, optional
+        Directory where downloaded files are cached. Defaults to
+        ``~/coord2region``.
+
+    Attributes
+    ----------
+    file_handler : AtlasFileHandler
+        Helper for file operations.
+    data_dir : str
+        Directory for storing downloaded atlas files.
+    subjects_dir : str or None
+        Directory for MNE data.
+    nilearn_data : str
+        Directory for storing Nilearn data.
+    _atlas_fetchers_nilearn : dict
+        Mapping of atlas names to Nilearn fetcher functions.
+    _coords_fetchers_nilearn : dict
+        Mapping of atlas names to Nilearn coordinate fetchers.
+    _atlas_fetchers_mne : dict
+        Mapping of atlas names to MNE fetcher functions.
+
+    Examples
+    --------
+    >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+    >>> 'aal' in fetcher.list_available_atlases()  # doctest: +SKIP
+    True
     """
+
     ATLAS_URLS = {
         'talairach': 'https://www.talairach.org/talairach.nii',
         'aal': {
@@ -40,6 +55,19 @@ class AtlasFetcher:
     }
 
     def __init__(self, data_dir: str = None):
+        """Initialize the fetcher.
+
+        Parameters
+        ----------
+        data_dir : str or None, optional
+            Directory where downloaded files are cached. Defaults to
+            ``~/coord2region``.
+
+        Examples
+        --------
+        >>> AtlasFetcher()  # doctest: +SKIP
+        """
+
         self.file_handler = AtlasFileHandler(data_dir=data_dir)
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
@@ -86,13 +114,31 @@ class AtlasFetcher:
         }
 
     def _get_description(self, atlas_name: str, fetched: dict, kwargs: dict):
-        """
-        Generate a description dictionary for the atlas.
+        """Generate a description dictionary for an atlas.
 
-        :param atlas_name: The name of the atlas.
-        :param fetched: The fetched atlas data.
-        :param kwargs: Additional keyword arguments.
-        :return: A dictionary containing the atlas description.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas.
+        fetched : dict
+            Data returned by the fetcher.
+        kwargs : dict
+            Additional keyword arguments describing the atlas.
+
+        Returns
+        -------
+        dict
+            Dictionary containing atlas metadata.
+
+        Raises
+        ------
+        None
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> fetcher._get_description('aal', {}, {})['atlas_name']  # doctest: +SKIP
+        'aal'
         """
         description = {}
         description.update(kwargs)
@@ -112,13 +158,32 @@ class AtlasFetcher:
         return description
 
     def _fetch_coords_nilearn(self, atlas_name: str, fetcher_nilearn: nilearn.datasets, **kwargs):
-        """
-        Fetch atlas coordinates using Nilearn.
+        """Fetch atlas coordinates using Nilearn.
 
-        :param atlas_name: The name of the atlas.
-        :param fetcher_nilearn: The Nilearn fetcher function.
-        :param kwargs: Additional keyword arguments.
-        :return: A dictionary containing the atlas coordinates and description.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas.
+        fetcher_nilearn : nilearn.datasets
+            Nilearn fetcher function.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            Atlas coordinates and description.
+
+        Raises
+        ------
+        Exception
+            If fetching fails.
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> fetcher._fetch_coords_nilearn('dosenbach', fetcher._coords_fetchers_nilearn['dosenbach'])['labels'][0]  # doctest: +SKIP
+        'Anterior cingulate'
         """
         this_kwargs = fetcher_nilearn['default_kwargs'].copy()
         this_kwargs.update(kwargs)
@@ -135,13 +200,33 @@ class AtlasFetcher:
         }
     
     def _fetch_atlas_nilearn(self, atlas_name: str, fetcher_nilearn: nilearn.datasets, **kwargs):
-        """
-        Fetch an atlas using Nilearn.
+        """Fetch an atlas using Nilearn.
 
-        :param atlas_name: The name of the atlas.
-        :param fetcher_nilearn: The Nilearn fetcher function.
-        :param kwargs: Additional keyword arguments.
-        :return: A dictionary containing the atlas volume, header, labels, and description.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas.
+        fetcher_nilearn : nilearn.datasets
+            Nilearn fetcher function.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            Atlas volume, header, labels, and description.
+
+                Raises
+        ------
+        Exception
+            If fetching fails.
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> out = fetcher._fetch_atlas_nilearn('aal', fetcher._atlas_fetchers_nilearn['aal'])  # doctest: +SKIP
+        >>> 'vol' in out  # doctest: +SKIP
+        True
         """
         this_kwargs = fetcher_nilearn['default_kwargs'].copy()
         this_kwargs.update(kwargs)
@@ -163,13 +248,32 @@ class AtlasFetcher:
         }
     
     def _fetch_atlas_mne(self, atlas_name: str, fetcher_mne, **kwargs):
-        """
-        Fetch an atlas using MNE.
+        """Fetch an atlas using MNE.
 
-        :param atlas_name: The name of the atlas.
-        :param fetcher_mne: The MNE fetcher function.
-        :param kwargs: Additional keyword arguments.
-        :return: A dictionary containing the atlas volume, header, labels, and description.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas.
+        fetcher_mne : callable or None
+            MNE fetcher function.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            Atlas volume, header, labels, and description.
+
+        Raises
+        ------
+        Exception
+            If fetching fails.
+
+                Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> fetcher._fetch_atlas_mne('aparc', fetcher._atlas_fetchers_mne['aparc'])['hdr'] is None  # doctest: +SKIP
+        True
         """
         kwargs['subject'] = kwargs.get('subject', 'fsaverage')
         this_kwargs = fetcher_mne['default_kwargs'].copy()
@@ -188,13 +292,32 @@ class AtlasFetcher:
         return fetched
 
     def _fetch_from_url(self, atlas_name: str, atlas_url: str, **kwargs):
-        """
-        Fetch an atlas from a URL.
+        """Fetch an atlas from a URL.
 
-        :param atlas_name: The name of the atlas.
-        :param atlas_url: The URL of the atlas file.
-        :param kwargs: Additional keyword arguments.
-        :return: A dictionary containing the atlas volume, header, labels, and description.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas.
+        atlas_url : str
+            URL of the atlas file.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            Atlas volume, header, labels, and description.
+
+                Raises
+        ------
+        Exception
+            If downloading or loading fails.
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> fetcher._fetch_from_url('aal', 'http://example.com/aal.nii.gz')  # doctest: +SKIP
+        {...}
         """
         local_path = self.file_handler.fetch_from_url(atlas_url, **kwargs)
         output = self.file_handler.fetch_from_local(kwargs.get("atlas_file"), local_path, kwargs.get("labels"))
@@ -202,10 +325,22 @@ class AtlasFetcher:
         return output
 
     def list_available_atlases(self):
-        """
-        Returns a sorted list of available atlas identifiers.
+        """Return a sorted list of available atlas identifiers.
 
-        :return: A sorted list of available atlas identifiers.
+        Returns
+        -------
+        list of str
+            Sorted list of available atlas identifiers.
+
+        Raises
+        ------
+        None
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> isinstance(fetcher.list_available_atlases(), list)  # doctest: +SKIP
+        True
         """
         atlases_nilearn = list(self._atlas_fetchers_nilearn.keys())
         atlases_coords = list(self._coords_fetchers_nilearn.keys())
@@ -215,20 +350,43 @@ class AtlasFetcher:
         return sorted(all_atlases)
 
     def fetch_atlas(self, atlas_name: str, atlas_url: str = None, prefer: str = "nilearn", **kwargs):
-        """
-        Fetch an atlas given an atlas identifier.
+        """Fetch an atlas given an identifier.
 
-        The identifier can be a URL, local file path, or a known atlas name.
-        The 'prefer' flag allows the user to choose the primary source ("nilearn" or "mne").
+        The identifier may be a URL, local file path, or a known atlas name.
+        The ``prefer`` flag allows choosing the primary source (``"nilearn"`` or
+        ``"mne"``).
 
-        :param atlas_name: The name of the atlas or a URL.
-        :param atlas_url: The URL of the atlas file (optional).
-        :param prefer: The preferred source for fetching the atlas ("nilearn" or "mne").
-        :param kwargs: Additional keyword arguments for fetching the atlas.
-        :return: A dictionary containing the atlas volume, header, labels, and description.
-        :raises ValueError: If the atlas name is not recognized.
-        :raises FileNotFoundError: If the atlas file or labels file is not found.
-        :raises Exception: If there is an error during fetching.
+        Parameters
+        ----------
+        atlas_name : str
+            The name of the atlas or a URL.
+        atlas_url : str or None, optional
+            Explicit URL of the atlas file.
+        prefer : {"nilearn", "mne"}, optional
+            Preferred source for fetching the atlas.
+        **kwargs
+            Additional keyword arguments for fetching.
+
+        Returns
+        -------
+        dict
+            Atlas volume, header, labels, and description.
+
+        Raises
+        ------
+        ValueError
+            If the atlas name is not recognized.
+        FileNotFoundError
+            If the atlas file or labels file is not found.
+        Exception
+            If there is an error during fetching.
+
+        Examples
+        --------
+        >>> fetcher = AtlasFetcher()  # doctest: +SKIP
+        >>> out = fetcher.fetch_atlas('aal')  # doctest: +SKIP
+        >>> out['labels'][0]  # doctest: +SKIP
+        'Precentral_L'
         """
         key = atlas_name.lower()
         if atlas_url is not None and atlas_url.startswith(('http://', 'https://')):
@@ -283,4 +441,6 @@ class AtlasFetcher:
         if fetcher_mne:
             return self._fetch_atlas_mne(key, fetcher_mne, **kwargs)
 
-        raise ValueError(f"Unrecognized atlas name '{atlas_name}'. Available options: {self.list_available_atlases()}")
+        raise ValueError(
+            f"Unrecognized atlas name '{atlas_name}'. Available options: {self.list_available_atlases()}"
+        )

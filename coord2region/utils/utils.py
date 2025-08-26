@@ -1,20 +1,36 @@
 import os
 import numpy as np
 
+
 def fetch_labels(labels):
-    """
-    Process the labels input.
+    """Parse a labels input.
 
-    If a list is provided, return it as-is.
-    If a string (filename) is provided, attempt to parse it as an XML file and extract label names from
-    <data><label><name>...</name></label></data> structure.
+    A list is returned as-is. If ``labels`` is a string, it is treated as the
+    path to an XML file and parsed for entries within a
+    ``<data><label><name>...</name></label></data>`` structure.
 
-    :param labels: Either a list of label names or a path to an XML file containing labels.
-    :type labels: list or str
-    :raises ValueError: If the XML file is invalid, cannot be parsed, or contains no labels.
-    :raises ValueError: If the input is neither a list nor a string.
-    :return: A list of label names.
-    :rtype: list
+    Parameters
+    ----------
+    labels : list of str or str
+        A list of label names or a path to an XML file containing labels.
+
+    Returns
+    -------
+    list of str
+        Parsed label names.
+
+    Raises
+    ------
+    ValueError
+        If the XML file is invalid, cannot be parsed, contains no labels, or
+        if ``labels`` is neither a list nor a string.
+
+    Examples
+    --------
+    >>> fetch_labels(['A', 'B'])
+    ['A', 'B']
+    >>> fetch_labels('atlas.xml')  # doctest: +SKIP
+    ['Region1', 'Region2']
     """
     if isinstance(labels, str):
         import xml.etree.ElementTree as ET
@@ -41,12 +57,28 @@ def fetch_labels(labels):
 
 
 def pack_vol_output(file):
-    """
-    Load an atlas file (NIfTI, NPZ, or Nifti1Image) and package the output.
+    """Load an atlas file and return volume data and header.
 
-    :param file: The atlas file (NIfTI, NPZ, or Nifti1Image).
-    :raises ValueError: If the file format is not recognized.
-    :return: A dictionary with keys: 'vol' and 'hdr'.
+    Parameters
+    ----------
+    file : str or Nifti1Image
+        Path to a NIfTI/NPZ file or a loaded
+        :class:`~nibabel.nifti1.Nifti1Image`.
+
+    Returns
+    -------
+    dict
+        Dictionary with ``'vol'`` and ``'hdr'`` entries.
+
+    Raises
+    ------
+    ValueError
+        If the file format or object type is not supported.
+
+    Examples
+    --------
+    >>> pack_vol_output('atlas.nii.gz')  # doctest: +SKIP
+    {'vol': array(...), 'hdr': array(...)}
     """
     if isinstance(file, str):
         path = os.path.abspath(file)
@@ -86,17 +118,38 @@ def pack_vol_output(file):
             raise ValueError("Unsupported type for pack_vol_output")
 
 
-def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_dir: str = None, **kwargs):
-    """
-    Load a surface-based atlas using MNE (from FreeSurfer annotation files).
+def pack_surf_output(
+    atlas_name, fetcher, subject: str = "fsaverage", subjects_dir: str = None, **kwargs
+):
+    """Load a surface-based atlas using FreeSurfer annotations.
 
-    :param atlas_name: The name of the atlas (e.g., 'aparc', 'aparc.a2009s').
-    :param fetcher: Function to fetch the atlas data.
-    :param subject: The subject name (default: 'fsaverage').
-    :param subjects_dir: The directory containing the FreeSurfer subjects (default: None).
-    :param kwargs: Additional keyword arguments for the fetcher function.
-    :raises ValueError: If the atlas name is not recognized.
-    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
+    Parameters
+    ----------
+    atlas_name : str
+        Name of the atlas (e.g., ``'aparc'``).
+    fetcher : callable or None
+        Function used to download the atlas if necessary.
+    subject : str, optional
+        Subject identifier, by default ``'fsaverage'``.
+    subjects_dir : str or None, optional
+        FreeSurfer subjects directory, by default ``None``.
+    **kwargs
+        Additional keyword arguments passed to the fetcher.
+
+    Returns
+    -------
+    dict
+        Dictionary with ``'vol'``, ``'hdr'``, ``'labels'`` and ``'indexes'`` keys.
+
+    Raises
+    ------
+    ValueError
+        If the atlas cannot be located or fetched.
+
+    Examples
+    --------
+    >>> pack_surf_output('aparc', None)  # doctest: +SKIP
+    {'vol': [...], 'hdr': None, 'labels': array([...]), 'indexes': array([...])}
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
