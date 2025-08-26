@@ -204,7 +204,7 @@ class AtlasMapper:
             return None
 
         if self.name.lower() == "schaefer":
-            parts = region.split("_", 1)
+            parts = region_name.split("_", 1)
             lower = parts[-1].lower()
             return (
                 "L"

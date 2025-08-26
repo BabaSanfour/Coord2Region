@@ -98,6 +98,15 @@ def test_infer_hemisphere(volumetric_mapper, fresh_atlas_data):
         assert result == expected, f"Error in infer_hemisphere for {atlas_name}: expected {expected}, got {result}"
 
 
+@pytest.mark.parametrize("fresh_atlas_data", ["schaefer"], indirect=True)
+def test_schaefer_numeric_index_infer_hemisphere(volumetric_mapper):
+    region_L, expected_L = PROPERTIES["schaefer"]["infer_hemisphere"][0]
+    region_R, expected_R = PROPERTIES["schaefer"]["infer_hemisphere"][1]
+    idx_L = volumetric_mapper.region_index_from_name(region_L)
+    idx_R = volumetric_mapper.region_index_from_name(region_R)
+    assert volumetric_mapper.infer_hemisphere(idx_L) == expected_L
+    assert volumetric_mapper.infer_hemisphere(idx_R) == expected_R
+
 # Test: Region Index Lookup
 @pytest.mark.parametrize("fresh_atlas_data", PROPERTIES.keys(), indirect=True)
 def test_region_to_index(volumetric_mapper, fresh_atlas_data):
