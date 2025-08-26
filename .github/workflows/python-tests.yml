@@ -32,8 +32,8 @@ jobs:
 #        pip install -e .,already inside requirements-dev.txt
     - name: Lint with flake8 and pydocstyle
       run: |
-        flake8 --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
-        pydocstyle || true
+        flake8 --count --max-complexity=20 --max-line-length=88 --statistics
+        pydocstyle
     - name: Test with pytest
       run: |
           pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
@@ -51,4 +51,3 @@ jobs:
     # - name : Test with web-validator
     #   run: |
     #     /bin/bash tests/test_web_validator.sh
-    

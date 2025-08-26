@@ -3,7 +3,7 @@ import logging
 import pickle
 from typing import Optional, Union, List
 import mne
-from .utils import pack_vol_output, pack_surf_output, fetch_labels
+from .utils import fetch_labels, pack_vol_output
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -35,7 +35,10 @@ class AtlasFileHandler:
     >>> handler.data_dir  # doctest: +SKIP
     '/home/user/coord2region'
     """
-    def __init__(self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None):
+    
+    def __init__(
+        self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None
+    ):
         """Initialize the file handler.
 
         data_dir : str or None, optional
@@ -56,7 +59,7 @@ class AtlasFileHandler:
         """
         home_dir = os.path.expanduser("~")
         if data_dir is None:
-            self.data_dir = os.path.join(home_dir, 'coord2region')
+            self.data_dir = os.path.join(home_dir, "coord2region")
         elif os.path.isabs(data_dir):
             self.data_dir = data_dir
         else:
@@ -70,13 +73,16 @@ class AtlasFileHandler:
         if not os.access(self.data_dir, os.W_OK):
             raise ValueError(f"Data directory {self.data_dir} is not writable")
 
-        self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
+        self.nilearn_data = os.path.join(home_dir, "nilearn_data")
         if subjects_dir is not None:
             self.subjects_dir = subjects_dir
         else:
-            self.subjects_dir = mne.get_config('SUBJECTS_DIR', None)
+            self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
             if self.subjects_dir is None:
-                logger.warning("Please provide a subjects_dir or set MNE's SUBJECTS_DIR in your environment.")
+                logger.warning(
+                    "Please provide a subjects_dir or set MNE's SUBJECTS_DIR "
+                    "in your environment."
+                )
 
     def save(self, obj, filename: str):
         """Save an object to the data directory using pickle.
@@ -102,7 +108,7 @@ class AtlasFileHandler:
         """
         filepath = os.path.join(self.data_dir, filename)
         try:
-            with open(filepath, 'wb') as f:
+            with open(filepath, "wb") as f:
                 pickle.dump(obj, f)
             logger.info(f"Object saved to {filepath}")
         except Exception as e:
@@ -116,7 +122,7 @@ class AtlasFileHandler:
         ----------
         filename : str
             Name of the file to load the object from.
-        
+
         Returns
         -------
         object or None
@@ -136,7 +142,7 @@ class AtlasFileHandler:
         filepath = os.path.join(self.data_dir, filename)
         if os.path.exists(filepath):
             try:
-                with open(filepath, 'rb') as f:
+                with open(filepath, "rb") as f:
                     obj = pickle.load(f)
                 logger.info(f"Object loaded from {filepath}")
                 return obj
@@ -146,7 +152,9 @@ class AtlasFileHandler:
         else:
             return None
 
-    def fetch_from_local(self, atlas_file: str, atlas_dir: str, labels: Union[str, List]):
+    def fetch_from_local(
+        self, atlas_file: str, atlas_dir: str, labels: Union[str, List]
+    ):
         """Load an atlas from a local file.
 
         Parameters
@@ -178,25 +186,39 @@ class AtlasFileHandler:
         """
         logger.info(f"Loading local atlas file: {atlas_file}")
         found_path = next(
-            (os.path.join(root, atlas_file) for root, _, files in os.walk(atlas_dir) if atlas_file in files),
-            None
+            (
+                os.path.join(root, atlas_file)
+                for root, _, files in os.walk(atlas_dir)
+                if atlas_file in files
+            ),
+            None,
         )
         if found_path is None:
-            raise FileNotFoundError(f"Atlas file {atlas_file} not found in {atlas_dir} or its subdirectories")
+            raise FileNotFoundError(
+                f"Atlas file {atlas_file} not found in {atlas_dir} or its "
+                "subdirectories"
+            )
         logger.info(f"Atlas file found at {found_path}")
 
         output = pack_vol_output(found_path)
         if isinstance(labels, str):
             found_path = next(
-                (os.path.join(root, labels) for root, _, files in os.walk(atlas_dir) if labels in files),
-                None
+                (
+                    os.path.join(root, labels)
+                    for root, _, files in os.walk(atlas_dir)
+                    if labels in files
+                ),
+                None,
             )
             if found_path is None:
-                raise FileNotFoundError(f"Labels file {labels} not found in {atlas_dir} or its subdirectories")
+                raise FileNotFoundError(
+                    f"Labels file {labels} not found in {atlas_dir} or its "
+                    "subdirectories"
+                )
             logger.info(f"Labels file found at {found_path}")
-            output['labels'] = fetch_labels(found_path)
+            output["labels"] = fetch_labels(found_path)
         elif isinstance(labels, list):
-            output['labels'] = fetch_labels(labels)
+            output["labels"] = fetch_labels(labels)
         return output
 
     def fetch_from_url(self, atlas_url: str, **kwargs):
@@ -230,6 +252,7 @@ class AtlasFileHandler:
         '/path/to/atlas.nii.gz'
         """
         import warnings
+
         warnings.warn("The file name is expected to be in the URL", UserWarning)
         import urllib.parse
         import requests
@@ -247,7 +270,7 @@ class AtlasFileHandler:
             try:
                 with requests.get(atlas_url, stream=True, timeout=30, verify=True) as r:
                     r.raise_for_status()
-                    with open(local_path, 'wb') as f:
+                    with open(local_path, "wb") as f:
                         for chunk in r.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
@@ -264,27 +287,27 @@ class AtlasFileHandler:
         decompressed_path = local_path
         if zipfile.is_zipfile(local_path):
             logger.info(f"Extracting zip file {local_path}")
-            extract_dir = os.path.join(self.data_dir, file_name.rstrip('.zip'))
-            with zipfile.ZipFile(local_path, 'r') as zip_ref:
+            extract_dir = os.path.join(self.data_dir, file_name.rstrip(".zip"))
+            with zipfile.ZipFile(local_path, "r") as zip_ref:
                 zip_ref.extractall(extract_dir)
                 decompressed_path = extract_dir
         elif tarfile.is_tarfile(local_path):
             logger.info(f"Extracting tar archive {local_path}")
             # Remove possible extensions to form the extract directory name
             base_name = file_name
-            for ext in ['.tar.gz', '.tgz', '.tar']:
+            for ext in [".tar.gz", ".tgz", ".tar"]:
                 if base_name.endswith(ext):
                     base_name = base_name[:-len(ext)]
                     break
             extract_dir = os.path.join(self.data_dir, base_name)
-            with tarfile.open(local_path, 'r:*') as tar_ref:
+            with tarfile.open(local_path, "r:*") as tar_ref:
                 tar_ref.extractall(extract_dir)
                 decompressed_path = extract_dir
-        elif local_path.endswith('.gz') and not local_path.endswith('.tar.gz'):
+        elif local_path.endswith(".gz") and not local_path.endswith(".tar.gz"):
             logger.info(f"Decompressing gzip file {local_path}")
             decompressed_file = local_path[:-3]
-            with gzip.open(local_path, 'rb') as f_in:
-                with open(decompressed_file, 'wb') as f_out:
+            with gzip.open(local_path, "rb") as f_in:
+                with open(decompressed_file, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
                 decompressed_path = decompressed_file
 
