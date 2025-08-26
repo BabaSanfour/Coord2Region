@@ -4,12 +4,17 @@ import numpy as np
 def fetch_labels(labels):
     """
     Process the labels input.
-    - If a list is provided, return it.
-    - If a filename is provided, raise NotImplementedError.
 
-    :param labels: A list of labels or a filename.
-    :raises NotImplementedError: If a filename is provided.
-    :return: A list of labels.
+    If a list is provided, return it as-is.
+    If a string (filename) is provided, attempt to parse it as an XML file and extract label names from
+    <data><label><name>...</name></label></data> structure.
+
+    :param labels: Either a list of label names or a path to an XML file containing labels.
+    :type labels: list or str
+    :raises ValueError: If the XML file is invalid, cannot be parsed, or contains no labels.
+    :raises ValueError: If the input is neither a list nor a string.
+    :return: A list of label names.
+    :rtype: list
     """
     if isinstance(labels, str):
         import xml.etree.ElementTree as ET
