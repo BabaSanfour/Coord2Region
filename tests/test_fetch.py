@@ -319,6 +319,29 @@ def test_fetch_from_local_labels_not_found(dummy_atlas_dir, tmp_path):
     with pytest.raises(FileNotFoundError):
         handler.fetch_from_local(atlas_file, atlas_dir, "nonexistent_labels.xml")
 
+def test_fetch_atlas_local_absolute(tmp_path):
+    """AtlasFetcher should load an atlas from an absolute path."""
+    atlas_path = tmp_path / "abs_atlas.npz"
+    vol, hdr = create_dummy_npz(atlas_path)
+    af = AtlasFetcher(data_dir=str(tmp_path / "data"))
+    atlas = af.fetch_atlas("local", atlas_file=str(atlas_path), labels=["A", "B"])
+    np.testing.assert_allclose(atlas["vol"], vol)
+    np.testing.assert_allclose(atlas["hdr"], hdr)
+    assert atlas["labels"] == ["A", "B"]
+
+
+def test_fetch_atlas_local_relative_to_data_dir(tmp_path):
+    """AtlasFetcher should load an atlas with path relative to data_dir."""
+    data_dir = tmp_path / "coord2region"
+    data_dir.mkdir()
+    atlas_file = data_dir / "rel_atlas.npz"
+    vol, hdr = create_dummy_npz(atlas_file)
+    af = AtlasFetcher(data_dir=str(data_dir))
+    atlas = af.fetch_atlas("local", atlas_file="rel_atlas.npz", labels=["X"]) 
+    np.testing.assert_allclose(atlas["vol"], vol)
+    np.testing.assert_allclose(atlas["hdr"], hdr)
+    assert atlas["labels"] == ["X"]
+
 # ------------------------------------------------------------------
 # Tests for fetch_from_url
 # ------------------------------------------------------------------

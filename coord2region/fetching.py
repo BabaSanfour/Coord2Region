@@ -241,9 +241,15 @@ class AtlasFetcher:
         atlas_file = kwargs.get("atlas_file", None)
         if atlas_file is not None:
             if os.path.isfile(atlas_file):
-                return self.file_handler.fetch_from_local(atlas_file, kwargs.get("labels"))
-            elif os.path.isfile(os.path.join(self.data_dir, atlas_file)):
-                return self.file_handler.fetch_from_local(os.path.join(self.data_dir, atlas_file), kwargs.get("labels"))
+                atlas_dir = os.path.dirname(atlas_file) or "."
+                atlas_fname = os.path.basename(atlas_file)
+                return self.file_handler.fetch_from_local(atlas_fname, atlas_dir, kwargs.get("labels"))
+            else:
+                local_path = os.path.join(self.data_dir, atlas_file)
+                if os.path.isfile(local_path):
+                    atlas_dir = os.path.dirname(local_path) or "."
+                    atlas_fname = os.path.basename(local_path)
+                    return self.file_handler.fetch_from_local(atlas_fname, atlas_dir, kwargs.get("labels"))
 
         atlas_image = kwargs.get("atlas_image")
         if isinstance(atlas_image, (Nifti1Image, np.ndarray)):
