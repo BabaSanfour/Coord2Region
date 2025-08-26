@@ -91,7 +91,7 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     :param subjects_dir: The directory containing the FreeSurfer subjects (default: None).
     :param kwargs: Additional keyword arguments for the fetcher function.
     :raises ValueError: If the atlas name is not recognized.
-    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
+    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'index'.
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
@@ -147,11 +147,11 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     vmap_rh = rh_vert[index_rh]
 
     labels_combined = np.concatenate([labels_lh, labels_rh])
-    indexes_combined = np.concatenate([vmap_lh, vmap_rh])
+    index_combined = np.concatenate([vmap_lh, vmap_rh])
 
     return {
         'vol': [lh_vert, rh_vert],
         'hdr': None,
         'labels': labels_combined,
-        'indexes': indexes_combined,
+        'index': index_combined,
     }
