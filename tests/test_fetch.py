@@ -23,7 +23,7 @@ NILEARN_ATLASES = [
     "yeo", "harvard-oxford", "juelich", "schaefer",
     "brodmann", "aal", "destrieux", "pauli", "basc"
 ]
-
+@pytest.mark.requires_network
 @pytest.mark.parametrize("atlas_name", NILEARN_ATLASES)
 def test_fetch_nilearn_atlases(atlas_name):
     """Test fetching of Nilearn volumetric atlases using AtlasFetcher."""
@@ -65,6 +65,7 @@ def test_fetch_nilearn_atlases(atlas_name):
 # List of Nilearn coordinate atlases to test
 NILEARN_COORDS = ["dosenbach", "power", "seitzman"]
 
+@pytest.mark.requires_network
 @pytest.mark.parametrize("atlas_name", NILEARN_COORDS)
 def test_fetch_nilearn_coords(atlas_name):
     """Test fetching of Nilearn coordinate atlases using AtlasFetcher."""
@@ -96,6 +97,7 @@ MNE_ATLASES = [
     "aparc.a2005s", "oasis.chubs", "yeo2011"
 ]
 
+@pytest.mark.requires_network
 @pytest.mark.parametrize("atlas_name", MNE_ATLASES)
 def test_fetch_mne_atlases(atlas_name):
     """Test fetching of MNE-based atlases using AtlasFetcher."""

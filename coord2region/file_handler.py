@@ -289,4 +289,3 @@ class AtlasFileHandler:
                 decompressed_path = decompressed_file
 
         return decompressed_path
-        

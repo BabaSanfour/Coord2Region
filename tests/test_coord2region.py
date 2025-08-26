@@ -3,6 +3,8 @@ import numpy as np
 from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import AtlasMapper, BatchAtlasMapper, MultiAtlasMapper
 
+pytestmark = pytest.mark.requires_network
+
 # Atlas Properties for Validation
 PROPERTIES = {
     "harvard-oxford": {
