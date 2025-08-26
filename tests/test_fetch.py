@@ -157,6 +157,17 @@ def test_pack_vol_output_with_nifti():
     np.testing.assert_allclose(output["vol"], data, err_msg="Volume data mismatch in pack_vol_output.")
     np.testing.assert_allclose(output["hdr"], affine, err_msg="Affine matrix mismatch in pack_vol_output.")
 
+def test_pack_vol_output_with_nii_file(tmp_path):
+    """pack_vol_output should load data from a .nii.gz file path."""
+    data = np.random.rand(4, 4, 4).astype(np.float32)
+    affine = np.eye(4)
+    img = nib.Nifti1Image(data, affine)
+    file_path = tmp_path / "dummy.nii.gz"
+    nib.save(img, str(file_path))
+    output = pack_vol_output(str(file_path))
+    np.testing.assert_allclose(output["vol"], data)
+    np.testing.assert_allclose(output["hdr"], affine)
+
 def test_pack_vol_output_with_npz(tmp_path):
     """Test pack_vol_output using a dummy .npz file."""
     data = np.random.rand(10, 10, 10).astype(np.float32)
@@ -216,6 +227,51 @@ def test_pack_surf_output(monkeypatch):
     assert len(output["labels"]) > 0, "Labels list is empty in pack_surf_output output."
     assert output["indexes"].size > 0, "Indexes array is empty in pack_surf_output output."
 
+def test_pack_surf_output_fetcher_retry(monkeypatch):
+    """Ensure fetcher retry path is executed when the first call fails."""
+
+    class DummyLabel:
+        def __init__(self, name, hemi, vertices):
+            self.name = name
+            self.hemi = hemi
+            self.vertices = vertices
+
+    dummy_labels = [
+        DummyLabel("Label1", "lh", np.array([0, 2, 4])),
+        DummyLabel("Label2", "rh", np.array([1, 3, 5])),
+    ]
+
+    def dummy_read_labels_from_annot(subject, atlas_name, subjects_dir, **kwargs):
+        return dummy_labels
+
+    def dummy_setup_source_space(subject, spacing, subjects_dir, add_dist):
+        return [
+            {"vertno": np.array([0, 1, 2])},
+            {"vertno": np.array([3, 4, 5])},
+        ]
+
+    monkeypatch.setattr("mne.read_labels_from_annot", dummy_read_labels_from_annot)
+    monkeypatch.setattr("mne.setup_source_space", dummy_setup_source_space)
+
+    calls = []
+
+    def dummy_fetcher(*, subject=None, subjects_dir=None, **kwargs):
+        calls.append(subject)
+        if subject is not None:
+            raise RuntimeError("fail once")
+        return None
+
+    output = pack_surf_output(
+        "dummy_atlas", fetcher=dummy_fetcher, subject="subj", subjects_dir="dir"
+    )
+
+    assert calls == ["subj", None]
+    for key in ["vol", "hdr", "labels", "indexes"]:
+        assert key in output
+    assert output["hdr"] is None
+    assert len(output["labels"]) > 0
+    assert output["indexes"].size > 0
+
 def test_fetch_labels_with_list():
     labels = ["Label1", "Label2", "Label3"]
     assert fetch_labels(labels) == labels
@@ -265,6 +321,18 @@ def test_fetch_labels_with_partial_xml(tmp_path):
     xml_file.write_text(xml_content.strip())
     result = fetch_labels(str(xml_file))
     assert result == ["LabelB"]
+
+def test_fetch_labels_with_no_label_nodes(tmp_path):
+    """XML with <data> but no <label> entries should raise ValueError."""
+    xml_content = """
+    <root>
+      <data></data>
+    </root>
+    """
+    xml_file = tmp_path / "empty.xml"
+    xml_file.write_text(xml_content.strip())
+    with pytest.raises(ValueError):
+        fetch_labels(str(xml_file))
 
 def test_fetch_labels_with_invalid_type():
     """Passing a non-list/non-string should raise ValueError."""
@@ -369,6 +437,62 @@ def test_fetch_atlas_local_relative_to_data_dir(tmp_path):
 # ------------------------------------------------------------------
 # Tests for fetch_from_url
 # ------------------------------------------------------------------
+def test_fetch_atlas_url_branch(tmp_path, monkeypatch):
+    data = np.random.rand(3, 3, 3).astype(np.float32)
+    affine = np.eye(4)
+    atlas_file = tmp_path / "dummy.npz"
+    np.savez(atlas_file, vol=data, hdr=affine)
+
+    calls = []
+
+    def fake_fetch_from_url(self, atlas_url, **kwargs):
+        calls.append(atlas_url)
+        return str(tmp_path)
+
+    monkeypatch.setattr(AtlasFileHandler, "fetch_from_url", fake_fetch_from_url)
+    af = AtlasFetcher(data_dir=str(tmp_path))
+    atlas = af.fetch_atlas(
+        "custom",
+        atlas_url="http://example.com/dummy.npz",
+        atlas_file="dummy.npz",
+        labels=["A"],
+    )
+    assert calls == ["http://example.com/dummy.npz"]
+    np.testing.assert_allclose(atlas["vol"], data)
+    np.testing.assert_allclose(atlas["hdr"], affine)
+    assert atlas["labels"] == ["A"]
+
+
+def test_fetch_atlas_with_atlas_image(tmp_path):
+    data = np.random.rand(2, 2, 2).astype(np.float32)
+    affine = np.eye(4)
+    img = nib.Nifti1Image(data, affine)
+    af = AtlasFetcher(data_dir=str(tmp_path))
+    atlas = af.fetch_atlas("img_atlas", atlas_image=img, labels=["L1", "L2"])
+    np.testing.assert_allclose(atlas["vol"], data)
+    np.testing.assert_allclose(atlas["hdr"], affine)
+    assert atlas["labels"] == ["L1", "L2"]
+
+
+def test_fetch_atlas_fallback(monkeypatch, tmp_path):
+    calls = {"n": 0, "m": 0}
+
+    def fail_nilearn(self, key, fetcher_nilearn, **kwargs):
+        calls["n"] += 1
+        raise RuntimeError("nilearn fail")
+
+    def success_mne(self, key, fetcher_mne, **kwargs):
+        calls["m"] += 1
+        return {"vol": np.array([1]), "hdr": None, "labels": ["ok"], "description": {}}
+
+    monkeypatch.setattr(AtlasFetcher, "_fetch_atlas_nilearn", fail_nilearn)
+    monkeypatch.setattr(AtlasFetcher, "_fetch_atlas_mne", success_mne)
+
+    af = AtlasFetcher(data_dir=str(tmp_path))
+    atlas = af.fetch_atlas("brodmann", prefer="nilearn")
+    assert calls == {"n": 1, "m": 1}
+    np.testing.assert_array_equal(atlas["vol"], np.array([1]))
+    assert atlas["labels"] == ["ok"]
 
 class DummyResponse:
     def __init__(self, content):
