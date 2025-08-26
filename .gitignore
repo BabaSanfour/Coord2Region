@@ -26,10 +26,12 @@ coverage.xml
 
 
 study_data/
+examples/studies*/
 
 # Sphinx documentation
 docs/_build/
 make.bat
 docs/source/generated
 docs/source/auto_examples
+
 
