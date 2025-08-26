@@ -30,6 +30,10 @@ jobs:
         python -m pip install pytest
         if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 #        pip install -e .,already inside requirements-dev.txt
+    - name: Lint with flake8 and pydocstyle
+      run: |
+        flake8 --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        pydocstyle || true
     - name: Test with pytest
       run: |
           pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
@@ -43,7 +47,8 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        slug: BabaSanfour/Coord2Region    
+        slug: BabaSanfour/Coord2Region
     # - name : Test with web-validator
     #   run: |
     #     /bin/bash tests/test_web_validator.sh
+    
