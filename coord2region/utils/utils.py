@@ -110,13 +110,13 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     if fetcher is None:
         try:
             labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
-        except Exception as e:
+        except Exception:
             mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
             labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
     else:
         try:
             labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
-        except Exception as e:
+        except Exception:
             fetcher(subjects_dir=subjects_dir, **kwargs)
             labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
     
