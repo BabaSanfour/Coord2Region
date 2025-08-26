@@ -1,6 +1,8 @@
 import warnings
 import os
 import zipfile
+import tarfile
+import gzip
 import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
@@ -421,6 +423,62 @@ def test_fetch_from_url_with_zip(tmp_path, monkeypatch):
     extracted_file = os.path.join(decompressed_path, dummy_file_name)
     assert os.path.exists(extracted_file)
     with open(extracted_file, "rb") as f:
+        extracted_content = f.read()
+    assert extracted_content == dummy_content
+
+def test_fetch_from_url_with_tar_gz(tmp_path, monkeypatch):
+    """Test fetch_from_url with a dummy .tar.gz archive."""
+    handler = AtlasFileHandler(data_dir=str(tmp_path))
+
+    dummy_tar_name = "dummy.tar.gz"
+    dummy_file_name = "extracted.txt"
+    dummy_content = b"tar gz content"
+
+    dummy_tar_path = tmp_path / dummy_tar_name
+    with tarfile.open(dummy_tar_path, "w:gz") as tarf:
+        temp_file = tmp_path / dummy_file_name
+        temp_file.write_bytes(dummy_content)
+        tarf.add(temp_file, arcname=dummy_file_name)
+    tar_bytes = dummy_tar_path.read_bytes()
+
+    def dummy_get_tar(*args, **kwargs):
+        return DummyResponse(tar_bytes)
+
+    monkeypatch.setattr("requests.get", dummy_get_tar)
+
+    atlas_url = f"http://example.com/{dummy_tar_name}"
+    decompressed_path = handler.fetch_from_url(atlas_url)
+
+    assert os.path.isdir(decompressed_path)
+    extracted_file = os.path.join(decompressed_path, dummy_file_name)
+    assert os.path.exists(extracted_file)
+    with open(extracted_file, "rb") as f:
+        extracted_content = f.read()
+    assert extracted_content == dummy_content
+
+
+def test_fetch_from_url_with_gz(tmp_path, monkeypatch):
+    """Test fetch_from_url with a dummy .gz file."""
+    handler = AtlasFileHandler(data_dir=str(tmp_path))
+
+    dummy_gz_name = "dummy.txt.gz"
+    dummy_content = b"gzip content"
+
+    dummy_gz_path = tmp_path / dummy_gz_name
+    with gzip.open(dummy_gz_path, "wb") as gz:
+        gz.write(dummy_content)
+    gz_bytes = dummy_gz_path.read_bytes()
+
+    def dummy_get_gz(*args, **kwargs):
+        return DummyResponse(gz_bytes)
+
+    monkeypatch.setattr("requests.get", dummy_get_gz)
+
+    atlas_url = f"http://example.com/{dummy_gz_name}"
+    decompressed_path = handler.fetch_from_url(atlas_url)
+
+    assert os.path.isfile(decompressed_path)
+    with open(decompressed_path, "rb") as f:
         extracted_content = f.read()
     assert extracted_content == dummy_content
 
