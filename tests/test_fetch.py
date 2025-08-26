@@ -3,6 +3,7 @@ import os
 import zipfile
 import tarfile
 import gzip
+import requests
 import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
@@ -129,6 +130,12 @@ def test_list_available_atlases():
     assert isinstance(atlases, list), "list_available_atlases should return a list."
     assert len(atlases) > 0, "list_available_atlases returned an empty list."
 
+def test_fetch_atlas_with_unknown_name():
+    """Unknown atlas names should raise ValueError."""
+    af = AtlasFetcher()
+    with pytest.raises(ValueError):
+        af.fetch_atlas("unknown_atlas")
+
 def test_save_and_load_object(tmp_path):
     """Test that AtlasFileHandler can save and load an object."""
     data_dir = str(tmp_path / "coord2region")
@@ -157,6 +164,13 @@ def test_pack_vol_output_with_npz(tmp_path):
     output = pack_vol_output(str(npz_file))
     np.testing.assert_allclose(output["vol"], data, err_msg="Volume data mismatch in pack_vol_output with npz.")
     np.testing.assert_allclose(output["hdr"], affine, err_msg="Affine matrix mismatch in pack_vol_output with npz.")
+
+def test_pack_vol_output_with_unsupported_extension(tmp_path):
+    """Ensure ValueError is raised for unsupported file formats."""
+    invalid_file = tmp_path / "invalid.txt"
+    invalid_file.write_text("dummy content")
+    with pytest.raises(ValueError):
+        pack_vol_output(str(invalid_file))
 
 def test_pack_surf_output(monkeypatch):
     """
@@ -249,6 +263,12 @@ def test_fetch_labels_with_partial_xml(tmp_path):
     xml_file.write_text(xml_content.strip())
     result = fetch_labels(str(xml_file))
     assert result == ["LabelB"]
+
+def test_fetch_labels_with_invalid_type():
+    """Passing a non-list/non-string should raise ValueError."""
+    with pytest.raises(ValueError):
+        fetch_labels(123)
+
 
 # ------------------------------------------------------------------
 # Tests for fetch_from_local
@@ -481,6 +501,19 @@ def test_fetch_from_url_with_gz(tmp_path, monkeypatch):
     with open(decompressed_path, "rb") as f:
         extracted_content = f.read()
     assert extracted_content == dummy_content
+
+def test_fetch_from_url_download_failure(tmp_path, monkeypatch):
+    """RuntimeError should be raised if the download fails."""
+    handler = AtlasFileHandler(data_dir=str(tmp_path))
+
+    def failing_get(*args, **kwargs):
+        raise requests.exceptions.RequestException("fail")
+
+    monkeypatch.setattr("requests.get", failing_get)
+
+    atlas_url = "http://example.com/bad_atlas.nii.gz"
+    with pytest.raises(RuntimeError):
+        handler.fetch_from_url(atlas_url)
 
 def test_custom_subjects_dir_preserved(tmp_path, monkeypatch):
     """Ensure that a provided subjects_dir is not overridden."""

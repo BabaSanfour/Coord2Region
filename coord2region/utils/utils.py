@@ -179,11 +179,11 @@ def pack_surf_output(
 
     # Map label names to indices in the vertex arrays.
     cortex_dict_lh = {
-        label.name: np.nonzero(np.in1d(lh_vert, label.vertices))[0]
+        label.name: np.nonzero(np.isin(lh_vert, label.vertices))[0]
         for label in labels if label.hemi == 'lh'
     }
     cortex_dict_rh = {
-        label.name: np.nonzero(np.in1d(rh_vert, label.vertices))[0]
+        label.name: np.nonzero(np.isin(rh_vert, label.vertices))[0]
         for label in labels if label.hemi == 'rh'
     }
 
