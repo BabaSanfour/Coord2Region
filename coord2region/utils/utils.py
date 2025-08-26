@@ -1,3 +1,9 @@
+"""Utility functions for handling atlas files and labels.
+
+This module provides functions to parse label files, load atlas volumes,
+and manage surface-based atlases using FreeSurfer annotations.
+"""
+
 import os
 import numpy as np
 
@@ -94,7 +100,7 @@ def pack_vol_output(file):
                 'vol': vol_data,
                 'hdr': hdr_matrix,
             }
- 
+
         elif ext == '.npz':
             arch = np.load(path, allow_pickle=True)
             vol_data = arch['vol']
@@ -162,18 +168,38 @@ def pack_surf_output(
     subjects_dir = Path(subjects_dir)
     if fetcher is None:
         try:
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
         except Exception:
             mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
     else:
         try:
             labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
         except Exception:
             fetcher(subjects_dir=subjects_dir, **kwargs)
-            labels = mne.read_labels_from_annot(subject, atlas_name, subjects_dir=subjects_dir, **kwargs)
-    
-    src = mne.setup_source_space(subject, spacing='oct6', subjects_dir=subjects_dir, add_dist=False)
+            labels = mne.read_labels_from_annot(
+                subject,
+                atlas_name,
+                subjects_dir=subjects_dir,
+                **kwargs,
+            )
+
+    src = mne.setup_source_space(
+        subject,
+        spacing='oct6',
+        subjects_dir=subjects_dir,
+        add_dist=False,
+    )
     lh_vert = src[0]['vertno']  # Left hemisphere vertices
     rh_vert = src[1]['vertno']  # Right hemisphere vertices
 

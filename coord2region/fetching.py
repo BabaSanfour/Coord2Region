@@ -319,7 +319,7 @@ class AtlasFetcher:
             fetched["labels"], np.ndarray
         ):
             labels = fetched["labels"].tolist()
-        else: 
+        else:
             labels = fetched.get("labels", None)
         return {
             "vol": fetched["vol"],
