@@ -233,6 +233,21 @@ def test_fetch_labels_with_invalid_xml(tmp_path):
     with pytest.raises(ValueError):
         fetch_labels(str(xml_file))
 
+def test_fetch_labels_with_partial_xml(tmp_path):
+    """Ensure labels are collected even if some entries are malformed."""
+    xml_content = """
+    <root>
+      <data>
+        <label></label>
+        <label><name>LabelB</name></label>
+      </data>
+    </root>
+    """
+    xml_file = tmp_path / "partial.xml"
+    xml_file.write_text(xml_content.strip())
+    result = fetch_labels(str(xml_file))
+    assert result == ["LabelB"]
+
 # ------------------------------------------------------------------
 # Tests for fetch_from_local
 # ------------------------------------------------------------------

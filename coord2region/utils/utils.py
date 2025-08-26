@@ -29,8 +29,8 @@ def fetch_labels(labels):
                 name_elem = label.find('name')
                 if name_elem is not None:
                     label_list.append(name_elem.text)
-                if not label_list:
-                    raise ValueError("No labels found in the XML file.")
+            if not label_list:
+                raise ValueError("No labels found in the XML file.")
             return label_list
         except Exception as e:
             raise ValueError(f"Error processing XML file {labels}: {e}")
@@ -96,7 +96,7 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
     :param subjects_dir: The directory containing the FreeSurfer subjects (default: None).
     :param kwargs: Additional keyword arguments for the fetcher function.
     :raises ValueError: If the atlas name is not recognized.
-    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'index'.
+    :return: A dictionary with keys: 'vol', 'hdr', 'labels', and 'indexes'.
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
@@ -143,20 +143,20 @@ def pack_surf_output(atlas_name, fetcher, subject: str = 'fsaverage', subjects_d
         for idx in indices:
             labmap_rh[idx] = lab
 
-    index_lh = np.sort(np.array(list(labmap_lh.keys())))
-    labels_lh = np.array([labmap_lh[i] for i in index_lh])
-    vmap_lh = lh_vert[index_lh]
+    indexes_lh = np.sort(np.array(list(labmap_lh.keys())))
+    labels_lh = np.array([labmap_lh[i] for i in indexes_lh])
+    vmap_lh = lh_vert[indexes_lh]
 
-    index_rh = np.sort(np.array(list(labmap_rh.keys())))
-    labels_rh = np.array([labmap_rh[i] for i in index_rh])
-    vmap_rh = rh_vert[index_rh]
+    indexes_rh = np.sort(np.array(list(labmap_rh.keys())))
+    labels_rh = np.array([labmap_rh[i] for i in indexes_rh])
+    vmap_rh = rh_vert[indexes_rh]
 
     labels_combined = np.concatenate([labels_lh, labels_rh])
-    index_combined = np.concatenate([vmap_lh, vmap_rh])
+    indexes_combined = np.concatenate([vmap_lh, vmap_rh])
 
     return {
         'vol': [lh_vert, rh_vert],
         'hdr': None,
         'labels': labels_combined,
-        'index': index_combined,
+        'indexes': indexes_combined,
     }
