@@ -1,3 +1,9 @@
+"""Fetch and handle neuroimaging datasets using NiMARE.
+
+This module provides functions to download, convert, and query neuroimaging
+datasets such as Neurosynth, NeuroQuery, and NIDM-Pain using the NiMARE library.
+"""
+
 import os
 import sys
 import logging

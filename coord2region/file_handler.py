@@ -1,3 +1,10 @@
+"""Utilities for managing atlas files.
+
+This module handles downloading, caching, and loading atlas files used by
+the mapping utilities. It provides helpers for retrieving label information
+and packing volumetric atlas outputs.
+"""
+
 import os
 import logging
 import pickle
@@ -35,7 +42,7 @@ class AtlasFileHandler:
     >>> handler.data_dir  # doctest: +SKIP
     '/home/user/coord2region'
     """
-    
+
     def __init__(
         self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None
     ):

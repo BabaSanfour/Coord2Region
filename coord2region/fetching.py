@@ -1,3 +1,9 @@
+"""Fetch atlases from multiple sources.
+
+This module provides the AtlasFetcher class to download and manage brain atlases
+from various sources including Nilearn, MNE, and direct URLs.
+"""
+
 import os
 import logging
 import numpy as np

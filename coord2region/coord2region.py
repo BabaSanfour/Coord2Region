@@ -1,3 +1,10 @@
+"""Coordinate-to-region mapping utilities.
+
+This module provides classes and helper functions for converting between
+MNI coordinates, voxel indices, and anatomical region labels. It enables
+lookups and transformations across multiple brain atlases.
+"""
+
 import numpy as np
 import mne
 from typing import Any, Dict, List, Optional, Union, Tuple
