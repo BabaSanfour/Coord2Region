@@ -400,3 +400,12 @@ def test_fetch_from_url_with_zip(tmp_path, monkeypatch):
     with open(extracted_file, "rb") as f:
         extracted_content = f.read()
     assert extracted_content == dummy_content
+
+def test_custom_subjects_dir_preserved(tmp_path, monkeypatch):
+    """Ensure that a provided subjects_dir is not overridden."""
+    import mne
+
+    monkeypatch.setattr(mne, "get_config", lambda key, default=None: "/not/used")
+    custom_dir = tmp_path / "subjects"
+    handler = AtlasFileHandler(subjects_dir=str(custom_dir))
+    assert handler.subjects_dir == str(custom_dir)

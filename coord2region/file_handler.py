@@ -20,10 +20,25 @@ class AtlasFileHandler:
     
     Attributes:
     :attr data_dir: Directory for storing downloaded atlas files.
-    :attr subjects_dir: Directory for MNE data.
+    :attr subjects_dir: Directory for MNE data. Provided during
+        initialization or inferred from ``mne.get_config('SUBJECTS_DIR')``.
     :attr nilearn_data: Directory for storing Nilearn data.
     """
     def __init__(self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None):
+        """Initialize the file handler.
+
+        Parameters
+        ----------
+        data_dir : str | None
+            Directory for storing downloaded atlas files. If ``None``,
+            ``~/coord2region`` is used. Relative paths are resolved relative
+            to the user's home directory.
+        subjects_dir : str | None
+            Path to the FreeSurfer ``SUBJECTS_DIR``. When provided, this value
+            is stored in :attr:`subjects_dir`. Otherwise, the value is looked
+            up via :func:`mne.get_config` and a warning is emitted if no value
+            can be found.
+        """
         home_dir = os.path.expanduser("~")
         if data_dir is None:
             self.data_dir = os.path.join(home_dir, 'coord2region')
@@ -41,9 +56,12 @@ class AtlasFileHandler:
             raise ValueError(f"Data directory {self.data_dir} is not writable")
 
         self.nilearn_data = os.path.join(home_dir, 'nilearn_data')
-        self.subjects_dir = mne.get_config('SUBJECTS_DIR', None)
-        if subjects_dir is None:
-            logger.warning("Please provide a subjects_dir or set MNE's SUBJECTS_DIR in your environment.")
+        if subjects_dir is not None:
+            self.subjects_dir = subjects_dir
+        else:
+            self.subjects_dir = mne.get_config('SUBJECTS_DIR', None)
+            if self.subjects_dir is None:
+                logger.warning("Please provide a subjects_dir or set MNE's SUBJECTS_DIR in your environment.")
 
     def save(self, obj, filename: str):
         """
