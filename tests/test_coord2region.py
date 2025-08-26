@@ -162,26 +162,3 @@ def test_multiatlas_api():
                 assert idx[atlas2][0].shape[0]!=0, f"Expected non-empty array for {atlas2} when querying {atlas_name} region"
             else:
                 assert idx[atlas2][0].shape[0]==0, f"Expected empty array for {atlas2} when querying {atlas_name} region"
-
-if __name__ == "__main__":
-    # pytest.main([__file__])
-    
-    """
-    to debug in vscode use this configuration in launch.json:
-    {
-        "name": "Pytest Debugger: Specific Test File",
-        "type": "debugpy",
-        "request": "launch",
-        "module": "pytest",
-        "args": [
-            "tests/test_coord2region.py", // Specify the test file
-            "-s",  // Show print statements
-            "-v",  // Verbose output
-            "--maxfail=1",  // Stop after first failure
-            "--disable-warnings" // Suppress pytest warnings
-        ],
-        "console": "integratedTerminal",
-        "justMyCode": false // Show full stack trace for debugging
-    }
-    """
-    print('')
