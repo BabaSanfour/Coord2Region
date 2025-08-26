@@ -1,3 +1,9 @@
+"""Coord2Region: A package for mapping brain coordinates to regions and studies.
+
+This package provides tools to map MNI coordinates to brain regions using 
+various atlases, fetch and manage atlases, and retrieve neuroimaging studies 
+associated with specific coordinates.
+"""
 from .coord2region import (
     AtlasMapper,
     BatchAtlasMapper,

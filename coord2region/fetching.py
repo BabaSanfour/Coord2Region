@@ -274,7 +274,7 @@ class AtlasFetcher:
             "labels": labels,
             "description": description,
         }
-    
+
     def _fetch_atlas_nilearn(
         self, atlas_name: str, fetcher_nilearn: nilearn.datasets, **kwargs
     ):
@@ -322,10 +322,10 @@ class AtlasFetcher:
         return {
             "vol": fetched["vol"],
             "hdr": fetched["hdr"],
-            "labels": fetched["labels"],
+            "labels": labels,
             "description": fetched["description"],
         }
-    
+
     def _fetch_atlas_mne(self, atlas_name: str, fetcher_mne, **kwargs):
         """Fetch an atlas using MNE.
 
