@@ -145,7 +145,7 @@ class AtlasFileHandler:
         if not os.path.exists(local_path):
             logger.info(f"Downloading atlas from {atlas_url}...")
             try:
-                with requests.get(atlas_url, stream=True, timeout=30, verify=False) as r:
+                with requests.get(atlas_url, stream=True, timeout=30, verify=True) as r:
                     r.raise_for_status()
                     with open(local_path, 'wb') as f:
                         for chunk in r.iter_content(chunk_size=8192):
