@@ -325,15 +325,17 @@ class AtlasMapper:
         """
         Return the region index for a given MNI coordinate.
         """
-        ind = self.convert_to_source(mni_coord)
+        ind = np.asarray(self.convert_to_source(mni_coord))
+        if ind.size == 0:
+            return "Unknown"
         if self.atlas_type == "volume":
-            if any(i < 0 or i >= s for i, s in zip(ind, self.shape)):
+            if np.any((ind < 0) | (ind >= np.array(self.shape))):
                 return "Unknown"
             return int(self.vol[tuple(ind)])
         elif self.atlas_type == "surface":
-            if ind < 0 or ind >= len(self.index):
+            if np.any((ind < 0) | (ind >= len(self.index))):
                 return "Unknown"
-            return ind[0]
+            return self.index[ind] if self.index is not None else ind.tolist()
 
     def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
         """

@@ -173,3 +173,23 @@ def test_multiatlas_api():
                 assert idx[atlas2][0].shape[0]!=0, f"Expected non-empty array for {atlas2} when querying {atlas_name} region"
             else:
                 assert idx[atlas2][0].shape[0]==0, f"Expected empty array for {atlas2} when querying {atlas_name} region"
+
+def _make_dummy_mapper(index=None):
+    if index is None:
+        index = np.array([])
+    vol = [np.array([]), np.array([])]
+    return AtlasMapper(name="dummy", vol=vol, hdr=None, index=index, labels=None)
+
+
+def test_surface_out_of_bounds():
+    mapper = _make_dummy_mapper(np.arange(3))
+    mapper.convert_to_source = lambda mni: np.array([5])
+    assert mapper.mni_to_region_index([0, 0, 0]) == "Unknown"
+
+
+def test_surface_multi_vertex_matches():
+    index = np.array([10, 20, 30, 40])
+    mapper = _make_dummy_mapper(index)
+    mapper.convert_to_source = lambda mni: np.array([1, 2])
+    result = mapper.mni_to_region_index([0, 0, 0])
+    assert np.array_equal(result, index[[1, 2]])
