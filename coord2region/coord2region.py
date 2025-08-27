@@ -41,8 +41,8 @@ class AtlasMapper:
     :hdr: A 4x4 affine transform mapping voxel indices -> MNI/world coordinates.
     :labels: Region labels. If a dict, keys should be strings for numeric
         indices and values are region names. If a list/array, it should
-        match `index`.
-    :index: Region indices (numeric) corresponding to the labels list or
+        match `indexes`.
+    :indexes: Region indices (numeric) corresponding to the labels list or
         array. Not needed if `labels` is a dict.
     :system: The anatomical coordinate space (e.g. "mni", "tal").
 
@@ -52,7 +52,7 @@ class AtlasMapper:
     :attrib: vol: np.ndarray
     :attrib: hdr: np.ndarray
     :attrib: labels: dict or list or None
-    :attrib: index: list or np.ndarray or None
+    :attrib: indexes: list or np.ndarray or None
     :attrib: system: str
     :attrib: shape: tuple
     """
@@ -63,7 +63,7 @@ class AtlasMapper:
         vol: np.ndarray,
         hdr: np.ndarray,
         labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
-        index: Optional[Union[List[int], np.ndarray]] = None,
+        indexes: Optional[Union[List[int], np.ndarray]] = None,
         subject: Optional[str] = "fsaverage",
         subjects_dir: Optional[str] = None,
         system: str = "mni",
@@ -71,7 +71,7 @@ class AtlasMapper:
 
         self.name = name
         self.labels = labels
-        self.index = index
+        self.indexes = indexes
         self.system = system
 
         # Basic shape checks
@@ -116,13 +116,13 @@ class AtlasMapper:
         if isinstance(self.labels, dict):
             return self.labels.get(value_str, "Unknown")
 
-        if self.index is not None and self.labels is not None:
+        if self.indexes is not None and self.labels is not None:
             try:
                 # Use list.index for lists; np.where for arrays
-                if isinstance(self.index, list):
-                    pos = self.index.index(int(value))
+                if isinstance(self.indexes, list):
+                    pos = self.indexes.index(int(value))
                 else:
-                    pos = int(np.where(self.index == int(value))[0][0])
+                    pos = int(np.where(self.indexes == int(value))[0][0])
                 return self.labels[pos]
             except (ValueError, IndexError):
                 return "Unknown"
@@ -145,17 +145,17 @@ class AtlasMapper:
         if self._label2index is not None:
             return self._label2index.get(label, "Unknown")
 
-        if self.index is not None and self.labels is not None:
+        if self.indexes is not None and self.labels is not None:
             try:
                 if isinstance(self.labels, list):
                     pos = self.labels.index(label)
                 else:
                     pos = int(np.where(np.array(self.labels) == label)[0][0])
-                # Return the corresponding numeric index from self.index
-                if isinstance(self.index, list):
-                    return self.index[pos]
+                # Return the corresponding numeric index from self.indexes
+                if isinstance(self.indexes, list):
+                    return self.indexes[pos]
                 else:
-                    return int(self.index[pos])
+                    return int(self.indexes[pos])
             except (ValueError, IndexError):
                 return "Unknown"
         elif self.labels is not None:
@@ -398,9 +398,9 @@ class AtlasMapper:
                 return "Unknown"
             return int(self.vol[tuple(ind)])
         elif self.atlas_type == "surface":
-            if np.any((ind < 0) | (ind >= len(self.index))):
+            if np.any((ind < 0) | (ind >= len(self.indexes))):
                 return "Unknown"
-            return self.index[ind] if self.index is not None else ind.tolist()
+            return self.indexes[ind] if self.indexes is not None else ind.tolist()
 
     def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
         """
@@ -430,7 +430,7 @@ class AtlasMapper:
         if self.atlas_type == "volume":
             coords = np.argwhere(self.vol == idx_val)
         elif self.atlas_type == "surface":
-            coords = np.argwhere(self.index == idx_val)
+            coords = np.argwhere(self.indexes == idx_val)
         if coords.size == 0:
             return np.empty((0, 3))
         return self.convert_to_mni(
@@ -559,7 +559,7 @@ class MultiAtlasMapper:
             vol = atlas_data["vol"]
             hdr = atlas_data["hdr"]
             labels = atlas_data.get("labels")
-            index = atlas_data.get("index")
+            indexes = atlas_data.get("indexes")
             # system = atlas_data.get("system", "mni")
 
             single_mapper = AtlasMapper(
@@ -567,7 +567,7 @@ class MultiAtlasMapper:
                 vol=vol,
                 hdr=hdr,
                 labels=labels,
-                index=index,
+                indexes=indexes,
                 system="mni",  # or read from atlas_data if you store that
             )
             batch_mapper = BatchAtlasMapper(single_mapper)
