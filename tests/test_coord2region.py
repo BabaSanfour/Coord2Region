@@ -193,3 +193,67 @@ def test_surface_multi_vertex_matches():
     mapper.convert_to_source = lambda mni: np.array([1, 2])
     result = mapper.mni_to_region_index([0, 0, 0])
     assert np.array_equal(result, index[[1, 2]])
+
+def _surface_mapper():
+    index = np.array([0, 1, 2, 3])
+    vol = [np.array([0, 1]), np.array([2, 3])]
+    return AtlasMapper(name="dummy", vol=vol, hdr=None, index=index, labels=None)
+
+
+def _patch_vertex_to_mni(monkeypatch):
+    import mne
+    coords = {
+        0: np.array([-1.0, 0.0, 0.0]),
+        1: np.array([-2.0, 0.0, 0.0]),
+        2: np.array([1.0, 0.0, 0.0]),
+        3: np.array([2.0, 0.0, 0.0]),
+    }
+
+    def fake_vertex_to_mni(vertices, hemis, subject, subjects_dir=None):
+        verts = np.atleast_1d(vertices)
+        return np.array([coords[v] for v in verts])
+
+    monkeypatch.setattr(mne, "vertex_to_mni", fake_vertex_to_mni)
+
+
+def test_convert_to_source_hemi_restriction(monkeypatch):
+    mapper = _surface_mapper()
+    _patch_vertex_to_mni(monkeypatch)
+
+    coord = np.array([1.1, 0.0, 0.0])
+
+    # Search both hemispheres (default)
+    assert mapper.convert_to_source(coord) == 2
+
+    # Restrict to left hemisphere
+    assert mapper.convert_to_source(coord, hemi=0) == 0
+
+    # Restrict to right hemisphere
+    assert mapper.convert_to_source(coord, hemi=1) == 2
+
+
+def test_mni_to_vertex_returns_nearest(monkeypatch):
+    mapper = _surface_mapper()
+    _patch_vertex_to_mni(monkeypatch)
+
+    coord = np.array([1.8, 0.0, 0.0])
+
+    # Nearest to vertex index 3 (coord [2,0,0])
+    assert mapper.convert_to_source(coord) == 3
+
+def _volume_mapper():
+    vol = np.zeros((2, 2, 2))
+    hdr = np.eye(4)
+    return AtlasMapper(name="dummy", vol=vol, hdr=hdr, labels=None)
+
+
+def test_mni_to_voxel_nearest_outside():
+    mapper = _volume_mapper()
+    coord = np.array([2.3, 0.0, 0.0])
+    assert mapper.mni_to_voxel(coord) == (1, 0, 0)
+
+
+def test_convert_to_source_uses_voxel_search():
+    mapper = _volume_mapper()
+    coord = np.array([2.3, 0.0, 0.0])
+    assert tuple(mapper.convert_to_source(coord)) == (1, 0, 0)

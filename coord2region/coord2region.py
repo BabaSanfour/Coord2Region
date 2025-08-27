@@ -226,9 +226,11 @@ class AtlasMapper:
     def mni_to_voxel(
         self, mni_coord: Union[List[float], np.ndarray]
     ) -> Tuple[int, int, int]:
-        """
-        Convert an (x,y,z) MNI/world coordinate to voxel indices (i,j,k).
-        Returns (i, j, k) as integers (rounded).
+        """Convert an MNI coordinate to the nearest voxel indices.
+
+        The coordinate is transformed using the atlas affine. If it does not
+        exactly match a voxel center, the voxel whose MNI coordinates are
+        closest in Euclidean distance is returned.
         """
         if not isinstance(mni_coord, (list, np.ndarray)):
             raise ValueError("`mni_coord` must be a list or numpy array.")
@@ -243,36 +245,99 @@ class AtlasMapper:
         # self.hdr is a 4×4 affine matrix mapping voxel indices to MNI
         # coordinates. Its inverse maps MNI back to voxel space. The @
         # applies the matrix multiplication.
-        ijk = tuple(map(int, np.round(voxel[:3])))
-        return ijk
+        rounded = np.round(voxel[:3]).astype(int)
+
+        # Check if this voxel maps back exactly to the MNI coordinate
+        back = (self.hdr @ np.append(rounded, 1))[:3]
+        if np.allclose(back, pos_arr, atol=1e-6):
+            return tuple(rounded)
+
+        # Otherwise search for the voxel with minimal distance in MNI space
+        grid = np.indices(self.vol.shape).reshape(3, -1).T
+        ones = np.ones((grid.shape[0], 1))
+        mni_coords = (np.hstack((grid, ones)) @ self.hdr.T)[:, :3]
+        dists = np.linalg.norm(mni_coords - pos_arr, axis=1)
+        nearest = grid[np.argmin(dists)]
+        return tuple(int(v) for v in nearest)
     
-    def mni_to_vertex(self, mni_coord: Union[List[float], np.ndarray]) -> np.ndarray:
+    def mni_to_vertex(
+        self,
+        mni_coord: Union[List[float], np.ndarray],
+        hemi: Optional[Union[List[int], int]] = None,
+    ) -> Union[np.ndarray, int]:
+        """Convert an MNI coordinate to the nearest vertex index.
+
+        Parameters
+        ----------
+        mni_coord : list | ndarray
+            The target MNI coordinate ``[x, y, z]``.
+        hemi : int | list[int] | None
+            Hemisphere(s) to restrict the search to. ``0`` for left,
+            ``1`` for right. If ``None`` (default) both hemispheres are
+            searched.
+
+        Returns
+        -------
+        int | ndarray
+            Index/indices of the matching vertex. If no vertex matches
+            exactly, the closest vertex is returned.
         """
-        Convert MNI coordinates to vertices.
-        Returns an array of vertex indices from both hemispheres that
-        match the given coordinate.
-        """
-        mni = mne.vertex_to_mni(self.vol, [0, 1], self.subject, self.subjects_dir)
-        mni_coord_round = np.round(mni_coord, decimals=5)
-        mni_rounded = np.round(mni, decimals=5)
-        matches = np.all(mni_rounded == mni_coord_round, axis=2)
-        vertex = (
-            np.nonzero(matches[0])[0] if matches[0].any() else np.nonzero(matches[1])[0]
-        )
-        return self.index[vertex]
-    
+
+        mni_coord = np.asarray(mni_coord)
+
+        # Determine which hemispheres to search
+        if hemi is None:
+            hemis = [0, 1]
+        elif isinstance(hemi, (list, tuple, np.ndarray)):
+            hemis = [_get_numeric_hemi(h) for h in hemi]
+        else:
+            hemis = [_get_numeric_hemi(hemi)]
+
+        all_vertices: List[np.ndarray] = []
+        all_coords: List[np.ndarray] = []
+        for h in hemis:
+            verts = np.asarray(self.vol[h])
+            if verts.size == 0:
+                continue
+            coords = mne.vertex_to_mni(verts, h, self.subject, self.subjects_dir)
+            all_vertices.append(verts)
+            all_coords.append(coords)
+
+        if not all_vertices:
+            return np.array([])
+
+        vertices = np.concatenate(all_vertices)
+        coords = np.vstack(all_coords)
+
+        dists = np.linalg.norm(coords - mni_coord, axis=1)
+        exact = np.where(dists == 0)[0]
+        if exact.size:
+            matches = vertices[exact]
+            return matches if matches.size > 1 else int(matches[0])
+
+        closest_vertex = vertices[int(np.argmin(dists))]
+        return int(closest_vertex)
+            
     def convert_to_source(
         self,
         target: Union[List[float], np.ndarray],
         hemi: Optional[Union[List[int], int]] = None,
     ) -> np.ndarray:
-        """
-        Convert target mni to the source space.
+        """Convert an MNI coordinate to the atlas source space.
+
+        Parameters
+        ----------
+        target : list | ndarray
+            The MNI coordinate to convert.
+        hemi : int | list[int] | None
+            Hemisphere(s) to search when using surface atlases. ``0`` for
+            left and ``1`` for right. If ``None`` (default) both hemispheres
+            are searched.
         """
         if self.atlas_type == "volume":
             return self.mni_to_voxel(target)
         if self.atlas_type == "surface":
-            return self.mni_to_vertex(target)
+            return self.mni_to_vertex(target, hemi)
 
     def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
         """
