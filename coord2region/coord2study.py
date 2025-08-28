@@ -1,7 +1,8 @@
 """Fetch and handle neuroimaging datasets using NiMARE.
 
 This module provides functions to download, convert, and query neuroimaging
-datasets such as Neurosynth, NeuroQuery, and NIDM-Pain using the NiMARE library.
+datasets such as Neurosynth, NeuroQuery, and NIDM-Pain using the NiMARE
+library.
 """
 
 import os
@@ -14,13 +15,7 @@ from nimare.utils import get_resource_path
 from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
 
-# Setup logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stderr)
-formatter = logging.Formatter("%(levelname)s: %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 try:
     from Bio import Entrez, Medline
@@ -98,6 +93,9 @@ def fetch_datasets(
         logger.warning(f"Failed to fetch/convert NIDM-Pain dataset: {e}")
 
     if not datasets:
+        logger.error(
+            "No datasets could be loaded. Ensure you have internet access and NiMARE supports the datasets."
+        )
         sys.exit(
             "Error: No datasets could be loaded. Ensure you have internet access"
             " and NiMARE supports the datasets."
