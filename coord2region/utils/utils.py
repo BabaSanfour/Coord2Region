@@ -207,7 +207,10 @@ def pack_surf_output(
     rh_vert = src[1]['vertno']  # Right hemisphere vertices
 
     # Map label names to indices in the vertex arrays.
-    region_vertices = {}
+    from collections import defaultdict
+
+    region_vertices_lh = defaultdict(list)
+    region_vertices_rh = defaultdict(list)
     labmap_lh = {}
     labmap_rh = {}
 
@@ -215,19 +218,19 @@ def pack_surf_output(
         if label.hemi == 'lh':
             match = np.nonzero(np.isin(lh_vert, label.vertices))[0]
             verts = lh_vert[match]
-            region_vertices[label.name] = np.concatenate(
-                [region_vertices.get(label.name, np.array([], int)), verts]
-            )
+            region_vertices_lh[label.name].extend(verts.tolist())
             for idx in match:
                 labmap_lh[idx] = label.name
         elif label.hemi == 'rh':
             match = np.nonzero(np.isin(rh_vert, label.vertices))[0]
             verts = rh_vert[match]
-            region_vertices[label.name] = np.concatenate(
-                [region_vertices.get(label.name, np.array([], int)), verts]
-            )
+            region_vertices_rh[label.name].extend(verts.tolist())
             for idx in match:
                 labmap_rh[idx] = label.name
+
+    region_vertices_lh = {k: np.array(v, dtype=int) for k, v in region_vertices_lh.items()}
+    region_vertices_rh = {k: np.array(v, dtype=int) for k, v in region_vertices_rh.items()}
+    region_vertices = {**region_vertices_lh, **region_vertices_rh}
 
     indexes_lh = np.sort(np.array(list(labmap_lh.keys())))
     labels_lh = np.array([labmap_lh[i] for i in indexes_lh])

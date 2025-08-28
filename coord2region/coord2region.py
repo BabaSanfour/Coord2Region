@@ -385,7 +385,11 @@ class AtlasMapper:
     # -------------------------------------------------------------------------
 
     def _build_voxel_kdtree(self) -> None:
-        """Build a KD-tree of voxel centers for nearest-neighbor queries."""
+        """Build a KD-tree of voxel centers for nearest-neighbor queries.
+
+        Lazy initialization of KD-tree for efficient nearest voxel lookups.
+        The tree is built once on first use and cached for subsequent queries.
+        """
         if self.atlas_type != "volume" or self._voxel_kdtree is not None:
             return
 
@@ -427,7 +431,8 @@ class AtlasMapper:
         # Otherwise search for the voxel with minimal distance in MNI space
         self._build_voxel_kdtree()
         if self._voxel_kdtree is None or self._voxel_indices is None:
-            raise RuntimeError("Voxel KD-tree could not be constructed.")
+            raise RuntimeError(f"Failed to construct voxel KD-tree for atlas '{self.name}'. 
+                This may indicate memory issues or invalid volume data.")
         _, idx = self._voxel_kdtree.query(pos_arr)
         nearest = self._voxel_indices[idx]
         return tuple(int(v) for v in nearest)
