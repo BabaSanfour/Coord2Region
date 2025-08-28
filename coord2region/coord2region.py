@@ -440,41 +440,69 @@ class AtlasMapper:
     # -------------------------------------------------------------------------
 
     def mni_to_region_index(
-        self, mni_coord: Union[List[float], np.ndarray]
-    ) -> Union[int, str]:
-        """
-        Return the region index for a given MNI coordinate.
-        """
-        ind = np.asarray(self.convert_to_source(mni_coord))
-        if ind.size == 0:
-            return "Unknown"
-        if self.atlas_type == "volume":
-            if np.any((ind < 0) | (ind >= np.array(self.shape))):
-                return "Unknown"
-            return int(self.vol[tuple(ind)])
-        elif self.atlas_type == "surface":
-            verts = np.atleast_1d(ind).astype(int)
-            if self.vertex_to_region is not None:
-                valid = [v for v in verts if v in self.vertex_to_region]
-                if not valid:
-                    return "Unknown"
-                return np.array(valid) if len(valid) > 1 else int(valid[0])
-            return verts if verts.size > 1 else int(verts[0])
+        self,
+        mni_coord: Union[List[float], np.ndarray],
+        max_distance: Optional[float] = None,
+        hemi: Optional[Union[List[int], int]] = None,
+        return_distance: bool = False,
+    ) -> Union[int, str, Tuple[Union[int, str], float]]:
+        """Return the region index for a given MNI coordinate.
 
-    def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
+        Parameters
+        ----------
+        mni_coord : list | ndarray
+            Target MNI coordinate.
+        max_distance : float | None
+            If provided, fall back to the nearest region and apply this distance
+            threshold. Distances greater than ``max_distance`` return
+            ``"Unknown"``.
+        hemi : int | list[int] | None
+            Hemisphere restriction for surface atlases.
+        return_distance : bool
+            Whether to also return the distance to the reported region.
         """
-        Return the region name for a given MNI coordinate.
-        """
-        region_idx = self.mni_to_region_index(mni_coord)
-        if isinstance(region_idx, np.ndarray):
-            names = [self._lookup_region_name(int(v)) for v in region_idx]
-            return names if len(names) > 1 else (names[0] if names else "Unknown")
-        if region_idx == "Unknown":
-            return "Unknown"
-        return self._lookup_region_name(int(region_idx))
+
+        coord = np.asarray(mni_coord, dtype=float)
+
+        result: Union[int, str]
+        dist = 0.0
+
+        if self.atlas_type == "volume":
+            ind = np.asarray(self.convert_to_source(coord))
+            if ind.size == 0 or np.any((ind < 0) | (ind >= np.array(self.shape))):
+                result, dist = self._nearest_region_index(coord, hemi)
+            else:
+                result = int(self.vol[tuple(ind)])
+                if result == 0:
+                    result, dist = self._nearest_region_index(coord, hemi)
+        else:
+            result, dist = self._nearest_region_index(coord, hemi)
+
+        if max_distance is not None and dist > max_distance:
+            result = "Unknown"
+
+        return (result, dist) if return_distance else result
+
+    def mni_to_region_name(
+        self,
+        mni_coord: Union[List[float], np.ndarray],
+        max_distance: Optional[float] = None,
+        hemi: Optional[Union[List[int], int]] = None,
+        return_distance: bool = False,
+    ) -> Union[str, Tuple[str, float]]:
+        """Return the region name for a given MNI coordinate."""
+
+        idx, dist = self.mni_to_region_index(
+            mni_coord,
+            max_distance=max_distance,
+            hemi=hemi,
+            return_distance=True,
+        )
+        name = "Unknown" if idx == "Unknown" else self._lookup_region_name(idx)
+        return (name, dist) if return_distance else name
 
     # ------------------------------------------------------------------
-    # Nearest region lookups
+    # Nearest region helpers
     # ------------------------------------------------------------------
 
     def _compute_centroids(self) -> None:
@@ -491,42 +519,26 @@ class AtlasMapper:
             centroids[int(idx)] = coords.mean(axis=0)
         self._centroids_cache = centroids
 
-    def mni_to_nearest_region_index(
+    def _nearest_region_index(
         self,
         mni_coord: Union[List[float], np.ndarray],
-        max_distance: Optional[float] = None,
         hemi: Optional[Union[List[int], int]] = None,
-        return_distance: bool = False,
-    ) -> Union[int, str, Tuple[Union[int, str], float]]:
-        """Return the nearest region index to ``mni_coord``.
-
-        Parameters
-        ----------
-        mni_coord : list | ndarray
-            Target MNI coordinate.
-        max_distance : float | None
-            If provided, distances larger than this return ``"Unknown"``.
-        hemi : int | list[int] | None
-            Hemisphere restriction for surface atlases.
-        return_distance : bool
-            Whether to also return the distance.
-        """
+    ) -> Tuple[Union[int, str], float]:
+        """Return (nearest region index, distance) to ``mni_coord``."""
 
         coord = np.asarray(mni_coord, dtype=float)
 
         if self.atlas_type == "volume":
             self._compute_centroids()
             if not self._centroids_cache:
-                dist = np.inf
-                result: Union[int, str] = "Unknown"
-            else:
-                ids = np.array(list(self._centroids_cache.keys()))
-                cents = np.vstack(list(self._centroids_cache.values()))
-                dists = np.linalg.norm(cents - coord, axis=1)
-                min_idx = np.argmin(dists)
-                dist = float(dists[min_idx])
-                result = int(ids[min_idx])
-        elif self.atlas_type == "surface":
+                return "Unknown", float("inf")
+            ids = np.array(list(self._centroids_cache.keys()))
+            cents = np.vstack(list(self._centroids_cache.values()))
+            dists = np.linalg.norm(cents - coord, axis=1)
+            min_idx = np.argmin(dists)
+            return int(ids[min_idx]), float(dists[min_idx])
+
+        if self.atlas_type == "surface":
             if hemi is None:
                 hemis = [0, 1]
             elif isinstance(hemi, (list, tuple, np.ndarray)):
@@ -544,49 +556,21 @@ class AtlasMapper:
                 all_vertices.append(verts)
                 all_coords.append(coords)
             if not all_vertices:
-                dist = np.inf
-                result = "Unknown"
-            else:
-                vertices = np.concatenate(all_vertices)
-                coords = np.vstack(all_coords)
-                dists = np.linalg.norm(coords - coord, axis=1)
-                min_idx = int(np.argmin(dists))
-                dist = float(dists[min_idx])
-                result = int(vertices[min_idx])
-        elif self.atlas_type == "coords":
+                return "Unknown", float("inf")
+            vertices = np.concatenate(all_vertices)
+            coords = np.vstack(all_coords)
+            dists = np.linalg.norm(coords - coord, axis=1)
+            min_idx = int(np.argmin(dists))
+            return int(vertices[min_idx]), float(dists[min_idx])
+
+        if self.atlas_type == "coords":
             coords = np.asarray(self.vol, dtype=float)
             dists = np.linalg.norm(coords - coord, axis=1)
             min_idx = int(np.argmin(dists))
-            dist = float(dists[min_idx])
             idx = self.indexes[min_idx] if self.indexes is not None else min_idx
-            result = int(idx)
-        else:
-            dist = np.inf
-            result = "Unknown"
+            return int(idx), float(dists[min_idx])
 
-        if max_distance is not None and dist > max_distance:
-            result = "Unknown"
-
-        return (result, dist) if return_distance else result
-
-    def mni_to_nearest_region_name(
-        self,
-        mni_coord: Union[List[float], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-        return_distance: bool = False,
-    ) -> Union[str, Tuple[str, float]]:
-        """Return the nearest region name to ``mni_coord``."""
-
-        res = self.mni_to_nearest_region_index(
-            mni_coord,
-            max_distance=max_distance,
-            hemi=hemi,
-            return_distance=True,
-        )
-        idx, dist = res
-        name = "Unknown" if idx == "Unknown" else self._lookup_region_name(idx)
-        return (name, dist) if return_distance else name
+        return "Unknown", float("inf")
 
     # -------------------------------------------------------------------------
     # region index/name <--> all voxel coords
@@ -704,22 +688,34 @@ class BatchAtlasMapper:
 
     # ---- MNI -> region (batch) -----------------------------------------------
     def batch_mni_to_region_index(
-        self, positions: Union[List[List[float]], np.ndarray]
+        self,
+        positions: Union[List[List[float]], np.ndarray],
+        max_distance: Optional[float] = None,
+        hemi: Optional[Union[List[int], int]] = None,
     ) -> List[Union[int, str]]:
-        """
-        For each MNI coordinate, return the corresponding region index.
-        """
+        """Return region index for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
-        return [self.mapper.mni_to_region_index(pos) for pos in positions_arr]
+        return [
+            self.mapper.mni_to_region_index(
+                pos, max_distance=max_distance, hemi=hemi
+            )
+            for pos in positions_arr
+        ]
 
     def batch_mni_to_region_name(
-        self, positions: Union[List[List[float]], np.ndarray]
+        self,
+        positions: Union[List[List[float]], np.ndarray],
+        max_distance: Optional[float] = None,
+        hemi: Optional[Union[List[int], int]] = None,
     ) -> List[str]:
-        """
-        For each MNI coordinate, return the corresponding region name.
-        """
+        """Return region name for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
-        return [self.mapper.mni_to_region_name(pos) for pos in positions_arr]
+        return [
+            self.mapper.mni_to_region_name(
+                pos, max_distance=max_distance, hemi=hemi
+            )
+            for pos in positions_arr
+        ]
 
     def batch_mni_to_nearest_region_index(
         self,

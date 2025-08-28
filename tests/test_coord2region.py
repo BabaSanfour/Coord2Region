@@ -308,9 +308,9 @@ def surface_mapper(monkeypatch):
 def test_nearest_region(mapper_fn, monkeypatch):
     mapper = mapper_fn(monkeypatch) if mapper_fn is surface_mapper else mapper_fn()
     coord = [1.0, 0.0, 0.0] if mapper_fn is volume_mapper else [0.0, 0.0, 0.0]
-    assert mapper.mni_to_nearest_region_name(coord, max_distance=0.5) == "Unknown"
-    assert mapper.mni_to_nearest_region_index(coord, max_distance=2) in (0, 1)
-    name = mapper.mni_to_nearest_region_name(coord, max_distance=2)
+    assert mapper.mni_to_region_name(coord, max_distance=0.5) == "Unknown"
+    assert mapper.mni_to_region_index(coord, max_distance=2) in (0, 1)
+    name = mapper.mni_to_region_name(coord, max_distance=2)
     assert name in ("A", "Unknown")
     if name != "Unknown":
         assert name == "A"
