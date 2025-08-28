@@ -265,3 +265,52 @@ def test_convert_to_source_uses_voxel_search():
     mapper = _volume_mapper()
     coord = np.array([2.3, 0.0, 0.0])
     assert tuple(mapper.convert_to_source(coord)) == (1, 0, 0)
+
+
+def volume_mapper():
+    vol = np.zeros((3, 1, 1), dtype=int)
+    vol[0, 0, 0] = 1
+    vol[2, 0, 0] = 2
+    hdr = np.eye(4)
+    labels = {"1": "A", "2": "B"}
+    return AtlasMapper("vol", vol, hdr, labels=labels)
+
+
+def coord_mapper():
+    coords = np.array([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    labels = ["A", "B"]
+    indexes = [1, 2]
+    return AtlasMapper("coord", coords, hdr=None, labels=labels, indexes=indexes)
+
+
+def surface_mapper(monkeypatch):
+    vol = [np.array([0]), np.array([1])]
+    regions = {"A": np.array([0]), "B": np.array([1])}
+    mapper = AtlasMapper("surf", vol, hdr=None, regions=regions)
+
+    def fake_vertex_to_mni(vertices, hemi, subject, subjects_dir):
+        vertices = np.atleast_1d(vertices)
+        out = []
+        for v in vertices:
+            if int(v) == 0:
+                out.append([-1.0, 0.0, 0.0])
+            else:
+                out.append([1.0, 0.0, 0.0])
+        return np.array(out)
+
+    monkeypatch.setattr(
+        "coord2region.coord2region.mne.vertex_to_mni", fake_vertex_to_mni
+    )
+    return mapper
+
+
+@pytest.mark.parametrize("mapper_fn", [volume_mapper, coord_mapper, surface_mapper])
+def test_nearest_region(mapper_fn, monkeypatch):
+    mapper = mapper_fn(monkeypatch) if mapper_fn is surface_mapper else mapper_fn()
+    coord = [1.0, 0.0, 0.0] if mapper_fn is volume_mapper else [0.0, 0.0, 0.0]
+    assert mapper.mni_to_nearest_region_name(coord, max_distance=0.5) == "Unknown"
+    assert mapper.mni_to_nearest_region_index(coord, max_distance=2) in (0, 1)
+    name = mapper.mni_to_nearest_region_name(coord, max_distance=2)
+    assert name in ("A", "Unknown")
+    if name != "Unknown":
+        assert name == "A"
