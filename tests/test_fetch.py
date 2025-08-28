@@ -219,13 +219,16 @@ def test_pack_surf_output(monkeypatch):
     # Call pack_surf_output with dummy parameters.
     output = pack_surf_output("dummy_atlas", fetcher=None, subject="dummy", subjects_dir="dummy_dir")
     
-    for key in ["vol", "hdr", "labels", "indexes"]:
+    for key in ["vol", "hdr", "labels", "indexes", "regions"]:
         assert key in output, f"Key '{key}' missing in output of pack_surf_output."
     
     # For surface outputs, hdr is expected to be None.
     assert output["hdr"] is None, "Expected hdr to be None in pack_surf_output output."
     assert len(output["labels"]) > 0, "Labels list is empty in pack_surf_output output."
     assert output["indexes"].size > 0, "Indexes array is empty in pack_surf_output output."
+    assert isinstance(output["regions"], dict)
+    assert "Label1" in output["regions"]
+    assert output["regions"]["Label1"].size > 0
 
 def test_pack_surf_output_fetcher_retry(monkeypatch):
     """Ensure fetcher retry path is executed when the first call fails."""
@@ -266,11 +269,12 @@ def test_pack_surf_output_fetcher_retry(monkeypatch):
     )
 
     assert calls == ["subj", None]
-    for key in ["vol", "hdr", "labels", "indexes"]:
+    for key in ["vol", "hdr", "labels", "indexes", "regions"]:
         assert key in output
     assert output["hdr"] is None
     assert len(output["labels"]) > 0
     assert output["indexes"].size > 0
+    assert isinstance(output["regions"], dict)
 
 def test_fetch_labels_with_list():
     labels = ["Label1", "Label2", "Label3"]

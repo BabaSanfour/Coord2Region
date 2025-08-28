@@ -145,7 +145,9 @@ def pack_surf_output(
     Returns
     -------
     dict
-        Dictionary with ``'vol'``, ``'hdr'``, ``'labels'`` and ``'indexes'`` keys.
+        Dictionary with ``'vol'``, ``'hdr'``, ``'labels'``, ``'indexes'`` and
+        ``'regions'`` keys where ``'regions'`` maps region names to vertex
+        indices.
 
     Raises
     ------
@@ -155,7 +157,8 @@ def pack_surf_output(
     Examples
     --------
     >>> pack_surf_output('aparc', None)  # doctest: +SKIP
-    {'vol': [...], 'hdr': None, 'labels': array([...]), 'indexes': array([...])}
+    {'vol': [...], 'hdr': None, 'labels': array([...]), 'indexes': array([...]),
+     'regions': {'Region': array([...])}}
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
@@ -204,23 +207,27 @@ def pack_surf_output(
     rh_vert = src[1]['vertno']  # Right hemisphere vertices
 
     # Map label names to indices in the vertex arrays.
-    cortex_dict_lh = {
-        label.name: np.nonzero(np.isin(lh_vert, label.vertices))[0]
-        for label in labels if label.hemi == 'lh'
-    }
-    cortex_dict_rh = {
-        label.name: np.nonzero(np.isin(rh_vert, label.vertices))[0]
-        for label in labels if label.hemi == 'rh'
-    }
-
+    region_vertices = {}
     labmap_lh = {}
-    for lab, indices in cortex_dict_lh.items():
-        for idx in indices:
-            labmap_lh[idx] = lab
     labmap_rh = {}
-    for lab, indices in cortex_dict_rh.items():
-        for idx in indices:
-            labmap_rh[idx] = lab
+
+    for label in labels:
+        if label.hemi == 'lh':
+            match = np.nonzero(np.isin(lh_vert, label.vertices))[0]
+            verts = lh_vert[match]
+            region_vertices[label.name] = (
+                np.concatenate([region_vertices.get(label.name, np.array([], int)), verts])
+            )
+            for idx in match:
+                labmap_lh[idx] = label.name
+        elif label.hemi == 'rh':
+            match = np.nonzero(np.isin(rh_vert, label.vertices))[0]
+            verts = rh_vert[match]
+            region_vertices[label.name] = (
+                np.concatenate([region_vertices.get(label.name, np.array([], int)), verts])
+            )
+            for idx in match:
+                labmap_rh[idx] = label.name
 
     indexes_lh = np.sort(np.array(list(labmap_lh.keys())))
     labels_lh = np.array([labmap_lh[i] for i in indexes_lh])
@@ -238,4 +245,5 @@ def pack_surf_output(
         'hdr': None,
         'labels': labels_combined,
         'indexes': indexes_combined,
+        'regions': region_vertices,
     }

@@ -44,6 +44,7 @@ class AtlasMapper:
         match `indexes`.
     :indexes: Region indices (numeric) corresponding to the labels list or
         array. Not needed if `labels` is a dict.
+    :regions: For surface atlases, mapping of region names to vertex indices.
     :system: The anatomical coordinate space (e.g. "mni", "tal").
 
     Attributes
@@ -53,6 +54,7 @@ class AtlasMapper:
     :attrib: hdr: np.ndarray
     :attrib: labels: dict or list or None
     :attrib: indexes: list or np.ndarray or None
+    :attrib: regions: dict or None
     :attrib: system: str
     :attrib: shape: tuple
     """
@@ -65,6 +67,7 @@ class AtlasMapper:
         labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
         indexes: Optional[Union[List[int], np.ndarray]] = None,
         subject: Optional[str] = "fsaverage",
+        regions: Optional[Dict[str, np.ndarray]] = None,
         subjects_dir: Optional[str] = None,
         system: str = "mni",
     ) -> None:
@@ -72,6 +75,8 @@ class AtlasMapper:
         self.name = name
         self.labels = labels
         self.indexes = indexes
+        self.regions = regions
+        self.vertex_to_region = None
         self.system = system
 
         # Basic shape checks
@@ -90,12 +95,15 @@ class AtlasMapper:
             self.atlas_type = "surface"
             self.subject = subject
             self.subjects_dir = subjects_dir
+            self.vertex_to_region = {
+                int(v): k
+                for k, verts in (regions or {}).items()
+                for v in np.asarray(verts).ravel()
+            }
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
-        # TODO: Add support for surface atlases: sometimes a region has many indexes
         if isinstance(self.labels, dict):
-            # Here we assume keys are index strings, values are region names
             self._label2index = {v: k for k, v in self.labels.items()}
         else:
             self._label2index = None
@@ -112,13 +120,18 @@ class AtlasMapper:
         if not isinstance(value, (int, str)):
             raise ValueError("value must be int or str")
 
+        if self.atlas_type == "surface" and self.vertex_to_region is not None:
+            try:
+                return self.vertex_to_region.get(int(value), "Unknown")
+            except ValueError:
+                return "Unknown"
+
         value_str = str(value)
         if isinstance(self.labels, dict):
             return self.labels.get(value_str, "Unknown")
 
         if self.indexes is not None and self.labels is not None:
             try:
-                # Use list.index for lists; np.where for arrays
                 if isinstance(self.indexes, list):
                     pos = self.indexes.index(int(value))
                 else:
@@ -127,7 +140,6 @@ class AtlasMapper:
             except (ValueError, IndexError):
                 return "Unknown"
         elif self.labels is not None:
-            # labels might just be a list or array with no separate index
             try:
                 return self.labels[int(value)]
             except (ValueError, IndexError):
@@ -141,6 +153,9 @@ class AtlasMapper:
         """
         if not isinstance(label, str):
             raise ValueError("label must be a string")
+
+        if self.atlas_type == "surface" and self.regions is not None:
+            return np.asarray(self.regions.get(label, []))
 
         if self._label2index is not None:
             return self._label2index.get(label, "Unknown")
@@ -176,7 +191,7 @@ class AtlasMapper:
         """
         return self._lookup_region_name(region_idx)
 
-    def region_index_from_name(self, region_name: str) -> Union[int, str]:
+    def region_index_from_name(self, region_name: str) -> Union[int, str, np.ndarray]:
         """
         Public method: Return region index from region name.
         """
@@ -186,6 +201,8 @@ class AtlasMapper:
         """
         Return a list of all unique region names in this atlas.
         """
+        if self.regions is not None:
+            return list(self.regions.keys())
         if self.labels is None:
             return []
         regions = self.labels.values() if isinstance(self.labels, dict) else self.labels
@@ -365,7 +382,25 @@ class AtlasMapper:
         # use mne.vertex_to_mni
         coords = mne.vertex_to_mni(vertices, hemi, self.subject, self.subjects_dir)
         return coords
-    
+
+    def _vertices_to_mni(self, vertices: np.ndarray) -> np.ndarray:
+        """Convert vertices from both hemispheres to MNI coordinates."""
+        vertices = np.atleast_1d(vertices).astype(int)
+        if vertices.size == 0:
+            return np.empty((0, 3))
+        lh_vertices, rh_vertices = self.vol
+        lh_mask = np.in1d(vertices, lh_vertices)
+        coords = []
+        if lh_mask.any():
+            coords.append(
+                mne.vertex_to_mni(vertices[lh_mask], 0, self.subject, self.subjects_dir)
+            )
+        if (~lh_mask).any():
+            coords.append(
+                mne.vertex_to_mni(vertices[~lh_mask], 1, self.subject, self.subjects_dir)
+            )
+        return np.vstack(coords) if coords else np.empty((0, 3))
+
     def convert_to_mni(
         self,
         source: Union[List[int], np.ndarray],
@@ -398,15 +433,22 @@ class AtlasMapper:
                 return "Unknown"
             return int(self.vol[tuple(ind)])
         elif self.atlas_type == "surface":
-            if np.any((ind < 0) | (ind >= len(self.indexes))):
-                return "Unknown"
-            return self.indexes[ind] if self.indexes is not None else ind.tolist()
+            verts = np.atleast_1d(ind).astype(int)
+            if self.vertex_to_region is not None:
+                valid = [v for v in verts if v in self.vertex_to_region]
+                if not valid:
+                    return "Unknown"
+                return np.array(valid) if len(valid) > 1 else int(valid[0])
+            return verts if verts.size > 1 else int(verts[0])
 
     def mni_to_region_name(self, mni_coord: Union[List[float], np.ndarray]) -> str:
         """
         Return the region name for a given MNI coordinate.
         """
         region_idx = self.mni_to_region_index(mni_coord)
+        if isinstance(region_idx, np.ndarray):
+            names = [self._lookup_region_name(int(v)) for v in region_idx]
+            return names if len(names) > 1 else (names[0] if names else "Unknown")
         if region_idx == "Unknown":
             return "Unknown"
         return self._lookup_region_name(int(region_idx))
@@ -416,26 +458,28 @@ class AtlasMapper:
     # -------------------------------------------------------------------------
     
     def region_index_to_mni(
-        self, region_idx: Union[int, str], hemi: Optional[int] = None
+        self, region_idx: Union[int, str, List[int], np.ndarray], hemi: Optional[int] = None
     ) -> np.ndarray:
         """
-        Return an Nx3 array of MNI coordinates for all voxels matching the
-        specified region index. Returns an empty array if none found.
+        Return an Nx3 array of MNI coordinates for all voxels or vertices
+        matching ``region_idx``. Returns an empty array if none found.
         """
         # Make sure region_idx is an integer:
-        try:
-            idx_val = int(region_idx)
-        except (ValueError, TypeError):
-            return np.empty((0, 3))
         if self.atlas_type == "volume":
+            try:
+                idx_val = int(region_idx)
+            except (ValueError, TypeError):
+                return np.empty((0, 3))
             coords = np.argwhere(self.vol == idx_val)
+            if coords.size == 0:
+                return np.empty((0, 3))
+            return self.convert_to_mni(coords, hemi)
         elif self.atlas_type == "surface":
-            coords = np.argwhere(self.indexes == idx_val)
-        if coords.size == 0:
-            return np.empty((0, 3))
-        return self.convert_to_mni(
-            coords, hemi
-        )  # Gets all mnicoords for the region if surface atlas
+            try:
+                verts = np.atleast_1d(region_idx).astype(int)
+            except (ValueError, TypeError):
+                return np.empty((0, 3))
+            return self._vertices_to_mni(verts)
 
     def region_name_to_mni(self, region_name: str) -> np.ndarray:
         """
@@ -443,11 +487,24 @@ class AtlasMapper:
         specified region name. Returns an empty array if none found.
         """
         region_idx = self.region_index_from_name(region_name)
-        if region_idx == "Unknown":
+        if isinstance(region_idx, str) and region_idx == "Unknown":
+            return np.empty((0, 3))
+        if isinstance(region_idx, np.ndarray) and region_idx.size == 0:
             return np.empty((0, 3))
         return self.region_index_to_mni(
             region_idx, _get_numeric_hemi(self.infer_hemisphere(region_name))
         )
+    
+    def region_centroid(self, region: Union[int, str]) -> np.ndarray:
+        """Return the centroid MNI coordinate for a region or vertex index."""
+        if isinstance(region, str):
+            coords = self.region_name_to_mni(region)
+        else:
+            coords = self.region_index_to_mni(region)
+        if coords.size == 0:
+            return np.empty((0,))
+        return coords.mean(axis=0)
+
 
 class BatchAtlasMapper:
     """

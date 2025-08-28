@@ -182,23 +182,23 @@ def _make_dummy_mapper(indexes=None):
 
 
 def test_surface_out_of_bounds():
-    mapper = _make_dummy_mapper(np.arange(3))
+    mapper = _make_dummy_mapper({"r": np.arange(3)})
     mapper.convert_to_source = lambda mni: np.array([5])
     assert mapper.mni_to_region_index([0, 0, 0]) == "Unknown"
 
 
 def test_surface_multi_vertex_matches():
-    indexes = np.array([10, 20, 30, 40])
-    mapper = _make_dummy_mapper(indexes)
-    mapper.convert_to_source = lambda mni: np.array([1, 2])
+    regions = {"r": np.array([10, 20, 30, 40])}
+    mapper = _make_dummy_mapper(regions)
+    mapper.convert_to_source = lambda mni: np.array([20, 30])
     result = mapper.mni_to_region_index([0, 0, 0])
-    assert np.array_equal(result, indexes[[1, 2]])
+    assert np.array_equal(result, np.array([20, 30]))
+
 
 def _surface_mapper():
-    indexes = np.array([0, 1, 2, 3])
     vol = [np.array([0, 1]), np.array([2, 3])]
-    return AtlasMapper(name="dummy", vol=vol, hdr=None, indexes=indexes, labels=None)
-
+    regions = {"L": np.array([0, 1]), "R": np.array([2, 3])}
+    return AtlasMapper(name="dummy", vol=vol, hdr=None, regions=regions)
 
 def _patch_vertex_to_mni(monkeypatch):
     import mne
@@ -240,6 +240,14 @@ def test_mni_to_vertex_returns_nearest(monkeypatch):
 
     # Nearest to vertex index 3 (coord [2,0,0])
     assert mapper.convert_to_source(coord) == 3
+
+def test_region_name_to_mni_and_centroid(monkeypatch):
+    mapper = _surface_mapper()
+    _patch_vertex_to_mni(monkeypatch)
+    coords = mapper.region_name_to_mni("L")
+    np.testing.assert_allclose(coords, np.array([[-1.0, 0.0, 0.0], [-2.0, 0.0, 0.0]]))
+    centroid = mapper.region_centroid("L")
+    np.testing.assert_allclose(centroid, np.array([-1.5, 0.0, 0.0]))
 
 def _volume_mapper():
     vol = np.zeros((2, 2, 2))
