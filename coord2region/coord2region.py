@@ -105,34 +105,49 @@ def _get_numeric_hemi(hemi: Union[str, int]) -> int:
 
 
 class AtlasMapper:
-    """
-    Stores a single atlas (a 3D numpy array + 4x4 affine for volumetric
-    atlases or a vertices array for surface atlases) and provides
-    coordinate <-> voxel <-> region lookups.
+    """Stores a single atlas and provides coordinate conversions.
+
+    The atlas may be volumetric (a 3D numpy array with an associated 4x4 affine)
+    or surface-based (a vertices array). In either case, the mapper supports
+    conversions between coordinates, voxel indices, and region labels.
 
     Parameters
     ----------
-    :param name: Identifier for the atlas (e.g. "aal" or "brodmann").
-    :vol: A 3D numpy array representing the volumetric atlas.
-    :hdr: A 4x4 affine transform mapping voxel indices -> MNI/world coordinates.
-    :labels: Region labels. If a dict, keys should be strings for numeric
-        indices and values are region names. If a list/array, it should
-        match `indexes`.
-    :indexes: Region indices (numeric) corresponding to the labels list or
-        array. Not needed if `labels` is a dict.
-    :regions: For surface atlases, mapping of region names to vertex indices.
-    :system: The anatomical coordinate space (e.g. "mni", "tal").
+    name : str
+        Identifier for the atlas (e.g., "aal" or "brodmann").
+    vol : np.ndarray
+        A 3D numpy array representing the volumetric atlas.
+    hdr : np.ndarray
+        A 4x4 affine transform mapping voxel indices to MNI/world coordinates.
+    labels : dict or list or None, optional
+        Region labels. If a dict, keys should be strings for numeric indices and
+        values are region names. If a list/array, it should match ``indexes``.
+    indexes : list or np.ndarray or None, optional
+        Region indices corresponding to ``labels``. Not needed if ``labels`` is
+        a dict.
+    regions : dict or None, optional
+        For surface atlases, mapping of region names to vertex indices.
+    system : str, optional
+        The anatomical coordinate space (e.g., "mni" or "tal").
 
     Attributes
     ----------
-    :attrib: name: str
-    :attrib: vol: np.ndarray
-    :attrib: hdr: np.ndarray
-    :attrib: labels: dict or list or None
-    :attrib: indexes: list or np.ndarray or None
-    :attrib: regions: dict or None
-    :attrib: system: str
-    :attrib: shape: tuple
+    name : str
+        Atlas identifier.
+    vol : np.ndarray
+        Volumetric atlas array.
+    hdr : np.ndarray
+        Affine transform mapping voxel indices to MNI/world coordinates.
+    labels : dict or list or None
+        Region labels.
+    indexes : list or np.ndarray or None
+        Region indices corresponding to labels.
+    regions : dict or None
+        Mapping of region names to vertex indices for surface atlases.
+    system : str
+        Anatomical coordinate space.
+    shape : tuple
+        Shape of the volumetric atlas.
     """
 
     def __init__(
@@ -934,16 +949,23 @@ class AtlasMapper:
         return cls(**state)
 
 class BatchAtlasMapper:
-    """
-    Provides batch (vectorized) conversions over many coordinates for a
-    single AtlasMapper.
+    """Provide batch (vectorized) conversions for a single atlas mapper.
 
-    Example:
+    Parameters
+    ----------
+    mapper : AtlasMapper
+        The atlas mapper to wrap for vectorized operations.
+
+    Attributes
+    ----------
+    mapper : AtlasMapper
+        Wrapped atlas mapper used for transformations.
+
+    Examples
     --------
-    mapper = AtlasMapper(...)
-    batch = BatchAtlasMapper(mapper)
-
-    regions = batch.batch_mni_to_region_name([[0, 0, 0], [10, -20, 30]])
+    >>> mapper = AtlasMapper(...)
+    >>> batch = BatchAtlasMapper(mapper)
+    >>> regions = batch.batch_mni_to_region_name([[0, 0, 0], [10, -20, 30]])
     """
 
     def __init__(self, mapper: AtlasMapper) -> None:
@@ -1032,18 +1054,20 @@ class BatchAtlasMapper:
 
 
 class MultiAtlasMapper:
-    """
-    Manages multiple atlases by name, providing batch MNI->region or
-    region->MNI queries across all atlases at once.
+    """Manage multiple atlases and provide batch queries across them.
 
     Parameters
     ----------
-    :params data_dir: Directory for atlas data.
-    :params atlases: Dictionary of {atlas_name: fetch_kwargs}, used by
-        AtlasFetcher to retrieve each atlas.
+    data_dir : str
+        Directory for atlas data.
+    atlases : dict
+        Dictionary mapping atlas names to keyword arguments passed to
+        :class:`AtlasFetcher` in order to retrieve each atlas.
 
     Attributes
-    :attrib: mappers: dict
+    ----------
+    mappers : dict
+        Mapping of atlas names to :class:`BatchAtlasMapper` instances.
     """
 
     def __init__(self, data_dir: str, atlases: Dict[str, Dict[str, Any]]) -> None:
