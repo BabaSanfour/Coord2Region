@@ -435,7 +435,7 @@ class AtlasMapper:
                     f"Failed to construct voxel KD-tree for atlas '{self.name}'. "
                     "This may indicate memory issues or invalid volume data."
                 )
-            _, idx = self._voxel_kdtree.query(pos_arr)
+        _, idx = self._voxel_kdtree.query(pos_arr)
         nearest = self._voxel_indices[idx]
         return tuple(int(v) for v in nearest)
     
