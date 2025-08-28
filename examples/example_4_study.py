@@ -1,18 +1,7 @@
-"""
-==========================================================
-Using NiMARE Datasets for Neuroscience Meta-Analysis
-==========================================================
+"""Query neuroimaging meta-analysis datasets using ``coord2study``.
 
-This tutorial demonstrates how to use `coord2study` to query **neuroimaging meta-analysis datasets** 
-for studies related to given **MNI coordinates**.
-
-We will:
-- Fetch the **NIDM-Pain dataset** using `fetch_datasets`
-- Query **studies related to a given brain coordinate**
-- Extract **study metadata** such as title and abstract (if available)
-
-**Note:** To speed up execution, we limit this example to **NIDM-Pain only**, but you can include other datasets 
-by setting `neurosynth=True` and `neuroquery=True` in `fetch_datasets`.
+Demonstrates fetching NiMARE datasets and finding studies related to
+specific MNI coordinates.
 """
 
 # %%

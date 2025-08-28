@@ -1,14 +1,7 @@
-"""
-=====================================================
-End-to End Pipeline: Multi-Atlas Coordinate Querying
-=====================================================
-This example shows a straightfoward end-to-end pipeline for querying brain regions and studies for a set of MNI coordinates.
-The pipeline:
-- Generates a toy CSV file with 10 random brain MNI coordinates.
-- Loads 4 atlases (Harvard-Oxford, Schaefer, yeo, juelich) using `AtlasFetcher`.
-- Retrieves the corresponding brain regions in each atlas.
-- Saves the coordinate-to-region mappings as a CSV file.
-- Queries studies that reported these coordinates and saves them as JSON files.
+"""End-to-end pipeline for multi-atlas coordinate querying.
+
+Generates random MNI coordinates, retrieves regions from several atlases,
+and queries related studies, saving results to disk.
 """
 # %%
 import os

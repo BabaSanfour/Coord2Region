@@ -1,7 +1,7 @@
 """Fetch atlases from multiple sources.
 
-This module provides the AtlasFetcher class to download and manage brain atlases
-from various sources including Nilearn, MNE, and direct URLs.
+This module provides the :class:`AtlasFetcher` class to download and manage
+brain atlases from various sources including Nilearn, MNE, and direct URLs.
 """
 
 import os
@@ -14,7 +14,6 @@ from .file_handler import AtlasFileHandler
 from .utils import pack_vol_output, pack_surf_output
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class AtlasFetcher:

@@ -1,8 +1,8 @@
 """Utilities for managing atlas files.
 
-This module handles downloading, caching, and loading atlas files used by
-the mapping utilities. It provides helpers for retrieving label information
-and packing volumetric atlas outputs.
+This module handles downloading, caching, and loading atlas files used by the
+mapping utilities. It provides helpers for retrieving label information and
+packing volumetric atlas outputs.
 """
 
 import os
@@ -13,7 +13,6 @@ import mne
 from .utils import fetch_labels, pack_vol_output
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class AtlasFileHandler:

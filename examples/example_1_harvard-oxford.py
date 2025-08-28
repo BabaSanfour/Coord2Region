@@ -1,15 +1,7 @@
-"""
-====================================================================
-Fetching Harvard-Oxford Atlas withAtlasFetcher and using AtlasMapper
-====================================================================
+"""Fetch the Harvard-Oxford atlas and explore it with ``AtlasMapper``.
 
-This example demonstrates how to fetch Harvard-Oxford brain atlas using `AtlasFetcher` class
-and manipulate it using the `AtlasMapper` class.
-
-We will:
-- Fetch the atlas using `AtlasFetcher`
-- Create an `AtlasMapper`
-- Convert between region names, indices, and MNI coordinates
+The example downloads the atlas using ``AtlasFetcher`` and shows how to
+convert between region names, indices, and MNI coordinates.
 """
 
 # %%
