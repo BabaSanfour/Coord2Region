@@ -13,11 +13,6 @@ import pandas as pd
 from .fetching import AtlasFetcher
 
 
-# TODO: Add getting region with the shortest distance to a given coordinate
-# TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
-# TODO: Add support for surface atlases
-
-
 def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
     """Convert MNI coordinates to Talairach."""
     coords = np.asarray(coords, dtype=float)
