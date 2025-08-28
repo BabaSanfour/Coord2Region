@@ -9,6 +9,7 @@ import numpy as np
 import mne
 import pickle
 from typing import Any, Dict, List, Optional, Union, Tuple
+import pandas as pd
 from .fetching import AtlasFetcher
 
 
@@ -149,18 +150,27 @@ class AtlasMapper:
                     self.indexes = np.arange(self.vol.shape[0])
             else:
                 raise ValueError("Unsupported array format for `vol`.")
-        if isinstance(vol, list):
-            # For surface atlases, `vol` is a list of vertex arrays per hemisphere
-            self.vol = [np.asarray(v, dtype=int) for v in vol]
-            self.hdr = None
-            self.atlas_type = "surface"
-            self.subject = subject
-            self.subjects_dir = subjects_dir
-            self.vertex_to_region = {
-                int(v): k
-                for k, verts in (regions or {}).items()
-                for v in np.asarray(verts).ravel()
-            }
+        elif isinstance(vol, list):
+            arr = np.asarray(vol)
+            if arr.ndim == 2 and arr.shape[1] == 3:
+                # coordinate atlas provided as list
+                self.vol = arr.astype(float)
+                self.hdr = None
+                self.atlas_type = "coords"
+                if self.indexes is None:
+                    self.indexes = np.arange(self.vol.shape[0])
+            else:
+                # For surface atlases, `vol` is a list of vertex arrays per hemisphere
+                self.vol = [np.asarray(v, dtype=int) for v in vol]
+                self.hdr = None
+                self.atlas_type = "surface"
+                self.subject = subject
+                self.subjects_dir = subjects_dir
+                self.vertex_to_region = {
+                    int(v): k
+                    for k, verts in (regions or {}).items()
+                    for v in np.asarray(verts).ravel()
+                }
 
         # If labels is a dict, prepare an inverse mapping:
         #   region_name -> region_index
@@ -447,6 +457,16 @@ class AtlasMapper:
             return self.mni_to_voxel(target)
         if self.atlas_type == "surface":
             return self.mni_to_vertex(target, hemi)
+        if self.atlas_type == "coords":
+            arr = np.asarray(self.vol, dtype=float)
+            tgt = np.asarray(target, dtype=float).reshape(1, 3)
+            mask = np.all(np.isclose(arr, tgt), axis=1)
+            if not mask.any():
+                return np.array([], dtype=int)
+            inds = np.where(mask)[0]
+            if self.indexes is not None:
+                return np.array([self.indexes[i] for i in inds])
+            return inds
 
     def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
         """
@@ -508,6 +528,8 @@ class AtlasMapper:
             if hemi is None:
                 raise ValueError("hemi must be provided for surface atlases")
             return self.vertex_to_mni(source, hemi)
+        if self.atlas_type == "coords":
+            return np.asarray(source, dtype=float)
     # -------------------------------------------------------------------------
     # MNI <--> region
     # -------------------------------------------------------------------------
@@ -571,6 +593,12 @@ class AtlasMapper:
                     exact_matches.append(v_int)
             if exact_matches:
                 result = np.array(exact_matches) if len(exact_matches) > 1 else int(exact_matches[0])
+            else:
+                result, dist = self._nearest_region_index(coord, hemi)
+        elif self.atlas_type == "coords":
+            exact = np.atleast_1d(self.convert_to_source(coord))
+            if exact.size > 0:
+                result = exact if exact.size > 1 else int(exact[0])
             else:
                 result, dist = self._nearest_region_index(coord, hemi)
         else:
@@ -1009,7 +1037,27 @@ class MultiAtlasMapper:
             hdr = atlas_data["hdr"]
             labels = atlas_data.get("labels")
             indexes = atlas_data.get("indexes")
-            # system = atlas_data.get("system", "mni")
+
+            # Handle coordinate atlases represented as DataFrames or lists
+            if isinstance(vol, pd.DataFrame):
+                df = vol
+                if {"x", "y", "z"}.issubset(df.columns):
+                    vol = df[["x", "y", "z"]].to_numpy()
+                else:
+                    vol = df.iloc[:, :3].to_numpy()
+                if labels is None:
+                    for col in ["label", "labels", "name", "region", "roi"]:
+                        if col in df.columns:
+                            labels = df[col].astype(str).tolist()
+                            break
+                if indexes is None:
+                    indexes = df.index.to_list()
+            else:
+                arr = np.asarray(vol)
+                if hdr is None and arr.ndim == 2 and arr.shape[1] == 3:
+                    vol = arr
+                    if indexes is None:
+                        indexes = np.arange(vol.shape[0])
 
             single_mapper = AtlasMapper(
                 name=name,

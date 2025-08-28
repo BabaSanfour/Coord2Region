@@ -379,3 +379,37 @@ def test_probability_decreases_from_centroid():
     assert probs_near["A"] > probs_far["A"]
     assert np.isclose(sum(probs_near.values()), 1.0)
     assert np.isclose(sum(probs_far.values()), 1.0)
+
+def _toy_atlas():
+    coords = np.array([[0, 0, 0], [10, 0, 0], [0, 10, 0]], dtype=float)
+    labels = ["orig", "x10", "y10"]
+    indexes = [1, 2, 3]
+    return coords, labels, indexes
+
+
+def test_coords_mapper_basic():
+    coords, labels, idxs = _toy_atlas()
+    mapper = AtlasMapper("toy", coords, None, labels=labels, indexes=idxs)
+    assert mapper.atlas_type == "coords"
+    assert mapper.mni_to_region_name([0, 0, 0]) == "orig"
+    assert mapper.mni_to_region_index([10, 0, 0]) == 2
+    idx, dist = mapper.mni_to_region_index([9, 0, 0], return_distance=True)
+    assert idx == 2 and np.isclose(dist, 1.0)
+
+
+def test_multiatlas_coords(monkeypatch):
+    coords, labels, idxs = _toy_atlas()
+    import pandas as pd
+    df = pd.DataFrame({"x": coords[:, 0], "y": coords[:, 1], "z": coords[:, 2], "label": labels}, index=idxs)
+    atlas_data = {"vol": df, "hdr": None, "labels": None}
+
+    def fake_fetch(self, name, **kwargs):
+        return atlas_data
+
+    monkeypatch.setattr(AtlasFetcher, "fetch_atlas", fake_fetch)
+    mam = MultiAtlasMapper(data_dir="", atlases={"toy": {}})
+    res = mam.batch_mni_to_region_names([[0, 0, 0], [9, 0, 0]])
+    assert res["toy"] == ["orig", "x10"]
+    mapper = mam.mappers["toy"].mapper
+    assert mapper.atlas_type == "coords"
+    assert mapper.indexes == idxs
