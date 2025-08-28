@@ -360,3 +360,22 @@ def test_mni_to_tal_and_back():
     assert np.allclose(tal, expected_tal, atol=1e-3)
     back = mapper.convert_system(tal, "tal", "mni")
     assert np.allclose(back, mni, atol=1e-6)
+
+def coord_mapper():
+    coords = np.array([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+    labels = ["A", "B"]
+    indexes = [1, 2]
+    return AtlasMapper("coord", coords, hdr=None, labels=labels, indexes=indexes)
+
+def test_probability_decreases_from_centroid():
+    mapper = coord_mapper()
+    centroid = mapper.region_centroid(1)
+    near = centroid
+    far = centroid + np.array([2.0, 0.0, 0.0])
+
+    probs_near = mapper.membership_scores(near)
+    probs_far = mapper.membership_scores(far)
+
+    assert probs_near["A"] > probs_far["A"]
+    assert np.isclose(sum(probs_near.values()), 1.0)
+    assert np.isclose(sum(probs_far.values()), 1.0)

@@ -701,6 +701,21 @@ class AtlasMapper:
             except (ValueError, TypeError):
                 return np.empty((0, 3))
             return self._vertices_to_mni(verts)
+        elif self.atlas_type == "coords":
+            try:
+                idx_val = int(region_idx)
+            except (ValueError, TypeError):
+                return np.empty((0, 3))
+            if self.indexes is not None:
+                try:
+                    pos = list(self.indexes).index(idx_val)
+                except ValueError:
+                    return np.empty((0, 3))
+            else:
+                pos = idx_val
+                if pos < 0 or pos >= len(self.vol):
+                    return np.empty((0, 3))
+            return np.atleast_2d(self.vol[pos])
 
     def region_name_to_mni(self, region_name: str) -> np.ndarray:
         """
@@ -725,6 +740,79 @@ class AtlasMapper:
         if coords.size == 0:
             return np.empty((0,))
         return coords.mean(axis=0)
+
+    def distance_to_region_centroid(
+        self, mni_coord: Union[List[float], np.ndarray], region: Union[int, str]
+    ) -> float:
+        """Return Euclidean distance from ``mni_coord`` to a region centroid."""
+        centroid = self.region_centroid(region)
+        if centroid.size == 0:
+            return float("inf")
+        coord = np.asarray(mni_coord, dtype=float)
+        return float(np.linalg.norm(coord - centroid))
+
+    def distance_to_region_boundary(
+        self, mni_coord: Union[List[float], np.ndarray], region: Union[int, str]
+    ) -> float:
+        """Return distance from ``mni_coord`` to the nearest point in ``region``."""
+        if isinstance(region, str):
+            coords = self.region_name_to_mni(region)
+        else:
+            coords = self.region_index_to_mni(region)
+        if coords.size == 0:
+            return float("inf")
+        coord = np.asarray(mni_coord, dtype=float)
+        dists = np.linalg.norm(coords - coord, axis=1)
+        return float(dists.min())
+
+    def membership_scores(
+        self,
+        mni_coord: Union[List[float], np.ndarray],
+        method: str = "centroid",
+    ) -> Dict[Union[int, str], float]:
+        """Return normalized membership probabilities for all regions."""
+        coord = np.asarray(mni_coord, dtype=float)
+
+        # Determine region identifiers
+        if self.atlas_type == "volume":
+            region_ids = (
+                [int(i) for i in (self.indexes or [])]
+                if self.indexes is not None
+                else [int(i) for i in np.unique(self.vol) if int(i) != 0]
+            )
+        elif self.atlas_type == "coords":
+            if self.indexes is not None:
+                region_ids = [int(i) for i in self.indexes]
+            else:
+                region_ids = list(range(len(self.vol)))
+        elif self.atlas_type == "surface" and self.regions is not None:
+            region_ids = list(self.regions.keys())
+        else:
+            return {}
+
+        dists = []
+        for rid in region_ids:
+            if method == "boundary":
+                d = self.distance_to_region_boundary(coord, rid)
+            else:
+                d = self.distance_to_region_centroid(coord, rid)
+            dists.append(d)
+
+        dists_arr = np.array(dists, dtype=float)
+        scores = np.exp(-dists_arr)
+        total = float(scores.sum())
+        if total > 0:
+            scores /= total
+
+        # Map region identifiers to names if possible
+        if isinstance(self.labels, dict):
+            names = [self.labels.get(str(r), str(r)) for r in region_ids]
+        elif isinstance(self.labels, (list, np.ndarray)):
+            names = list(self.labels)
+        else:
+            names = region_ids
+
+        return dict(zip(names, scores))
 
 
     def region_centroid(self, region: Union[int, str]) -> np.ndarray:
