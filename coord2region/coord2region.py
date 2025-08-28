@@ -15,6 +15,50 @@ from .fetching import AtlasFetcher
 # TODO: Add getting region with the shortest distance to a given coordinate
 # TODO: Add save/load methods for AtlasMapper and MultiAtlasMapper
 # TODO: Add support for surface atlases
+
+
+def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
+    """Convert MNI coordinates to Talairach."""
+    coords = np.asarray(coords, dtype=float)
+    orig_shape = coords.shape
+    coords = coords.reshape(-1, 3)
+    A = np.array(
+        [[0.99, 0, 0, 0], [0, 0.9688, 0.0460, 0], [0, -0.0485, 0.9189, 0], [0, 0, 0, 1]]
+    )
+    B = np.array(
+        [[0.99, 0, 0, 0], [0, 0.9688, 0.0420, 0], [0, -0.0485, 0.8390, 0], [0, 0, 0, 1]]
+    )
+    out = np.empty_like(coords)
+    for i, c in enumerate(coords):
+        vec = np.append(c, 1)
+        out[i] = (A @ vec)[:3] if c[2] >= 0 else (B @ vec)[:3]
+    return out.reshape(orig_shape)
+
+
+def _tal_to_mni(coords: Union[List[float], np.ndarray]) -> np.ndarray:
+    """Convert Talairach coordinates to MNI."""
+    coords = np.asarray(coords, dtype=float)
+    orig_shape = coords.shape
+    coords = coords.reshape(-1, 3)
+    A = np.array(
+        [[0.99, 0, 0, 0], [0, 0.9688, 0.0460, 0], [0, -0.0485, 0.9189, 0], [0, 0, 0, 1]]
+    )
+    B = np.array(
+        [[0.99, 0, 0, 0], [0, 0.9688, 0.0420, 0], [0, -0.0485, 0.8390, 0], [0, 0, 0, 1]]
+    )
+    A_inv = np.linalg.inv(A)
+    B_inv = np.linalg.inv(B)
+    out = np.empty_like(coords)
+    for i, c in enumerate(coords):
+        vec = np.append(c, 1)
+        out[i] = (A_inv @ vec)[:3] if c[2] >= 0 else (B_inv @ vec)[:3]
+    return out.reshape(orig_shape)
+
+
+_TRANSFORMS = {
+    ("mni", "tal"): _mni_to_tal,
+    ("tal", "mni"): _tal_to_mni,
+}
 def _get_numeric_hemi(hemi: Union[str, int]) -> int:
     """Convert hemisphere string to numeric code (0 or 1)."""
     if isinstance(hemi, int):
@@ -257,6 +301,29 @@ class AtlasMapper:
         )
 
     # -------------------------------------------------------------------------
+    # Coordinate system conversions
+    # -------------------------------------------------------------------------
+
+    def convert_system(
+        self,
+        coord: Union[List[float], np.ndarray],
+        source_system: str,
+        target_system: str,
+    ) -> np.ndarray:
+        """Convert coordinates between anatomical systems."""
+        source = source_system.lower()
+        target = target_system.lower()
+        if source == target:
+            return np.asarray(coord, dtype=float)
+        try:
+            func = _TRANSFORMS[(source, target)]
+        except KeyError:
+            raise ValueError(
+                f"Unsupported system conversion: {source_system} -> {target_system}"
+            )
+        return func(coord)
+
+    # -------------------------------------------------------------------------
     # MNI <--> voxel conversions
     # -------------------------------------------------------------------------
 
@@ -359,18 +426,23 @@ class AtlasMapper:
         self,
         target: Union[List[float], np.ndarray],
         hemi: Optional[Union[List[int], int]] = None,
+        source_system: str = "mni",
     ) -> np.ndarray:
-        """Convert an MNI coordinate to the atlas source space.
+        """Convert a coordinate to the atlas source space.
 
         Parameters
         ----------
         target : list | ndarray
-            The MNI coordinate to convert.
+            The coordinate to convert.
         hemi : int | list[int] | None
             Hemisphere(s) to search when using surface atlases. ``0`` for
             left and ``1`` for right. If ``None`` (default) both hemispheres
             are searched.
+        source_system : str, optional
+            Coordinate system of ``target``. Defaults to ``"mni"``.
         """
+        if source_system.lower() != self.system.lower():
+            target = self.convert_system(target, source_system, self.system)
         if self.atlas_type == "volume":
             return self.mni_to_voxel(target)
         if self.atlas_type == "surface":

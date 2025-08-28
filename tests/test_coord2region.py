@@ -349,3 +349,14 @@ def test_multiatlasmapper_save_load(tmp_path):
     loaded = MultiAtlasMapper.load(path)
     after = loaded.batch_mni_to_region_names(coords)
     assert before == after
+
+def test_mni_to_tal_and_back():
+    vol = np.zeros((1, 1, 1))
+    hdr = np.eye(4)
+    mapper = AtlasMapper(name="dummy", vol=vol, hdr=hdr)
+    mni = np.array([30.0, 20.0, 40.0])
+    tal = mapper.convert_system(mni, "mni", "tal")
+    expected_tal = np.array([29.7, 21.216, 35.786])
+    assert np.allclose(tal, expected_tal, atol=1e-3)
+    back = mapper.convert_system(tal, "tal", "mni")
+    assert np.allclose(back, mni, atol=1e-6)
