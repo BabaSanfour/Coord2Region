@@ -464,7 +464,7 @@ class AtlasMapper:
 
         coord = np.asarray(mni_coord, dtype=float)
 
-        result: Union[int, str]
+        result: Union[int, str, np.ndarray]
         dist = 0.0
 
         if self.atlas_type == "volume":
@@ -475,6 +475,31 @@ class AtlasMapper:
                 result = int(self.vol[tuple(ind)])
                 if result == 0:
                     result, dist = self._nearest_region_index(coord, hemi)
+        elif self.atlas_type == "surface":
+            if hemi is not None:
+                verts = np.atleast_1d(self.convert_to_source(coord, hemi))
+                hemis = (
+                    [_get_numeric_hemi(h) for h in hemi]
+                    if isinstance(hemi, (list, tuple, np.ndarray))
+                    else [_get_numeric_hemi(hemi)]
+                )
+            else:
+                verts = np.atleast_1d(self.convert_to_source(coord))
+                hemis = [0, 1]
+            exact_matches: List[int] = []
+            for v in verts:
+                v_int = int(v)
+                hemi_v = next((h for h in hemis if v_int in np.asarray(self.vol[h])), None)
+                if hemi_v is not None:
+                    v_mni = mne.vertex_to_mni([v_int], hemi_v, self.subject, self.subjects_dir)[0]
+                    if np.allclose(v_mni, coord):
+                        exact_matches.append(v_int)
+                elif self.vertex_to_region and v_int in self.vertex_to_region:
+                    exact_matches.append(v_int)
+            if exact_matches:
+                result = np.array(exact_matches) if len(exact_matches) > 1 else int(exact_matches[0])
+            else:
+                result, dist = self._nearest_region_index(coord, hemi)
         else:
             result, dist = self._nearest_region_index(coord, hemi)
 
@@ -498,7 +523,11 @@ class AtlasMapper:
             hemi=hemi,
             return_distance=True,
         )
-        name = "Unknown" if idx == "Unknown" else self._lookup_region_name(idx)
+        if isinstance(idx, np.ndarray):
+            names = {self._lookup_region_name(int(i)) for i in idx}
+            name = names.pop() if len(names) == 1 else "Unknown"
+        else:
+            name = "Unknown" if idx == "Unknown" else self._lookup_region_name(idx)
         return (name, dist) if return_distance else name
 
     # ------------------------------------------------------------------
@@ -518,7 +547,7 @@ class AtlasMapper:
                 continue
             centroids[int(idx)] = coords.mean(axis=0)
         self._centroids_cache = centroids
-
+        
     def _nearest_region_index(
         self,
         mni_coord: Union[List[float], np.ndarray],
@@ -712,38 +741,6 @@ class BatchAtlasMapper:
         positions_arr = np.atleast_2d(positions)
         return [
             self.mapper.mni_to_region_name(
-                pos, max_distance=max_distance, hemi=hemi
-            )
-            for pos in positions_arr
-        ]
-
-    def batch_mni_to_nearest_region_index(
-        self,
-        positions: Union[List[List[float]], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> List[Union[int, str]]:
-        """Return nearest region index for each coordinate."""
-
-        positions_arr = np.atleast_2d(positions)
-        return [
-            self.mapper.mni_to_nearest_region_index(
-                pos, max_distance=max_distance, hemi=hemi
-            )
-            for pos in positions_arr
-        ]
-
-    def batch_mni_to_nearest_region_name(
-        self,
-        positions: Union[List[List[float]], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> List[str]:
-        """Return nearest region name for each coordinate."""
-
-        positions_arr = np.atleast_2d(positions)
-        return [
-            self.mapper.mni_to_nearest_region_name(
                 pos, max_distance=max_distance, hemi=hemi
             )
             for pos in positions_arr
