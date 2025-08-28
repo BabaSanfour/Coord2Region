@@ -10,6 +10,7 @@ import mne
 import pickle
 from typing import Any, Dict, List, Optional, Union, Tuple
 import pandas as pd
+from scipy.spatial import cKDTree
 from .fetching import AtlasFetcher
 
 
@@ -227,6 +228,10 @@ class AtlasMapper:
         # Cache for region centroids (used by nearest-region queries)
         self._centroids_cache: Optional[Dict[int, np.ndarray]] = None
 
+        # Cached KD-tree for voxel center lookup (volume atlases)
+        self._voxel_kdtree: Optional[cKDTree] = None
+        self._voxel_indices: Optional[np.ndarray] = None
+
     # -------------------------------------------------------------------------
     # Internal lookups (private)
     # -------------------------------------------------------------------------
@@ -379,6 +384,17 @@ class AtlasMapper:
     # MNI <--> voxel conversions
     # -------------------------------------------------------------------------
 
+    def _build_voxel_kdtree(self) -> None:
+        """Build a KD-tree of voxel centers for nearest-neighbor queries."""
+        if self.atlas_type != "volume" or self._voxel_kdtree is not None:
+            return
+
+        grid = np.indices(self.vol.shape).reshape(3, -1).T
+        mni_coords = grid @ self.hdr[:3, :3].T + self.hdr[:3, 3]
+
+        self._voxel_indices = grid.astype(int)
+        self._voxel_kdtree = cKDTree(mni_coords)
+
     def mni_to_voxel(
         self, mni_coord: Union[List[float], np.ndarray]
     ) -> Tuple[int, int, int]:
@@ -409,11 +425,11 @@ class AtlasMapper:
             return tuple(rounded)
 
         # Otherwise search for the voxel with minimal distance in MNI space
-        grid = np.indices(self.vol.shape).reshape(3, -1).T
-        ones = np.ones((grid.shape[0], 1))
-        mni_coords = (np.hstack((grid, ones)) @ self.hdr.T)[:, :3]
-        dists = np.linalg.norm(mni_coords - pos_arr, axis=1)
-        nearest = grid[np.argmin(dists)]
+        self._build_voxel_kdtree()
+        if self._voxel_kdtree is None or self._voxel_indices is None:
+            raise RuntimeError("Voxel KD-tree could not be constructed.")
+        _, idx = self._voxel_kdtree.query(pos_arr)
+        nearest = self._voxel_indices[idx]
         return tuple(int(v) for v in nearest)
     
     def mni_to_vertex(
