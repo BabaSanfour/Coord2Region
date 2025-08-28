@@ -314,3 +314,38 @@ def test_nearest_region(mapper_fn, monkeypatch):
     assert name in ("A", "Unknown")
     if name != "Unknown":
         assert name == "A"
+
+def _make_dummy_mapper_save():
+    vol = np.zeros((2, 2, 2))
+    vol[0, 0, 0] = 1
+    hdr = np.eye(4)
+    labels = {"1": "region1"}
+    return AtlasMapper(name="dummy", vol=vol, hdr=hdr, labels=labels)
+
+
+def test_atlasmapper_save_load(tmp_path):
+    mapper = _make_dummy_mapper_save()
+    coord = [0, 0, 0]
+    before = mapper.mni_to_region_name(coord)
+    path = tmp_path / "mapper.pkl"
+    mapper.save(path)
+    loaded = AtlasMapper.load(path)
+    after = loaded.mni_to_region_name(coord)
+    assert before == after
+
+
+def test_multiatlasmapper_save_load(tmp_path):
+    mapper1 = _make_dummy_mapper_save()
+    mapper2 = _make_dummy_mapper_save()
+    multi = MultiAtlasMapper.__new__(MultiAtlasMapper)
+    multi.mappers = {
+        "one": BatchAtlasMapper(mapper1),
+        "two": BatchAtlasMapper(mapper2),
+    }
+    coords = [[0, 0, 0]]
+    before = multi.batch_mni_to_region_names(coords)
+    path = tmp_path / "multi.pkl"
+    multi.save(path)
+    loaded = MultiAtlasMapper.load(path)
+    after = loaded.batch_mni_to_region_names(coords)
+    assert before == after

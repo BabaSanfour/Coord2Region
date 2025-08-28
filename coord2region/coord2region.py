@@ -7,6 +7,7 @@ lookups and transformations across multiple brain atlases.
 
 import numpy as np
 import mne
+import pickle
 from typing import Any, Dict, List, Optional, Union, Tuple
 from .fetching import AtlasFetcher
 
@@ -664,6 +665,67 @@ class AtlasMapper:
             return np.empty((0,))
         return coords.mean(axis=0)
 
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    _SERIAL_VERSION = 1
+
+    def _get_state(self) -> Dict[str, Any]:
+        """Return minimal state necessary to recreate this mapper."""
+        state: Dict[str, Any] = {
+            "name": self.name,
+            "vol": self.vol,
+            "hdr": self.hdr,
+            "labels": self.labels,
+            "indexes": self.indexes,
+            "regions": self.regions,
+            "system": self.system,
+        }
+        if hasattr(self, "subject"):
+            state["subject"] = getattr(self, "subject")
+        if hasattr(self, "subjects_dir"):
+            state["subjects_dir"] = getattr(self, "subjects_dir")
+        return state
+
+    def save(self, filename: str) -> None:
+        """Serialize this ``AtlasMapper`` to ``filename`` using pickle."""
+        data = {
+            "metadata": {"class": self.__class__.__name__, "version": self._SERIAL_VERSION},
+            "state": self._get_state(),
+        }
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)
+
+    @classmethod
+    def load(cls, filename: str) -> "AtlasMapper":
+        """Load an ``AtlasMapper`` from ``filename``.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the serialized mapper.
+
+        Returns
+        -------
+        AtlasMapper
+            A reconstructed mapper instance.
+
+        Raises
+        ------
+        ValueError
+            If the file metadata is incompatible.
+        """
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+        meta = data.get("metadata", {})
+        if meta.get("class") != cls.__name__:
+            raise ValueError("File does not contain AtlasMapper data")
+        if meta.get("version") != cls._SERIAL_VERSION:
+            raise ValueError("Incompatible AtlasMapper version")
+        state = data.get("state", {})
+        return cls(**state)
+
 class BatchAtlasMapper:
     """
     Provides batch (vectorized) conversions over many coordinates for a
@@ -823,3 +885,39 @@ class MultiAtlasMapper:
         for atlas_name, mapper in self.mappers.items():
             results[atlas_name] = mapper.batch_region_name_to_mni(region_names)
         return results
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    _SERIAL_VERSION = 1
+
+    def save(self, filename: str) -> None:
+        """Serialize all contained mappers to ``filename`` using pickle."""
+        mapper_states = {
+            name: mapper.mapper._get_state() for name, mapper in self.mappers.items()
+        }
+        data = {
+            "metadata": {"class": self.__class__.__name__, "version": self._SERIAL_VERSION},
+            "state": {"mappers": mapper_states},
+        }
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)
+
+    @classmethod
+    def load(cls, filename: str) -> "MultiAtlasMapper":
+        """Load a ``MultiAtlasMapper`` instance from ``filename``."""
+        with open(filename, "rb") as f:
+            data = pickle.load(f)
+        meta = data.get("metadata", {})
+        if meta.get("class") != cls.__name__:
+            raise ValueError("File does not contain MultiAtlasMapper data")
+        if meta.get("version") != cls._SERIAL_VERSION:
+            raise ValueError("Incompatible MultiAtlasMapper version")
+        mapper_states = data.get("state", {}).get("mappers", {})
+        obj = cls.__new__(cls)
+        obj.mappers = {}
+        for name, mstate in mapper_states.items():
+            atlas = AtlasMapper(**mstate)
+            obj.mappers[name] = BatchAtlasMapper(atlas)
+        return obj
