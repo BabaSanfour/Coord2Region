@@ -75,7 +75,14 @@ class AtlasMapper:
         self.name = name
         self.labels = labels
         self.indexes = indexes
-        self.regions = regions
+        # Ensure region->vertex mapping uses integer vertex indices
+        if regions is not None:
+            self.regions = {
+                key: np.asarray(vals, dtype=int).ravel()
+                for key, vals in regions.items()
+            }
+        else:
+            self.regions = None
         self.vertex_to_region = None
         self.system = system
 
@@ -90,7 +97,8 @@ class AtlasMapper:
             self.shape = self.vol.shape
             self.atlas_type = "volume"
         if isinstance(vol, list):
-            self.vol = vol
+            # For surface atlases, `vol` is a list of vertex arrays per hemisphere
+            self.vol = [np.asarray(v, dtype=int) for v in vol]
             self.hdr = None
             self.atlas_type = "surface"
             self.subject = subject
@@ -401,6 +409,7 @@ class AtlasMapper:
             )
         return np.vstack(coords) if coords else np.empty((0, 3))
 
+    
     def convert_to_mni(
         self,
         source: Union[List[int], np.ndarray],
@@ -505,6 +514,16 @@ class AtlasMapper:
             return np.empty((0,))
         return coords.mean(axis=0)
 
+
+    def region_centroid(self, region: Union[int, str]) -> np.ndarray:
+        """Return the centroid MNI coordinate for a region or vertex index."""
+        if isinstance(region, str):
+            coords = self.region_name_to_mni(region)
+        else:
+            coords = self.region_index_to_mni(region)
+        if coords.size == 0:
+            return np.empty((0,))
+        return coords.mean(axis=0)
 
 class BatchAtlasMapper:
     """

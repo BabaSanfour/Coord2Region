@@ -174,11 +174,11 @@ def test_multiatlas_api():
             else:
                 assert idx[atlas2][0].shape[0]==0, f"Expected empty array for {atlas2} when querying {atlas_name} region"
 
-def _make_dummy_mapper(indexes=None):
-    if indexes is None:
-        indexes = np.array([])
+def _make_dummy_mapper(region_vertices=None):
+    if region_vertices is None:
+        region_vertices = {}
     vol = [np.array([]), np.array([])]
-    return AtlasMapper(name="dummy", vol=vol, hdr=None, indexes=indexes, labels=None)
+    return AtlasMapper(name="dummy", vol=vol, hdr=None, regions=region_vertices)
 
 
 def test_surface_out_of_bounds():
@@ -194,11 +194,11 @@ def test_surface_multi_vertex_matches():
     result = mapper.mni_to_region_index([0, 0, 0])
     assert np.array_equal(result, np.array([20, 30]))
 
-
 def _surface_mapper():
     vol = [np.array([0, 1]), np.array([2, 3])]
     regions = {"L": np.array([0, 1]), "R": np.array([2, 3])}
     return AtlasMapper(name="dummy", vol=vol, hdr=None, regions=regions)
+
 
 def _patch_vertex_to_mni(monkeypatch):
     import mne
