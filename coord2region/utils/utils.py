@@ -215,16 +215,16 @@ def pack_surf_output(
         if label.hemi == 'lh':
             match = np.nonzero(np.isin(lh_vert, label.vertices))[0]
             verts = lh_vert[match]
-            region_vertices[label.name] = (
-                np.concatenate([region_vertices.get(label.name, np.array([], int)), verts])
+            region_vertices[label.name] = np.concatenate(
+                [region_vertices.get(label.name, np.array([], int)), verts]
             )
             for idx in match:
                 labmap_lh[idx] = label.name
         elif label.hemi == 'rh':
             match = np.nonzero(np.isin(rh_vert, label.vertices))[0]
             verts = rh_vert[match]
-            region_vertices[label.name] = (
-                np.concatenate([region_vertices.get(label.name, np.array([], int)), verts])
+            region_vertices[label.name] = np.concatenate(
+                [region_vertices.get(label.name, np.array([], int)), verts]
             )
             for idx in match:
                 labmap_rh[idx] = label.name

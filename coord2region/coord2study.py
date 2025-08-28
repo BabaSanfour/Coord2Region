@@ -30,11 +30,21 @@ except ImportError:
 def fetch_datasets(
     data_dir: str, neurosynth: bool = True, neuroquery: bool = True
 ) -> Dict[str, Dataset]:
-    """
-    Fetch and convert Neurosynth and NeuroQuery datasets into NiMARE Dataset objects.
+    """Fetch and convert public neuroimaging datasets.
 
-    :param data_dir: Directory to store downloaded data.
-    :return: Dictionary of NiMARE Dataset objects indexed by dataset name.
+    Parameters
+    ----------
+    data_dir : str
+        Directory in which to store downloaded data.
+    neurosynth : bool, default=True
+        Whether to download and convert the Neurosynth dataset.
+    neuroquery : bool, default=True
+        Whether to download and convert the NeuroQuery dataset.
+
+    Returns
+    -------
+    dict[str, Dataset]
+        Dictionary mapping dataset names to NiMARE ``Dataset`` objects.
     """
     datasets: Dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
@@ -105,14 +115,23 @@ def fetch_datasets(
 
 
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
-    """
-    Given a study ID from a NiMARE Dataset, extract study metadata
-    (title and abstract if available).
+    """Extract study metadata from a NiMARE dataset.
 
-    :param dset: A NiMARE Dataset.
-    :param sid: Study ID.
-    :return: A dictionary with keys "id", "source", "title", and optionally
-        "abstract".
+    Given a study ID, retrieve the study title and optionally the abstract
+    if available.
+
+    Parameters
+    ----------
+    dset : Dataset
+        A NiMARE ``Dataset``.
+    sid : Any
+        Study identifier.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with keys ``"id"``, ``"source"``, ``"title"`` and
+        optionally ``"abstract"``.
     """
     study_entry: Dict[str, Any] = {"id": str(sid)}
 
@@ -155,6 +174,21 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
 
 
 def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove duplicate study entries based on their PubMed ID.
+
+    The portion of each study's ``id`` before any dash is treated as the
+    PubMed ID (PMID) and used to identify duplicates.
+
+    Parameters
+    ----------
+    studies : list of dict
+        Study metadata entries, each containing at least an ``id`` key.
+
+    Returns
+    -------
+    list of dict
+        Study metadata with duplicates removed.
+    """
     unique = {}
     for st in studies:
         # If IDs are like '24984958-1', split at the dash
@@ -177,16 +211,22 @@ def get_studies_for_coordinate(
     coord: Union[List[float], Tuple[float, float, float]],
     email: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """
-    Given an MNI coordinate and a dict of NiMARE datasets, return study
-    metadata for studies that report that coordinate.
+    """Retrieve study metadata for a coordinate across datasets.
 
-    :param datasets: Dictionary of NiMARE Dataset objects keyed by source
-        name.
-    :param coord: MNI coordinate [x, y, z].
-    :param email: Email address to use with Entrez for abstract fetching
-        (if available).
-    :return: List of study metadata dictionaries.
+    Parameters
+    ----------
+    datasets : dict[str, Dataset]
+        Dictionary of NiMARE ``Dataset`` objects keyed by source name.
+    coord : list of float or tuple of float
+        MNI coordinate ``[x, y, z]``.
+    email : str, optional
+        Email address to use with Entrez for abstract fetching when
+        Biopython is available.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        Study metadata entries corresponding to the coordinate.
     """
     # NiMARE expects a list of coordinates.
     coord_list = [list(coord)]
