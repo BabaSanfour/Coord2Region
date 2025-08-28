@@ -1,3 +1,5 @@
+"""Setup script for the coord2region package."""
+
 import setuptools
 import subprocess
 from pathlib import Path

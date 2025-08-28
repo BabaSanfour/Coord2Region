@@ -1,3 +1,5 @@
+"""Sphinx configuration for the coord2region documentation."""
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -40,6 +42,7 @@ def cleanup_readme(app, exception):
 
 # Register the cleanup function to run at the end
 def setup(app):
+    """Register build events for documentation setup."""
     app.connect("build-finished", cleanup_readme)
 
 copy_readme()

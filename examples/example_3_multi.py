@@ -1,16 +1,7 @@
-"""
-================================================
-Using Multiple Atlases with MultiAtlasMapper
-================================================
+"""Use ``MultiAtlasMapper`` to query multiple atlases simultaneously.
 
-This example demonstrates how to use `MultiAtlasMapper` to manage **multiple atlases** 
-simultaneously, allowing efficient region lookups across different parcellations.
-
-We will:
-- Fetch both **Harvard-Oxford** and **Schaefer** atlases using `AtlasFetcher`
-- Create a `MultiAtlasMapper`
-- Convert **MNI coordinates to regions** in **all atlases** at once
-- Retrieve **MNI coordinates** corresponding to a brain region across atlases
+The example fetches several atlases, converts coordinates to regions, and
+retrieves region coordinates across parcellations.
 """
 
 # %%

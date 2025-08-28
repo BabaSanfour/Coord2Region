@@ -1,19 +1,6 @@
-"""
-================================================
-Using `AtlasMapper` for Brain Atlas Processing
-================================================
+"""Demonstrate basic usage of ``AtlasMapper`` with a synthetic atlas.
 
-This tutorial demonstrates how to use the `AtlasMapper` class to work with a volumetric brain atlas,
-including converting between coordinate systems and querying brain regions.
-
-We will cover:
-
-- Creating a simple synthetic atlas
-- Initializing an `AtlasMapper`
-- Converting MNI coordinates to voxel indices
-- Retrieving region names from indices
-- Listing available regions
-
+This example converts between coordinate systems and queries brain regions.
 """
 
 # %%
