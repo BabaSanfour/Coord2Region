@@ -842,17 +842,6 @@ class AtlasMapper:
 
         return dict(zip(names, scores))
 
-
-    def region_centroid(self, region: Union[int, str]) -> np.ndarray:
-        """Return the centroid MNI coordinate for a region or vertex index."""
-        if isinstance(region, str):
-            coords = self.region_name_to_mni(region)
-        else:
-            coords = self.region_index_to_mni(region)
-        if coords.size == 0:
-            return np.empty((0,))
-        return coords.mean(axis=0)
-
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
