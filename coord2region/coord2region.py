@@ -14,7 +14,24 @@ from .fetching import AtlasFetcher
 
 
 def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
-    """Convert MNI coordinates to Talairach."""
+    """Convert MNI coordinates to Talairach space.
+
+    Parameters
+    ----------
+    coords : array-like, shape (..., 3)
+        Coordinates defined in MNI space. The input is reshaped to ``(-1, 3)``
+        for transformation and the original shape is restored in the output.
+
+    Returns
+    -------
+    np.ndarray
+        Coordinates in Talairach space with the same shape as ``coords``.
+
+    Examples
+    --------
+    >>> _mni_to_tal([0, 0, 0])
+    array([0., 0., 0.])
+    """
     coords = np.asarray(coords, dtype=float)
     orig_shape = coords.shape
     coords = coords.reshape(-1, 3)
@@ -32,7 +49,25 @@ def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
 
 
 def _tal_to_mni(coords: Union[List[float], np.ndarray]) -> np.ndarray:
-    """Convert Talairach coordinates to MNI."""
+    """Convert Talairach coordinates to MNI space.
+
+    Parameters
+    ----------
+    coords : array-like, shape (..., 3)
+        Coordinates defined in Talairach space. The input is reshaped to
+        ``(-1, 3)`` for transformation and the original shape is restored in
+        the output.
+
+    Returns
+    -------
+    np.ndarray
+        Coordinates in MNI space with the same shape as ``coords``.
+
+    Examples
+    --------
+    >>> _tal_to_mni([0, 0, 0])
+    array([0., 0., 0.])
+    """
     coords = np.asarray(coords, dtype=float)
     orig_shape = coords.shape
     coords = coords.reshape(-1, 3)
