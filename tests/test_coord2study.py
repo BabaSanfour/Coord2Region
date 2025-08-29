@@ -13,6 +13,8 @@ from coord2region.coord2study import (
 )
 
 @pytest.mark.integration
+@pytest.mark.requires_network
+
 def test_fetch_datasets_integration(tmp_path):
     """
     Integration test: fetch real NiMARE datasets (Neurosynth & NeuroQuery),
@@ -32,6 +34,7 @@ def test_fetch_datasets_integration(tmp_path):
         assert hasattr(dset, "coordinates"), f"NiMARE Dataset missing 'coordinates' for {name}"
 
 @pytest.mark.integration
+@pytest.mark.requires_network
 def test_get_studies_for_coordinate_integration(tmp_path):
     """
     Integration test: downloads real NiMARE data and queries a coordinate.

@@ -22,16 +22,17 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.venv_coord2region
 
 nimare_data/
 
 study_data/
-coord2region/TODO.ini
+examples/studies*/
+
 # Sphinx documentation
 docs/_build/
 make.bat
 docs/source/generated
 docs/source/auto_examples
 
-.venv_coord2region/
 

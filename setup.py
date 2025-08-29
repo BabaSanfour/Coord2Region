@@ -1,3 +1,5 @@
+"""Setup script for the coord2region package."""
+
 import setuptools
 import subprocess
 from pathlib import Path
@@ -34,9 +36,9 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
-        "nibabel",  
+        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn'
     ],
     include_package_data=True,
 )

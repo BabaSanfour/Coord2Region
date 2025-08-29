@@ -1,15 +1,7 @@
-"""
-========================================
-Batch Processing with BatchAtlasMapper
-========================================
+"""Batch processing with ``BatchAtlasMapper``.
 
-This example demonstrates how to use `BatchAtlasMapper` for **batch processing**
-of MNI coordinates, voxel indices, and region names.
-
-We will:
-- Fetch the Harvard-Oxford atlas using `AtlasFetcher`
-- Create an `AtlasMapper`
-- Use `BatchAtlasMapper` to efficiently convert **multiple** coordinates at once
+Demonstrates converting multiple coordinates, voxel indices, and region names
+using the Harvard-Oxford atlas.
 """
 
 # %%
