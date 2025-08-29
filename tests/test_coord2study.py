@@ -12,6 +12,9 @@ from coord2region.coord2study import (
     _extract_study_metadata,
     remove_duplicate_studies,
     prepare_datasets,
+    deduplicate_datasets,
+    load_deduplicated_dataset,
+    generate_llm_prompt,
 )
 
 @pytest.mark.integration
@@ -262,3 +265,92 @@ def test_search_studies_select_sources_and_dedup():
     # Search both and ensure duplicates removed
     res = search_studies(datasets, coord=[0, 0, 0])
     assert len(res) == 1
+
+
+@pytest.mark.unit
+def test_deduplicate_datasets(tmp_path):
+    """Deduplication combines unique PMIDs and saves when requested."""
+
+    class DummyDataset:
+        def __init__(self, ids):
+            self.ids = ids
+            self.saved_path = None
+
+        def copy(self):
+            return DummyDataset(self.ids.copy())
+
+        def slice(self, ids):
+            return DummyDataset(list(ids))
+
+        def merge(self, other):
+            return DummyDataset(self.ids + other.ids)
+
+        def save(self, path, compress=True):
+            self.saved_path = path
+
+    ds1 = DummyDataset(["100-1", "101-1"])
+    ds2 = DummyDataset(["100-2", "102-1"])
+    merged = deduplicate_datasets({"a": ds1, "b": ds2}, save_dir=str(tmp_path))
+
+    assert sorted(merged.ids) == ["100-1", "101-1", "102-1"]
+    assert merged.saved_path == os.path.join(str(tmp_path), "deduplicated_dataset.pkl.gz")
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.Dataset.load")
+@patch("coord2region.coord2study.os.path.exists")
+def test_load_deduplicated_dataset_success(mock_exists, mock_load):
+    mock_exists.return_value = True
+    mock_dataset = MagicMock()
+    mock_load.return_value = mock_dataset
+
+    result = load_deduplicated_dataset("/tmp/file.pkl.gz")
+    assert result is mock_dataset
+    mock_load.assert_called_once_with("/tmp/file.pkl.gz", compressed=True)
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.os.path.exists", return_value=False)
+def test_load_deduplicated_dataset_missing(mock_exists):
+    assert load_deduplicated_dataset("/missing.pkl.gz") is None
+
+
+@pytest.mark.unit
+def test_get_studies_for_coordinate_dedup():
+    """Duplicate PMIDs across datasets are removed."""
+
+    ds1 = MagicMock()
+    ds1.get_studies_by_coordinate.return_value = ["123456-1"]
+    ds1.get_metadata.side_effect = lambda ids, field: {
+        "title": ["Title A"],
+        "authors": ["Auth"],
+        "year": [2020],
+    }.get(field, [None])
+
+    ds2 = MagicMock()
+    ds2.get_studies_by_coordinate.return_value = ["123456-2"]
+    ds2.get_metadata.side_effect = lambda ids, field: {
+        "title": ["Title B"],
+        "authors": ["Auth"],
+        "year": [2020],
+    }.get(field, [None])
+
+    res = get_studies_for_coordinate({"First": ds1, "Second": ds2}, coord=[0, 0, 0])
+    assert len(res) == 1
+    assert res[0]["id"].split("-")[0] == "123456"
+
+
+@pytest.mark.unit
+def test_generate_llm_prompt_no_studies():
+    msg = generate_llm_prompt([], [1, 2, 3])
+    assert "No neuroimaging studies" in msg
+
+
+@pytest.mark.unit
+def test_generate_llm_prompt_contents():
+    studies = [{"id": "1", "title": "A", "abstract": "B"}]
+    prompt = generate_llm_prompt(studies, [1, 2, 3])
+    assert "[1, 2, 3]" in prompt
+    assert "ID: 1" in prompt
+    assert "Title: A" in prompt
+    assert "Abstract: B" in prompt
