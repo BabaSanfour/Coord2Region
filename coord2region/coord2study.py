@@ -2,16 +2,7 @@
 
 This module fetches, converts, and queries NiMARE-compatible datasets (e.g.,
 Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
-coordinates of interest. Merging now relies on the ``Dataset.merge`` method
-added in NiMARE 0.0.9 for consistent deduplication across sources. Metadata may
-be further enriched with PubMed or CrossRef queries when available.
-
-Notes
------
-Fetching the optional NIDM-Pain dataset requires NiMARE utilities
-``nimare.extract.download_nidm_pain`` and ``nimare.utils.get_resource_path``.
-These imports are attempted at runtime and gracefully skipped with a warning
-if unavailable.
+coordinates of interest. 
 """
 
 import os
@@ -21,9 +12,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import re
 import requests
 
-from nimare.extract import fetch_neurosynth, fetch_neuroquery
+from nimare.extract import fetch_neurosynth, fetch_neuroquery, download_nidm_pain
 from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
+from nimare.utils import get_resource_path
 
 logger = logging.getLogger(__name__)
 
@@ -35,25 +27,6 @@ try:
 except ImportError:
     BIO_AVAILABLE = False
     logger.warning("Biopython not found. Abstract fetching will be disabled.")
-
-# Guarded NiMARE helper imports (optional; used for NIDM-Pain)
-try:
-    # Available in newer NiMARE versions
-    from nimare.extract import download_nidm_pain  # type: ignore
-except Exception:  # pragma: no cover - import is optional
-    download_nidm_pain = None  # type: ignore[assignment]
-    logger.warning(
-        "NiMARE 'download_nidm_pain' not found. Skipping NIDM-Pain dataset support."
-    )
-
-try:
-    from nimare.utils import get_resource_path  # type: ignore
-except Exception:  # pragma: no cover - import is optional
-    get_resource_path = None  # type: ignore[assignment]
-    logger.warning(
-        "NiMARE 'get_resource_path' not found. Skipping NIDM-Pain dataset support."
-    )
-
 
 
 def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
@@ -110,12 +83,6 @@ def fetch_datasets(
     -------
     Dict[str, Dataset]
         Dictionary of NiMARE ``Dataset`` objects indexed by dataset name.
-
-    Notes
-    -----
-    Fetching the optional ``nidm_pain`` dataset requires NiMARE's
-    :func:`~nimare.extract.download_nidm_pain` and
-    :func:`~nimare.utils.get_resource_path` helpers.
     """
     datasets: Dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
@@ -290,11 +257,6 @@ def prepare_datasets(
     sources: Optional[List[str]] = None,
 ) -> Optional[Dataset]:
     """Load or create a deduplicated NiMARE dataset.
-
-    This helper mirrors the behaviour of :class:`AtlasFetcher` by allowing the
-    caller to choose the base ``data_dir`` used for storing downloads. The
-    deduplicated dataset is cached in ``<data_dir>/cached_data`` so that atlas
-    files and study datasets can share the same parent directory.
 
     Parameters
     ----------
