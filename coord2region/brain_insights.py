@@ -12,6 +12,7 @@ import os
 import json
 import base64
 import requests
+import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .coord2study import (
@@ -28,6 +29,7 @@ from .coord2region import (
 )
 from .fetching import AtlasFetcher
 
+logger = logging.getLogger(__name__)
 
 class BrainInsights:
     """
@@ -125,14 +127,14 @@ class BrainInsights:
                         labels=atlas_data['labels']
                     )
                 except Exception as e:
-                    print(f"Warning: Failed to load atlas {atlas_name}: {e}")
+                    logger.warning("Failed to load atlas %s: %s", atlas_name, e)
             
             # Create multi-atlas mapper if atlases were loaded
             if self.atlases:
                 self.multi_atlas = MultiAtlasMapper([mapper for mapper in self.atlases.values()])
             
         except Exception as e:
-            print(f"Warning: Failed to initialize atlases: {e}")
+            logger.warning("Failed to initialize atlases: %s", e)
             self.use_atlases = False
     
     def get_atlas_labels(self, coordinate: Union[List[float], Tuple[float, float, float]]) -> Dict[str, str]:
@@ -160,7 +162,7 @@ class BrainInsights:
                 multi_results = self.multi_atlas.mni_to_region_names(coordinate)
                 return multi_results
             except Exception as e:
-                print(f"Warning: Multi-atlas mapping failed: {e}")
+                logger.warning("Multi-atlas mapping failed: %s", e)
         
         # Fall back to individual atlases if multi-atlas fails
         for atlas_name, mapper in self.atlases.items():
@@ -168,7 +170,7 @@ class BrainInsights:
                 region_name = mapper.mni_to_region_name(coordinate)
                 atlas_labels[atlas_name] = region_name
             except Exception as e:
-                print(f"Warning: Failed to map coordinate with atlas {atlas_name}: {e}")
+                logger.warning("Failed to map coordinate with atlas %s: %s", atlas_name, e)
         
         return atlas_labels
     
@@ -671,6 +673,11 @@ def get_brain_insights(
 
 # Example usage
 if __name__ == "__main__":
+    import logging
+
+    # Configure logging to output to the console
+    logging.basicConfig(level=logging.INFO)
+
     # Initialize with API keys
     insights = BrainInsights(
         gemini_api_key="AIzaSyBXQFQ4PbB29BteSFs1zDq5dD8o8YkbKxg",
@@ -679,43 +686,43 @@ if __name__ == "__main__":
         use_atlases=True,
         atlas_names=['harvard-oxford', 'juelich', 'aal']
     )
-    
+
     # Example coordinate
     coordinate = [30, 22, -8]
-    
+
     # Get atlas labels for the coordinate
     atlas_labels = insights.get_atlas_labels(coordinate)
-    print(f"Atlas Labels for coordinate {coordinate}:")
+    logger.info("Atlas Labels for coordinate %s:", coordinate)
     for atlas, label in atlas_labels.items():
-        print(f"  {atlas}: {label}")
-    print()
-    
+        logger.info("  %s: %s", atlas, label)
+    logger.info("")
+
     # Get region summary with atlas labels
     result = insights.get_region_summary(
         coordinate=coordinate,
-        summary_type="summary", 
+        summary_type="summary",
         model="gemini-2.0-flash",
         include_atlas_labels=True
     )
-    
-    print(f"Brain Region Summary for coordinate {coordinate}:")
-    print(f"Found {result['studies_count']} relevant studies")
-    print("\n" + "="*80)
-    print(result["summary"])
-    print("="*80)
-    
+
+    logger.info("Brain Region Summary for coordinate %s:", coordinate)
+    logger.info("Found %s relevant studies", result['studies_count'])
+    logger.info("\n" + "="*80)
+    logger.info("%s", result["summary"])
+    logger.info("="*80)
+
     # Generate image prompt with atlas labels
     image_prompt = insights.generate_region_image_prompt(
         coordinate=coordinate,
         image_type="anatomical",
         include_atlas_labels=True
     )
-    
-    print("\nImage Generation Prompt (with atlas labels):")
-    print("-"*80)
-    print(image_prompt)
-    print("-"*80)
-    
+
+    logger.info("\nImage Generation Prompt (with atlas labels):")
+    logger.info("-"*80)
+    logger.info("%s", image_prompt)
+    logger.info("-"*80)
+
     # Note: Uncomment to actually generate images if you have API keys
     # dalle_api_key = "your_dalle_api_key"
     # image_result = insights.generate_region_image(
@@ -725,4 +732,4 @@ if __name__ == "__main__":
     #     include_atlas_labels=True
     # )
     # if "image_path" in image_result:
-    #     print(f"Image saved to: {image_result['image_path']}")
+    #     logger.info("Image saved to: %s", image_result['image_path'])
