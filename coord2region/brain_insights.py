@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from .coord2study import (
     get_studies_for_coordinate,
     generate_llm_prompt,
-    load_deduplicated_dataset,
+    prepare_datasets,
 )
 from .ai_model_interface import AIModelInterface
 
@@ -90,11 +90,9 @@ class BrainInsights:
                 openrouter_api_key=openrouter_api_key
             )
         
-        # Load deduplicated dataset if available
+        # Load or prepare deduplicated dataset if requested
         if use_cached_dataset:
-            dedup_path = os.path.join(data_dir, "deduplicated_dataset.pkl.gz")
-            if os.path.exists(dedup_path):
-                self.dataset = load_deduplicated_dataset(dedup_path)
+            self.dataset = prepare_datasets(data_dir)
         
         # Initialize atlas mappers if required
         self.atlases = {}
@@ -194,22 +192,17 @@ class BrainInsights:
         List[Dict[str, Any]]
             List of study metadata dictionaries
         """
-        if self.dataset:
-            # Use deduplicated dataset if available
-            studies = get_studies_for_coordinate(
-                {"Combined": self.dataset},
-                coordinate,
-                radius=radius,
-                email=self.email,
-            )
-        else:
-            # Otherwise, fetch from online sources (would need to implement fetch_datasets here)
-            from .coord2study import fetch_datasets
-            datasets = fetch_datasets(self.data_dir)
-            studies = get_studies_for_coordinate(
-                datasets, coordinate, radius=radius, email=self.email
-            )
-        
+        if self.dataset is None:
+            self.dataset = prepare_datasets(self.data_dir)
+        if not self.dataset:
+            return []
+
+        studies = get_studies_for_coordinate(
+            {"Combined": self.dataset},
+            coordinate,
+            radius=radius,
+            email=self.email,
+        )
         return studies
     
     def get_enriched_prompt(

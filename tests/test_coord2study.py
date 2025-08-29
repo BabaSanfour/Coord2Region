@@ -9,7 +9,8 @@ from coord2region.coord2study import (
     fetch_datasets,
     get_studies_for_coordinate,
     _extract_study_metadata,
-    remove_duplicate_studies
+    remove_duplicate_studies,
+    prepare_datasets,
 )
 
 @pytest.mark.integration
@@ -186,3 +187,38 @@ def test_remove_duplicate_studies():
         if entry["id"].startswith("19224116"):
             assert entry["title"] == "Study B"
             assert entry["source"] == "Neurosynth"
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.fetch_datasets")
+@patch("coord2region.coord2study.deduplicate_datasets")
+@patch("coord2region.coord2study.load_deduplicated_dataset")
+@patch("coord2region.coord2study.os.path.exists")
+def test_prepare_datasets_uses_cache(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):
+    """If a cached dataset exists it should be loaded without fetching."""
+    mock_exists.return_value = True
+    mock_dataset = MagicMock()
+    mock_load.return_value = mock_dataset
+
+    result = prepare_datasets(str(tmp_path), neurosynth=False, neuroquery=False)
+    assert result is mock_dataset
+    mock_fetch.assert_not_called()
+    mock_dedup.assert_not_called()
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.fetch_datasets")
+@patch("coord2region.coord2study.deduplicate_datasets")
+@patch("coord2region.coord2study.load_deduplicated_dataset")
+@patch("coord2region.coord2study.os.path.exists")
+def test_prepare_datasets_fetches_when_missing(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):
+    """When no cache exists datasets should be fetched and deduplicated."""
+    mock_exists.return_value = False
+    mock_dataset = MagicMock()
+    mock_fetch.return_value = {"A": MagicMock()}
+    mock_dedup.return_value = mock_dataset
+
+    result = prepare_datasets(str(tmp_path))
+    assert result is mock_dataset
+    mock_fetch.assert_called_once()
+    mock_dedup.assert_called_once()

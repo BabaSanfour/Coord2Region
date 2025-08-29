@@ -245,6 +245,45 @@ def deduplicate_datasets(
     return merged_dataset
 
 
+def prepare_datasets(
+    data_dir: str,
+    neurosynth: bool = True,
+    neuroquery: bool = True,
+) -> Optional[Dataset]:
+    """Load or create a deduplicated NiMARE dataset.
+
+    This convenience function attempts to load a cached deduplicated dataset
+    from ``data_dir``. If the cached file is missing or fails to load, the
+    required datasets are fetched, deduplicated, saved to disk, and returned.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory to store or retrieve datasets and the deduplicated cache.
+    neurosynth : bool, optional
+        Whether to include the Neurosynth dataset if fetching is required.
+    neuroquery : bool, optional
+        Whether to include the NeuroQuery dataset if fetching is required.
+
+    Returns
+    -------
+    Optional[Dataset]
+        The deduplicated NiMARE ``Dataset`` object, or ``None`` if preparation
+        fails.
+    """
+    dedup_path = os.path.join(data_dir, "deduplicated_dataset.pkl.gz")
+
+    if os.path.exists(dedup_path):
+        dataset = load_deduplicated_dataset(dedup_path)
+        if dataset is not None:
+            return dataset
+
+    datasets = fetch_datasets(
+        data_dir, neurosynth=neurosynth, neuroquery=neuroquery
+    )
+    return deduplicate_datasets(datasets, save_dir=data_dir)
+
+
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     """Extract title and abstract for a study.
 

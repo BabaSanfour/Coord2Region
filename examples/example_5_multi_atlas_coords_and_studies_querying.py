@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import MultiAtlasMapper
-from coord2region.coord2study import fetch_datasets, get_studies_for_coordinate
+from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
 # %%
 # Step 1: Generate 10 random MNI coordinates
 # -----------------------------------------
@@ -53,11 +53,13 @@ df_mapped = pd.DataFrame(results)
 df_mapped.to_csv(mapped_csv_filename, index=False)
 print(f"Saved mapped coordinates to {mapped_csv_filename}")
 # %%
-# Step 5: Fetch NiMARE datasets (only NIDM-Pain for speed)
+# Step 5: Prepare NiMARE dataset (only NIDM-Pain for speed)
 # --------------------------------------------------------
 dataset_dir = af.data_dir
-# neurosynth and neuroquey take a long time to download for the sake of this example we will only use NIDM-Pain
-datasets = fetch_datasets(dataset_dir, neurosynth=False, neuroquery=False)
+# Neurosynth and NeuroQuery take a long time to download; for this example we
+# only include the NIDM-Pain dataset.
+dataset = prepare_datasets(dataset_dir, neurosynth=False, neuroquery=False)
+datasets = {"Combined": dataset}
 # %%
 # Step 6: Query studies for each coordinate and save to JSON
 # ----------------------------------------------------------
@@ -73,4 +75,5 @@ for coord in mni_list:
 # Summary:
 # - We generated 10 random MNI coordinates and saved them to `toy_coordinates.csv`.
 # - We mapped each coordinate to 4 brain atlases and saved the results to `mapped_coordinates.csv`.
-# - We querie
+# - We prepared a deduplicated NIDM-Pain dataset and queried studies for each
+#   coordinate, saving them to JSON files.

@@ -100,6 +100,17 @@ region_names = batch_mapper.batch_mni_to_region_name([[30, -22, 50], [10, 20, 30
 print("Batch mapped regions:", region_names)
 ```
 
+To fetch meta-analytic datasets and query studies for a coordinate:
+
+```python
+from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
+
+# Load a cached deduplicated dataset or fetch and create one
+dataset = prepare_datasets("nimare_data", neurosynth=False, neuroquery=False)
+studies = get_studies_for_coordinate({"Combined": dataset}, coord=[30, -22, 50])
+print(f"Found {len(studies)} studies")
+```
+
 For more examples and detailed API usage, please refer to the code in `combined_python_code.txt` and the examples in the repository.
 
 ## Documentation, Examples and Paper
