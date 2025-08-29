@@ -197,13 +197,16 @@ class BrainInsights:
             studies = get_studies_for_coordinate(
                 {"Combined": self.dataset},
                 coordinate,
+                radius=radius,
                 email=self.email,
             )
         else:
             # Otherwise, fetch from online sources (would need to implement fetch_datasets here)
             from .coord2study import fetch_datasets
             datasets = fetch_datasets(self.data_dir)
-            studies = get_studies_for_coordinate(datasets, coordinate, email=self.email)
+            studies = get_studies_for_coordinate(
+                datasets, coordinate, radius=radius, email=self.email
+            )
         
         return studies
     

@@ -78,7 +78,9 @@ def test_get_studies_for_coordinate_mock():
     )
 
     dsets = {"MockSource": mock_dataset}
-    results = get_studies_for_coordinate(dsets, coord=[-30, -22, 50], email="test@example.com")
+    results = get_studies_for_coordinate(
+        dsets, coord=[-30, -22, 50], email="test@example.com"
+    )
     
     assert len(results) == 1
     first = results[0]
@@ -86,6 +88,40 @@ def test_get_studies_for_coordinate_mock():
     assert first["source"] == "MockSource"
     assert first["title"] == "Mock Title"
     assert first["email"] == "test@example.com"
+
+
+@pytest.mark.unit
+def test_get_studies_for_coordinate_radius():
+    """Non-zero radius should change query results and be forwarded to NiMARE."""
+
+    mock_dataset = MagicMock()
+
+    def side_effect(coords, r):
+        # Return a study only when radius is non-zero
+        return ["123456"] if r > 0 else []
+
+    mock_dataset.get_studies_by_coordinate.side_effect = side_effect
+    mock_dataset.get_metadata.side_effect = lambda ids, field: {
+        "title": ["Mock Title"],
+        "authors": ["Mock Author"],
+    }.get(field, [None])
+
+    dsets = {"MockSource": mock_dataset}
+
+    coord = [-30, -22, 50]
+    no_hits = get_studies_for_coordinate(dsets, coord=coord, radius=0)
+    hits = get_studies_for_coordinate(dsets, coord=coord, radius=5)
+
+    assert len(no_hits) == 0
+    assert len(hits) == 1
+    # Ensure the radius argument was passed through correctly
+    from unittest.mock import call
+
+    expected_coord_list = [coord]
+    assert mock_dataset.get_studies_by_coordinate.call_args_list == [
+        call(expected_coord_list, r=0),
+        call(expected_coord_list, r=5),
+    ]
 
 @pytest.mark.unit
 def test_extract_study_metadata_mock():

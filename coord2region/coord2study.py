@@ -335,6 +335,7 @@ def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, An
 def get_studies_for_coordinate(
     datasets: Dict[str, Dataset],
     coord: Union[List[float], Tuple[float, float, float]],
+    radius: float = 0,
     email: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Find studies reporting an MNI coordinate across datasets.
@@ -345,6 +346,9 @@ def get_studies_for_coordinate(
         NiMARE ``Dataset`` objects keyed by source name.
     coord : Union[List[float], Tuple[float, float, float]]
         MNI coordinate ``[x, y, z]``.
+    radius : float, default=0
+        Search radius in millimeters around the coordinate. ``0`` indicates an
+        exact match.
     email : Optional[str], optional
         Email address for Entrez (if abstract fetching is enabled).
 
@@ -359,8 +363,7 @@ def get_studies_for_coordinate(
 
     for source, dset in datasets.items():
         try:
-            # TODO: make search radius a parameter
-            study_ids = dset.get_studies_by_coordinate(coord_list, r=1)
+            study_ids = dset.get_studies_by_coordinate(coord_list, r=radius)
         except Exception as e:
             logger.warning(
                 f"Failed to search coordinate {coord} in {source} dataset: {e}"
