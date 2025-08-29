@@ -2,9 +2,9 @@
 
 This module fetches, converts, and queries NiMARE-compatible datasets (e.g.,
 Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
-coordinates of interest. It also provides helpers for deduplicating studies
-across datasets. Metadata may be enriched with PubMed or CrossRef queries when
-available.
+coordinates of interest. Merging now relies on the ``Dataset.merge`` method
+added in NiMARE 0.0.9 for consistent deduplication across sources. Metadata may
+be further enriched with PubMed or CrossRef queries when available.
 
 Notes
 -----
@@ -15,14 +15,12 @@ if unavailable.
 """
 
 import os
-import sys
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import re
 import requests
 
-import nimare
 from nimare.extract import fetch_neurosynth, fetch_neuroquery
 from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
@@ -55,6 +53,7 @@ except Exception:  # pragma: no cover - import is optional
     logger.warning(
         "NiMARE 'get_resource_path' not found. Skipping NIDM-Pain dataset support."
     )
+
 
 
 def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
@@ -225,9 +224,11 @@ def deduplicate_datasets(
     datasets: Dict[str, Dataset], save_dir: Optional[str] = None
 ) -> Optional[Dataset]:
     """Create a deduplicated dataset across sources using PMIDs.
-
-    Duplicates are identified by extracting the PMID from study IDs (assuming a
-    format like ``PMID-XXXX``) and keeping a single instance of each.
+    
+    Duplicates are identified via PubMed IDs extracted from study identifiers.
+    Datasets are merged sequentially using :meth:`~nimare.dataset.Dataset.merge`,
+    introduced in NiMARE 0.0.9. Older NiMARE versions without ``merge`` will
+    return the first dataset unchanged.
 
     Parameters
     ----------
@@ -246,37 +247,31 @@ def deduplicate_datasets(
         logger.warning("No datasets provided for deduplication.")
         return None
 
-    # If there's only one dataset, no need to deduplicate
-    if len(datasets) == 1:
-        return list(datasets.values())[0]
-
     dataset_list = list(datasets.values())
-    merged_dataset = dataset_list[0].copy()
+    tracked_pmids: set[str] = set()
+    merged_dataset: Optional[Dataset] = None
 
-    tracked_pmids = set()
-
-    # Add initial PMIDs from the first dataset
-    for sid in merged_dataset.ids:
-        pmid = str(sid).split("-")[0]
-        tracked_pmids.add(pmid)
-
-    # Merge with remaining datasets, ignoring duplicates
-    for i in range(1, len(dataset_list)):
-        current_dataset = dataset_list[i]
-        ids_to_include = []
-
-        for sid in current_dataset.ids:
+    for dset in dataset_list:
+        ids_to_include: List[str] = []
+        for sid in dset.ids:
             pmid = str(sid).split("-")[0]
             if pmid not in tracked_pmids:
-                ids_to_include.append(sid)
                 tracked_pmids.add(pmid)
+                ids_to_include.append(sid)
+        if not ids_to_include:
+            continue
+        subset = dset.slice(ids_to_include) if hasattr(dset, "slice") else dset
+        if merged_dataset is None:
+            merged_dataset = subset
+        elif hasattr(merged_dataset, "merge"):
+            merged_dataset = merged_dataset.merge(subset)
+        else:  # pragma: no cover - merge method unavailable
+            logger.warning("Dataset.merge not available; returning first dataset only.")
+            break
 
-        if ids_to_include:
-            subset_dataset = current_dataset.slice(ids_to_include)
-            merged_dataset = merged_dataset.merge(subset_dataset)
-            logger.info(
-                f"Added {len(ids_to_include)} non-duplicate studies from dataset index {i}."
-            )
+    if merged_dataset is None:
+        logger.warning("No studies remained after deduplication.")
+        return None
 
     logger.info(f"Created deduplicated dataset with {len(merged_dataset.ids)} studies.")
 
@@ -618,6 +613,9 @@ if __name__ == "__main__":
         deduplicated_dataset = deduplicate_datasets(
             nimare_datasets, save_dir=DATA_DIR
         )
+        if deduplicated_dataset is not None:
+            # Display a glimpse of the enriched metadata
+            print(deduplicated_dataset.metadata.head())
 
     # Search for studies
     if deduplicated_dataset:

@@ -2,7 +2,6 @@
 
 import pytest
 import os
-import logging
 from unittest.mock import patch, MagicMock
 
 from coord2region.coord2study import (
@@ -17,9 +16,9 @@ from coord2region.coord2study import (
     generate_llm_prompt,
 )
 
+
 @pytest.mark.integration
 @pytest.mark.requires_network
-
 def test_fetch_datasets_integration(tmp_path):
     """Integration test: fetch the NIDM-Pain dataset if available."""
     data_dir = tmp_path / "nimare_data"  # Use a temporary dir
@@ -33,7 +32,8 @@ def test_fetch_datasets_integration(tmp_path):
         pytest.skip("NIDM-Pain dataset unavailable")
 
     for name, dset in dsets.items():
-        assert hasattr(dset, "coordinates"), f"NiMARE Dataset missing 'coordinates' for {name}"
+        assert hasattr(dset, "coordinates"), f"NiMARE Dataset missing 'coordinates' for {name}"  # noqa: E501
+
 
 @pytest.mark.integration
 @pytest.mark.requires_network
@@ -57,6 +57,7 @@ def test_get_studies_for_coordinate_integration(tmp_path):
         assert "id" in entry
         assert "source" in entry
 
+
 @pytest.mark.unit
 def test_get_studies_for_coordinate_empty_dict():
     """
@@ -66,11 +67,12 @@ def test_get_studies_for_coordinate_empty_dict():
     assert isinstance(results, list)
     assert len(results) == 0
 
+
 @pytest.mark.unit
 def test_get_studies_for_coordinate_mock():
     """
     Unit test with mocking the NiMARE Dataset call.
-    Ensures that get_studies_for_coordinate() behaves as expected 
+    Ensures that get_studies_for_coordinate() behaves as expected
     without needing real data.
     """
     # Create a fake NiMARE Dataset that returns a known study ID
@@ -85,7 +87,7 @@ def test_get_studies_for_coordinate_mock():
     results = get_studies_for_coordinate(
         dsets, coord=[-30, -22, 50], email="test@example.com"
     )
-    
+
     assert len(results) == 1
     first = results[0]
     assert first["id"] == "123456"
@@ -127,6 +129,7 @@ def test_get_studies_for_coordinate_radius():
         call(expected_coord_list, r=5),
     ]
 
+
 @pytest.mark.unit
 def test_extract_study_metadata_mock():
     """
@@ -148,7 +151,7 @@ def test_extract_study_metadata_mock():
     assert entry["id"] == "12345"
     assert entry["title"] == "Example Title"
 
-    # If you want to test the PubMed retrieval portion, you could also patch Bio.Entrez calls.
+    # If you want to test the PubMed retrieval portion, you could also patch Bio.Entrez calls.  # noqa: E501
 
 
 @pytest.mark.unit
@@ -168,13 +171,14 @@ def test_extract_study_metadata_crossref_fallback(mock_crossref):
     assert entry["abstract"] == "CR Abstract"
     mock_crossref.assert_called_once_with("99999")
 
+
 @pytest.mark.unit
 def test_remove_duplicate_studies():
     """
-    Tests that remove_duplicate_studies properly removes duplicates 
+    Tests that remove_duplicate_studies properly removes duplicates
     by extracting the PMID from the 'id' field (e.g. '123456-1' -> '123456').
     """
-    # Suppose we have multiple entries with the same PMID but different sources or suffixes
+    # Suppose we have multiple entries with the same PMID but different sources or suffixes  # noqa: E501
     studies = [
         {"id": "123456-1", "title": "Study A", "source": "Neurosynth"},
         {"id": "123456-2", "title": "Study A (dup)", "source": "NeuroQuery"},
@@ -182,8 +186,8 @@ def test_remove_duplicate_studies():
         {"id": "19224116-1", "title": "Study B (exact dup)", "source": "Neurosynth"},
         {"id": "999999-9", "title": "Study C", "source": "NeuroQuery"},
     ]
-    # After removing duplicates by PMID, we should only have one of each unique PMID: 123456, 19224116, 999999
-    # The logic in remove_duplicate_studies() picks the first occurrence for each PMID key
+    # After removing duplicates by PMID, we should only have one of each unique PMID: 123456, 19224116, 999999  # noqa: E501
+    # The logic in remove_duplicate_studies() picks the first occurrence for each PMID key  # noqa: E501
     cleaned = remove_duplicate_studies(studies)
 
     # We expect 3 unique PMIDs in the result
@@ -216,7 +220,7 @@ def test_remove_duplicate_studies():
 @patch("coord2region.coord2study.deduplicate_datasets")
 @patch("coord2region.coord2study.load_deduplicated_dataset")
 @patch("coord2region.coord2study.os.path.exists")
-def test_prepare_datasets_uses_cache(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):
+def test_prepare_datasets_uses_cache(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):  # noqa: E501
     """If a cached dataset exists it should be loaded without fetching."""
     mock_exists.return_value = True
     mock_dataset = MagicMock()
@@ -233,7 +237,7 @@ def test_prepare_datasets_uses_cache(mock_exists, mock_load, mock_dedup, mock_fe
 @patch("coord2region.coord2study.deduplicate_datasets")
 @patch("coord2region.coord2study.load_deduplicated_dataset")
 @patch("coord2region.coord2study.os.path.exists")
-def test_prepare_datasets_fetches_when_missing(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):
+def test_prepare_datasets_fetches_when_missing(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):  # noqa: E501
     """When no cache exists datasets should be fetched and deduplicated."""
     mock_exists.return_value = False
     mock_dataset = MagicMock()
@@ -251,11 +255,11 @@ def test_search_studies_select_sources_and_dedup():
     """search_studies filters datasets and removes duplicates."""
     ds1 = MagicMock()
     ds1.get_studies_by_coordinate.return_value = ["123456-1"]
-    ds1.get_metadata.side_effect = lambda ids, field: {"title": ["Title A"], "authors": ["Auth"], "year": [2020]}.get(field, [None])
+    ds1.get_metadata.side_effect = lambda ids, field: {"title": ["Title A"], "authors": ["Auth"], "year": [2020]}.get(field, [None])  # noqa: E501
 
     ds2 = MagicMock()
     ds2.get_studies_by_coordinate.return_value = ["123456-2"]
-    ds2.get_metadata.side_effect = lambda ids, field: {"title": ["Title B"], "authors": ["Auth"], "year": [2020]}.get(field, [None])
+    ds2.get_metadata.side_effect = lambda ids, field: {"title": ["Title B"], "authors": ["Auth"], "year": [2020]}.get(field, [None])  # noqa: E501
 
     datasets = {"First": ds1, "Second": ds2}
     # Only search first dataset
@@ -276,24 +280,22 @@ def test_deduplicate_datasets(tmp_path):
             self.ids = ids
             self.saved_path = None
 
-        def copy(self):
-            return DummyDataset(self.ids.copy())
-
         def slice(self, ids):
-            return DummyDataset(list(ids))
+            return DummyDataset(ids)
 
-        def merge(self, other):
-            return DummyDataset(self.ids + other.ids)
+        def merge(self, right):
+            return DummyDataset(self.ids + right.ids)
 
         def save(self, path, compress=True):
             self.saved_path = path
 
     ds1 = DummyDataset(["100-1", "101-1"])
     ds2 = DummyDataset(["100-2", "102-1"])
+
     merged = deduplicate_datasets({"a": ds1, "b": ds2}, save_dir=str(tmp_path))
 
     assert sorted(merged.ids) == ["100-1", "101-1", "102-1"]
-    assert merged.saved_path == os.path.join(str(tmp_path), "deduplicated_dataset.pkl.gz")
+    assert merged.saved_path == os.path.join(str(tmp_path), "deduplicated_dataset.pkl.gz")  # noqa: E501
 
 
 @pytest.mark.unit
