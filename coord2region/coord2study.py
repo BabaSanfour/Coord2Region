@@ -286,19 +286,23 @@ def deduplicate_datasets(
 
 
 def prepare_datasets(
-    data_dir: str,
+    data_dir: Optional[str] = None,
     sources: Optional[List[str]] = None,
 ) -> Optional[Dataset]:
     """Load or create a deduplicated NiMARE dataset.
 
-    This convenience function attempts to load a cached deduplicated dataset
-    from ``data_dir``. If the cached file is missing or fails to load, the
-    required datasets are fetched, deduplicated, saved to disk, and returned.
+    This helper mirrors the behaviour of :class:`AtlasFetcher` by allowing the
+    caller to choose the base ``data_dir`` used for storing downloads. The
+    deduplicated dataset is cached in ``<data_dir>/cached_data`` so that atlas
+    files and study datasets can share the same parent directory.
 
     Parameters
     ----------
-    data_dir : str
-        Directory to store or retrieve datasets and the deduplicated cache.
+    data_dir : str, optional
+        Base directory for downloaded datasets and the merged cache. If ``None``
+        (default) the path ``~/coord2region`` is used. Relative paths are
+        interpreted relative to the user's home directory so that passing
+        ``"my_cache"`` stores data in ``~/my_cache``.
     sources : Optional[List[str]], optional
         Dataset names to fetch if a cache needs to be built. See
         :func:`fetch_datasets` for valid entries. ``None`` (default) fetches all
@@ -310,15 +314,31 @@ def prepare_datasets(
         The deduplicated NiMARE ``Dataset`` object, or ``None`` if preparation
         fails.
     """
-    dedup_path = os.path.join(data_dir, "deduplicated_dataset.pkl.gz")
+
+    # Resolve data directory similar to AtlasFileHandler so cached datasets and
+    # atlases can reside alongside one another.
+    home_dir = os.path.expanduser("~")
+    if data_dir is None:
+        base_dir = os.path.join(home_dir, "coord2region")
+    elif os.path.isabs(data_dir):
+        base_dir = data_dir
+    else:
+        base_dir = os.path.join(home_dir, data_dir)
+
+    os.makedirs(base_dir, exist_ok=True)
+
+    cache_dir = os.path.join(base_dir, "cached_data")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    dedup_path = os.path.join(cache_dir, "deduplicated_dataset.pkl.gz")
 
     if os.path.exists(dedup_path):
         dataset = load_deduplicated_dataset(dedup_path)
         if dataset is not None:
             return dataset
 
-    datasets = fetch_datasets(data_dir, sources=sources)
-    return deduplicate_datasets(datasets, save_dir=data_dir)
+    datasets = fetch_datasets(base_dir, sources=sources)
+    return deduplicate_datasets(datasets, save_dir=cache_dir)
 
 
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
@@ -593,50 +613,49 @@ def generate_llm_prompt(
     return prompt_intro + prompt_body + prompt_outro
 
 
-# Example usage (as script)
+# Command line interface ---------------------------------------------------
 if __name__ == "__main__":
-    DATA_DIR = "nimare_data"
-    coordinate = [30, 22, -8]
-    email_address = "example@email.com"
+    import argparse
 
-    # Attempt to load deduplicated dataset
-    dedup_dataset_path = os.path.join(DATA_DIR, "deduplicated_dataset.pkl.gz")
-    deduplicated_dataset = None
+    parser = argparse.ArgumentParser(description="Query NiMARE datasets for a coordinate")
+    parser.add_argument(
+        "--data-dir",
+        "--cache",
+        dest="data_dir",
+        default=None,
+        help="Base directory for atlas downloads and dataset cache. Defaults to ~/coord2region",
+    )
+    parser.add_argument(
+        "--sources",
+        nargs="*",
+        default=None,
+        help="Datasets to fetch (e.g. nidm_pain, neurosynth). If omitted all available are used.",
+    )
+    parser.add_argument(
+        "--coord",
+        nargs=3,
+        type=float,
+        metavar=("X", "Y", "Z"),
+        help="MNI coordinate to query",
+    )
+    parser.add_argument(
+        "--email",
+        default=None,
+        help="Email address used for PubMed abstract retrieval (optional)",
+    )
+    args = parser.parse_args()
 
-    if os.path.exists(dedup_dataset_path):
-        deduplicated_dataset = load_deduplicated_dataset(dedup_dataset_path)
+    dataset = prepare_datasets(args.data_dir, sources=args.sources)
+    if dataset is None:
+        raise SystemExit("Failed to prepare datasets")
 
-    # Otherwise fetch and create one
-    if not deduplicated_dataset:
-        print("No deduplicated dataset found. Fetching datasets...")
-        nimare_datasets = fetch_datasets(DATA_DIR)
-        deduplicated_dataset = deduplicate_datasets(
-            nimare_datasets, save_dir=DATA_DIR
-        )
-        if deduplicated_dataset is not None:
-            # Display a glimpse of the enriched metadata
-            print(deduplicated_dataset.metadata.head())
+    print(f"Prepared merged dataset with {len(dataset.ids)} studies")
 
-    # Search for studies
-    if deduplicated_dataset:
-        studies = get_studies_for_coordinate(
-            {"Combined": deduplicated_dataset},
-            coordinate,
-            email=email_address,
-        )
-        print(f"Found {len(studies)} studies for coordinate {coordinate}")
+    if args.coord is not None:
+        studies = get_studies_for_coordinate({"Combined": dataset}, args.coord, email=args.email)
+        print(f"Found {len(studies)} studies for coordinate {args.coord}")
 
-        # Generate a prompt
-        prompt = generate_llm_prompt(studies, coordinate, prompt_type="summary")
-        print("\n===================== GENERATED PROMPT =====================")
-        print(prompt[:600] + "..." if len(prompt) > 600 else prompt)
-
-        # Example: Using AIModelInterface to get an LLM summary (requires valid keys)
-        # from .ai_model_interface import AIModelInterface  # Adjust import to your environment
-        # ai = AIModelInterface(
-        #     gemini_api_key="YOUR_GEMINI_KEY",
-        #     openrouter_api_key="YOUR_OPENROUTER_KEY"
-        # )
-        # summary = ai.generate_text(model="gemini-2.0-flash", prompt=prompt)
-        # print("\n===================== LLM SUMMARY =====================")
-        # print(summary)
+        if studies:
+            prompt = generate_llm_prompt(studies, args.coord, prompt_type="summary")
+            print("\n===================== GENERATED PROMPT =====================")
+            print(prompt[:600] + "..." if len(prompt) > 600 else prompt)

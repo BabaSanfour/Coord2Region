@@ -19,7 +19,7 @@ from coord2region.coord2study import prepare_datasets, get_studies_for_coordinat
 # NIDM-Pain dataset in this example.
 
 home_dir = os.path.expanduser("~")
-data_dir = os.path.join(home_dir, 'coord2region') # Use package directory for data storage
+data_dir = os.path.join(home_dir, 'coord2region')  # Use package directory for data storage
 os.makedirs(data_dir, exist_ok=True)
 
 dataset = prepare_datasets(data_dir=data_dir, sources=["nidm_pain"])

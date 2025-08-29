@@ -105,8 +105,10 @@ To fetch meta-analytic datasets and query studies for a coordinate:
 ```python
 from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
 
-# Load a cached deduplicated dataset or fetch and create one
-dataset = prepare_datasets("nimare_data", sources=["nidm_pain"])
+# Load a cached deduplicated dataset (stored in ``~/coord2region/cached_data`` by
+# default) or fetch and create one if missing. Pass ``data_dir`` to override the
+# storage location.
+dataset = prepare_datasets(sources=["nidm_pain"])
 studies = get_studies_for_coordinate({"Combined": dataset}, coord=[30, -22, 50])
 print(f"Found {len(studies)} studies")
 ```
@@ -122,10 +124,11 @@ with a unique key. Users can then request it explicitly:
 
 ```python
 from coord2region.coord2study import fetch_datasets, prepare_datasets
-fetch_datasets("nimare_data", sources=["neurosynth", "my_new_dataset"])
+fetch_datasets("coord2region", sources=["neurosynth", "my_new_dataset"])
 ```
 
-Deduplicated datasets are cached in `deduplicated_dataset.pkl.gz`. When new
+Deduplicated datasets are cached in `<data_dir>/cached_data/deduplicated_dataset.pkl.gz`
+(by default `~/coord2region/cached_data/deduplicated_dataset.pkl.gz`). When new
 datasets are added or existing ones updated, remove this file or call
 `prepare_datasets` with the desired `sources` to rebuild the cache and keep it
 current.
