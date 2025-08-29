@@ -94,7 +94,7 @@ def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
 
 
 def fetch_datasets(
-    data_dir: str, neurosynth: bool = True, neuroquery: bool = True
+    data_dir: str, sources: Optional[List[str]] = None
 ) -> Dict[str, Dataset]:
     """Fetch and convert NiMARE datasets into ``Dataset`` objects.
 
@@ -102,10 +102,10 @@ def fetch_datasets(
     ----------
     data_dir : str
         Directory to store downloaded data.
-    neurosynth : bool, optional
-        Whether to fetch the Neurosynth dataset. Default is ``True``.
-    neuroquery : bool, optional
-        Whether to fetch the NeuroQuery dataset. Default is ``True``.
+    sources : Optional[List[str]], optional
+        List of dataset names to download. Valid entries include ``"neurosynth"``,
+        ``"neuroquery"`` and ``"nidm_pain"``. If ``None`` (default), all
+        available datasets are fetched.
 
     Returns
     -------
@@ -114,36 +114,40 @@ def fetch_datasets(
 
     Notes
     -----
-    Fetching the optional NIDM-Pain dataset requires NiMARE's
+    Fetching the optional ``nidm_pain`` dataset requires NiMARE's
     :func:`~nimare.extract.download_nidm_pain` and
     :func:`~nimare.utils.get_resource_path` helpers.
     """
     datasets: Dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
-    
-    if neurosynth:
-        # Fetch Neurosynth data
+
+    # Determine which sources to fetch
+    if sources is None:
+        requested = {"neurosynth", "neuroquery", "nidm_pain"}
+    else:
+        requested = {src.lower() for src in sources}
+
+    if "neurosynth" in requested:
         try:
             ns_files = fetch_neurosynth(
                 data_dir=data_dir,
                 version="7",
                 source="abstract",
                 vocab="terms",
-                overwrite=False
+                overwrite=False,
             )
-            ns_data = ns_files[0]  # fetch_neurosynth returns a list of dicts
+            ns_data = ns_files[0]
             neurosynth_dset = convert_neurosynth_to_dataset(
                 coordinates_file=ns_data["coordinates"],
                 metadata_file=ns_data["metadata"],
-                annotations_files=ns_data.get("features")
+                annotations_files=ns_data.get("features"),
             )
             datasets["Neurosynth"] = neurosynth_dset
             logger.info("Neurosynth dataset loaded successfully.")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - network errors
             logger.warning(f"Failed to fetch/convert Neurosynth dataset: {e}")
 
-    if neuroquery:
-        # Fetch NeuroQuery data
+    if "neuroquery" in requested:
         try:
             nq_files = fetch_neuroquery(
                 data_dir=data_dir,
@@ -151,40 +155,41 @@ def fetch_datasets(
                 source="combined",
                 vocab="neuroquery6308",
                 type="tfidf",
-                overwrite=False
+                overwrite=False,
             )
             nq_data = nq_files[0]
             neuroquery_dset = convert_neurosynth_to_dataset(
                 coordinates_file=nq_data["coordinates"],
                 metadata_file=nq_data["metadata"],
-                annotations_files=nq_data.get("features")
+                annotations_files=nq_data.get("features"),
             )
             datasets["NeuroQuery"] = neuroquery_dset
             logger.info("NeuroQuery dataset loaded successfully.")
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - network errors
             logger.warning(f"Failed to fetch/convert NeuroQuery dataset: {e}")
 
-    # Fetch NIDM-Pain data (optional; requires helper utilities)
-    if download_nidm_pain is not None and get_resource_path is not None:
-        try:
-            _ = download_nidm_pain(data_dir=data_dir, overwrite=False)
-            dset_file = os.path.join(get_resource_path(), "nidm_pain_dset.json")
-            nidm_pain_dset = Dataset(dset_file, target="mni152_2mm", mask=None)
-            datasets["NIDM-Pain"] = nidm_pain_dset
-            logger.info("NIDM-Pain dataset loaded successfully.")
-        except Exception as e:
-            logger.warning(f"Failed to fetch/convert NIDM-Pain dataset: {e}")
-    else:
-        logger.warning(
-            "Skipping NIDM-Pain: required NiMARE helpers are not available."
-        )
+    if "nidm_pain" in requested:
+        if download_nidm_pain is not None and get_resource_path is not None:
+            try:
+                _ = download_nidm_pain(data_dir=data_dir, overwrite=False)
+                dset_file = os.path.join(get_resource_path(), "nidm_pain_dset.json")
+                nidm_pain_dset = Dataset(dset_file, target="mni152_2mm", mask=None)
+                datasets["NIDM-Pain"] = nidm_pain_dset
+                logger.info("NIDM-Pain dataset loaded successfully.")
+            except Exception as e:  # pragma: no cover - network errors
+                logger.warning(f"Failed to fetch/convert NIDM-Pain dataset: {e}")
+        else:  # pragma: no cover - optional dependency
+            logger.warning(
+                "Skipping NIDM-Pain: required NiMARE helpers are not available."
+            )
+
+    if sources is not None:
+        unknown = requested - {"neurosynth", "neuroquery", "nidm_pain"}
+        for src in unknown:
+            logger.warning(f"Unknown dataset source '{src}' requested; skipping.")
 
     if not datasets:
-        sys.exit(
-            "Error: No datasets could be loaded. Ensure you have internet access "
-            "and NiMARE supports the datasets."
-        )
-    # TODO: Add more datasets as needed.
+        logger.warning("No datasets were loaded.")
     return datasets
 
 
@@ -287,8 +292,7 @@ def deduplicate_datasets(
 
 def prepare_datasets(
     data_dir: str,
-    neurosynth: bool = True,
-    neuroquery: bool = True,
+    sources: Optional[List[str]] = None,
 ) -> Optional[Dataset]:
     """Load or create a deduplicated NiMARE dataset.
 
@@ -300,10 +304,10 @@ def prepare_datasets(
     ----------
     data_dir : str
         Directory to store or retrieve datasets and the deduplicated cache.
-    neurosynth : bool, optional
-        Whether to include the Neurosynth dataset if fetching is required.
-    neuroquery : bool, optional
-        Whether to include the NeuroQuery dataset if fetching is required.
+    sources : Optional[List[str]], optional
+        Dataset names to fetch if a cache needs to be built. See
+        :func:`fetch_datasets` for valid entries. ``None`` (default) fetches all
+        available datasets.
 
     Returns
     -------
@@ -318,9 +322,7 @@ def prepare_datasets(
         if dataset is not None:
             return dataset
 
-    datasets = fetch_datasets(
-        data_dir, neurosynth=neurosynth, neuroquery=neuroquery
-    )
+    datasets = fetch_datasets(data_dir, sources=sources)
     return deduplicate_datasets(datasets, save_dir=data_dir)
 
 
@@ -424,13 +426,14 @@ def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, An
     return list(unique.values())
 
 
-def get_studies_for_coordinate(
+def search_studies(
     datasets: Dict[str, Dataset],
     coord: Union[List[float], Tuple[float, float, float]],
     radius: float = 0,
+    sources: Optional[List[str]] = None,
     email: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Find studies reporting an MNI coordinate across datasets.
+    """Search selected datasets for studies reporting an MNI coordinate.
 
     Parameters
     ----------
@@ -441,24 +444,29 @@ def get_studies_for_coordinate(
     radius : float, default=0
         Search radius in millimeters around the coordinate. ``0`` indicates an
         exact match.
+    sources : Optional[List[str]], optional
+        Specific dataset names to query. ``None`` searches across all provided
+        datasets.
     email : Optional[str], optional
         Email address for Entrez (if abstract fetching is enabled).
 
     Returns
     -------
     List[Dict[str, Any]]
-        Study metadata dictionaries for the coordinate across all datasets.
-        Titles and abstracts may be sourced from the dataset itself, PubMed,
-        or CrossRef.
+        Deduplicated list of study metadata dictionaries.
     """
-    # NiMARE expects a list of coordinates.
     coord_list = [list(coord)]
     studies_info: List[Dict[str, Any]] = []
 
-    for source, dset in datasets.items():
+    if sources is None:
+        selected = datasets.items()
+    else:
+        selected = [(src, datasets[src]) for src in sources if src in datasets]
+
+    for source, dset in selected:
         try:
             study_ids = dset.get_studies_by_coordinate(coord_list, r=radius)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - underlying library errors
             logger.warning(
                 f"Failed to search coordinate {coord} in {source} dataset: {e}"
             )
@@ -477,9 +485,21 @@ def get_studies_for_coordinate(
             study_entry.update(study_metadata)
             studies_info.append(study_entry)
 
-    # Remove duplicates before returning
-    studies_info = remove_duplicate_studies(studies_info)
-    return studies_info
+    return remove_duplicate_studies(studies_info)
+
+
+def get_studies_for_coordinate(
+    datasets: Dict[str, Dataset],
+    coord: Union[List[float], Tuple[float, float, float]],
+    radius: float = 0,
+    email: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Find studies reporting an MNI coordinate across all datasets.
+
+    This is a thin wrapper around :func:`search_studies` that searches every
+    dataset in ``datasets``.
+    """
+    return search_studies(datasets, coord, radius=radius, email=email)
 
 
 def generate_llm_prompt(

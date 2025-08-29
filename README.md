@@ -106,12 +106,29 @@ To fetch meta-analytic datasets and query studies for a coordinate:
 from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
 
 # Load a cached deduplicated dataset or fetch and create one
-dataset = prepare_datasets("nimare_data", neurosynth=False, neuroquery=False)
+dataset = prepare_datasets("nimare_data", sources=["nidm_pain"])
 studies = get_studies_for_coordinate({"Combined": dataset}, coord=[30, -22, 50])
 print(f"Found {len(studies)} studies")
 ```
 
 For more examples and detailed API usage, please refer to the code in `combined_python_code.txt` and the examples in the repository.
+
+### Adding NiMARE datasets and refreshing the cache
+
+The `fetch_datasets` utility supports multiple NiMARE-compatible sources such as
+`"neurosynth"`, `"neuroquery"` and `"nidm_pain"`. To add a new dataset, extend
+`fetch_datasets` with the required download and conversion logic and expose it
+with a unique key. Users can then request it explicitly:
+
+```python
+from coord2region.coord2study import fetch_datasets, prepare_datasets
+fetch_datasets("nimare_data", sources=["neurosynth", "my_new_dataset"])
+```
+
+Deduplicated datasets are cached in `deduplicated_dataset.pkl.gz`. When new
+datasets are added or existing ones updated, remove this file or call
+`prepare_datasets` with the desired `sources` to rebuild the cache and keep it
+current.
 
 ## Documentation, Examples and Paper
 

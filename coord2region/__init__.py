@@ -18,6 +18,7 @@ from .coord2study import (
     load_deduplicated_dataset,
     deduplicate_datasets,
     prepare_datasets,
+    search_studies,
     get_studies_for_coordinate,
     generate_llm_prompt,
 )
@@ -34,5 +35,8 @@ __all__ = [
     "MultiAtlasMapper",
     "AtlasFetcher",
     "AtlasFileHandler",
+    "fetch_datasets",
+    "prepare_datasets",
+    "search_studies",
     "get_studies_for_coordinate",
 ]

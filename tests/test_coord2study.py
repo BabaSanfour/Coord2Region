@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 from coord2region.coord2study import (
     fetch_datasets,
     get_studies_for_coordinate,
+    search_studies,
     _extract_study_metadata,
     remove_duplicate_studies,
     prepare_datasets,
@@ -17,19 +18,16 @@ from coord2region.coord2study import (
 @pytest.mark.requires_network
 
 def test_fetch_datasets_integration(tmp_path):
-    """
-    Integration test: fetch real NiMARE datasets (Neurosynth & NeuroQuery),
-    assuming internet access and a working NiMARE environment.
-    """
+    """Integration test: fetch the NIDM-Pain dataset if available."""
     data_dir = tmp_path / "nimare_data"  # Use a temporary dir
     data_dir.mkdir(exist_ok=True)
 
     # This will actually download (unless cached) the datasets.
     # If you want to skip real data fetch, remove or mark with @pytest.mark.skip
-    dsets = fetch_datasets(str(data_dir), neurosynth=False, neuroquery=False)
+    dsets = fetch_datasets(str(data_dir), sources=["nidm_pain"])
     assert isinstance(dsets, dict), "fetch_datasets must return a dict"
-    # Expect at least Neurosynth or NeuroQuery in the dictionary
-    assert len(dsets) > 0, "Expected at least one dataset"
+    if not dsets:
+        pytest.skip("NIDM-Pain dataset unavailable")
 
     for name, dset in dsets.items():
         assert hasattr(dset, "coordinates"), f"NiMARE Dataset missing 'coordinates' for {name}"
@@ -43,7 +41,9 @@ def test_get_studies_for_coordinate_integration(tmp_path):
     """
     data_dir = tmp_path / "nimare_data"
     data_dir.mkdir(exist_ok=True)
-    dsets = fetch_datasets(str(data_dir),neurosynth=False, neuroquery=False)
+    dsets = fetch_datasets(str(data_dir), sources=["nidm_pain"])
+    if not dsets:
+        pytest.skip("NIDM-Pain dataset unavailable")
 
     # Known coordinate for testing (this might or might not yield hits)
     coordinate = (-30, -22, 50)
@@ -219,7 +219,7 @@ def test_prepare_datasets_uses_cache(mock_exists, mock_load, mock_dedup, mock_fe
     mock_dataset = MagicMock()
     mock_load.return_value = mock_dataset
 
-    result = prepare_datasets(str(tmp_path), neurosynth=False, neuroquery=False)
+    result = prepare_datasets(str(tmp_path), sources=[])
     assert result is mock_dataset
     mock_fetch.assert_not_called()
     mock_dedup.assert_not_called()
@@ -241,3 +241,24 @@ def test_prepare_datasets_fetches_when_missing(mock_exists, mock_load, mock_dedu
     assert result is mock_dataset
     mock_fetch.assert_called_once()
     mock_dedup.assert_called_once()
+
+
+@pytest.mark.unit
+def test_search_studies_select_sources_and_dedup():
+    """search_studies filters datasets and removes duplicates."""
+    ds1 = MagicMock()
+    ds1.get_studies_by_coordinate.return_value = ["123456-1"]
+    ds1.get_metadata.side_effect = lambda ids, field: {"title": ["Title A"], "authors": ["Auth"], "year": [2020]}.get(field, [None])
+
+    ds2 = MagicMock()
+    ds2.get_studies_by_coordinate.return_value = ["123456-2"]
+    ds2.get_metadata.side_effect = lambda ids, field: {"title": ["Title B"], "authors": ["Auth"], "year": [2020]}.get(field, [None])
+
+    datasets = {"First": ds1, "Second": ds2}
+    # Only search first dataset
+    res = search_studies(datasets, coord=[0, 0, 0], sources=["First"])
+    assert len(res) == 1 and res[0]["source"] == "First"
+
+    # Search both and ensure duplicates removed
+    res = search_studies(datasets, coord=[0, 0, 0])
+    assert len(res) == 1

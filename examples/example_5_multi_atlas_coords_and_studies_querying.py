@@ -58,7 +58,7 @@ print(f"Saved mapped coordinates to {mapped_csv_filename}")
 dataset_dir = af.data_dir
 # Neurosynth and NeuroQuery take a long time to download; for this example we
 # only include the NIDM-Pain dataset.
-dataset = prepare_datasets(dataset_dir, neurosynth=False, neuroquery=False)
+dataset = prepare_datasets(dataset_dir, sources=["nidm_pain"])
 datasets = {"Combined": dataset}
 # %%
 # Step 6: Query studies for each coordinate and save to JSON

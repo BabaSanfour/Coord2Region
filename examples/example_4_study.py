@@ -22,7 +22,7 @@ home_dir = os.path.expanduser("~")
 data_dir = os.path.join(home_dir, 'coord2region') # Use package directory for data storage
 os.makedirs(data_dir, exist_ok=True)
 
-dataset = prepare_datasets(data_dir=data_dir, neurosynth=False, neuroquery=False)
+dataset = prepare_datasets(data_dir=data_dir, sources=["nidm_pain"])
 datasets = {"Combined": dataset}
 
 print(f"Loaded dataset with {len(dataset.ids)} studies")
