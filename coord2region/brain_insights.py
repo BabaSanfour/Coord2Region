@@ -16,9 +16,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .coord2study import (
     get_studies_for_coordinate,
-    get_studies_for_coordinate_dedup,
     generate_llm_prompt,
-    load_deduplicated_dataset
+    load_deduplicated_dataset,
 )
 from .ai_model_interface import AIModelInterface
 
@@ -195,10 +194,10 @@ class BrainInsights:
         """
         if self.dataset:
             # Use deduplicated dataset if available
-            studies = get_studies_for_coordinate_dedup(
-                self.dataset,
+            studies = get_studies_for_coordinate(
+                {"Combined": self.dataset},
                 coordinate,
-                email=self.email
+                email=self.email,
             )
         else:
             # Otherwise, fetch from online sources (would need to implement fetch_datasets here)

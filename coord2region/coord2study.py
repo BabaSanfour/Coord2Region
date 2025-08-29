@@ -1,9 +1,9 @@
-"""Coordinate-to-study mapping utilities.
+"""Utilities for mapping coordinates to neuroimaging studies.
 
-This module provides functions to fetch, convert, and query neuroimaging
-datasets (e.g., Neurosynth, NeuroQuery, and NIDM-Pain) using the NiMARE
-library. It also supports deduplicating studies across datasets and assembling
-study metadata for coordinates of interest.
+This module fetches, converts, and queries NiMARE-compatible datasets (e.g.,
+Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
+coordinates of interest. It also provides helpers for deduplicating studies
+across datasets.
 
 Notes
 -----
@@ -74,9 +74,6 @@ def fetch_datasets(
 
     Notes
     -----
-    Fetching the optional NIDM-Pain dataset requires NiMARE's
-    :func:`~nimare.extract.download_nidm_pain` and
-    :func:`~nimare.utils.get_resource_path` helpers.
     Fetching the optional NIDM-Pain dataset requires NiMARE's
     :func:`~nimare.extract.download_nidm_pain` and
     :func:`~nimare.utils.get_resource_path` helpers.
@@ -249,23 +246,20 @@ def deduplicate_datasets(
 
 
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
-    """Extract study metadata from a NiMARE dataset.
-
-    Given a study ID, retrieve the study title and optionally the abstract if
-    available.
+    """Extract title and abstract for a study.
 
     Parameters
     ----------
     dset : Dataset
-        A NiMARE ``Dataset``.
+        NiMARE ``Dataset`` containing the study.
     sid : Any
         Study identifier.
 
     Returns
     -------
     dict[str, Any]
-        Dictionary with keys ``"id"``, ``"source"``, ``"title"`` and
-        optionally ``"abstract"``.
+        Dictionary with keys ``"id"``, ``"title"`` and, when available,
+        ``"abstract"``.
     """
     study_entry: Dict[str, Any] = {"id": str(sid)}
 
@@ -315,16 +309,16 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
 
 
 def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Remove duplicate studies by PMID.
+    """Remove duplicate studies based on PMID.
 
     Parameters
     ----------
-    studies : list of dict
-        Study entries containing an ``"id"`` field with a ``PMID-...`` prefix.
+    studies : List[Dict[str, Any]]
+        Study entries containing an ``"id"`` field with a ``PMID-`` prefix.
 
     Returns
     -------
-    list of dict
+    List[Dict[str, Any]]
         Unique study entries keyed by PMID.
     """
     unique: Dict[str, Dict[str, Any]] = {}
@@ -348,16 +342,16 @@ def get_studies_for_coordinate(
     Parameters
     ----------
     datasets : Dict[str, Dataset]
-        Dictionary of NiMARE ``Dataset`` objects keyed by source name.
-    coord : list[float] or tuple[float, float, float]
+        NiMARE ``Dataset`` objects keyed by source name.
+    coord : Union[List[float], Tuple[float, float, float]]
         MNI coordinate ``[x, y, z]``.
-    email : str or None, optional
+    email : Optional[str], optional
         Email address for Entrez (if abstract fetching is enabled).
 
     Returns
     -------
-    list of dict
-        Study metadata dictionaries.
+    List[Dict[str, Any]]
+        Study metadata dictionaries for the coordinate across all datasets.
     """
     # NiMARE expects a list of coordinates.
     coord_list = [list(coord)]
@@ -388,59 +382,6 @@ def get_studies_for_coordinate(
 
     # Remove duplicates before returning
     studies_info = remove_duplicate_studies(studies_info)
-    return studies_info
-
-
-def get_studies_for_coordinate_dedup(
-    dataset: Dataset,
-    coord: Union[List[float], Tuple[float, float, float]],
-    source_name: str = "Combined",
-    email: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    """
-    Find studies that report a specific MNI coordinate in a deduplicated dataset.
-    
-    Parameters
-    ----------
-    dataset : Dataset
-        A deduplicated NiMARE Dataset object.
-    coord : Union[List[float], Tuple[float, float, float]]
-        MNI coordinate [x, y, z].
-    source_name : str, default="Combined"
-        A label to indicate that the studies come from the combined dataset.
-    email : Optional[str], default=None
-        Email address to use with Entrez for abstract fetching (if available).
-        
-    Returns
-    -------
-    List[Dict[str, Any]]
-        List of study metadata dictionaries for studies reporting this coordinate.
-    """
-    if not dataset:
-        logger.warning("No dataset provided to search coordinates.")
-        return []
-    
-    coord_list = [list(coord)]
-    studies_info: List[Dict[str, Any]] = []
-    
-    try:
-        study_ids = dataset.get_studies_by_coordinate(coord_list, r=0)
-    except Exception as e:
-        logger.warning(f"Failed to search coordinate {coord} in dataset: {e}")
-        return []
-    
-    if not study_ids:
-        return []
-    
-    for sid in study_ids:
-        study_entry = {"id": str(sid), "source": source_name}
-        if email:
-            Entrez.email = email
-        
-        study_metadata = _extract_study_metadata(dataset, sid)
-        study_entry.update(study_metadata)
-        studies_info.append(study_entry)
-    
     return studies_info
 
 
@@ -563,10 +504,10 @@ if __name__ == "__main__":
 
     # Search for studies
     if deduplicated_dataset:
-        studies = get_studies_for_coordinate_dedup(
-            deduplicated_dataset,
+        studies = get_studies_for_coordinate(
+            {"Combined": deduplicated_dataset},
             coordinate,
-            email=email_address
+            email=email_address,
         )
         print(f"Found {len(studies)} studies for coordinate {coordinate}")
 

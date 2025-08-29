@@ -11,21 +11,14 @@ from .coord2region import (
 )
 from .fetching import AtlasFetcher
 from .file_handler import AtlasFileHandler
-from .coord2study import get_studies_for_coordinate
 
-# Import coord2study functions
+# coord2study utilities
 from .coord2study import (
-    # Dataset handling
     fetch_datasets,
     load_deduplicated_dataset,
     deduplicate_datasets,
-    
-    # Coordinate to study mapping
     get_studies_for_coordinate,
-    get_studies_for_coordinate_dedup,
-    
-    # Prompt generation
-    generate_llm_prompt
+    generate_llm_prompt,
 )
 
 # AI model interface
