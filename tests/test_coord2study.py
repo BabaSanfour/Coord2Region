@@ -146,6 +146,25 @@ def test_extract_study_metadata_mock():
     assert entry["title"] == "Example Title"
 
     # If you want to test the PubMed retrieval portion, you could also patch Bio.Entrez calls.
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study._fetch_crossref_metadata")
+def test_extract_study_metadata_crossref_fallback(mock_crossref):
+    """Ensure CrossRef is used when PubMed/BioPython are unavailable."""
+
+    mock_crossref.return_value = {"title": "CR Title", "abstract": "CR Abstract"}
+
+    mock_dataset = MagicMock()
+    mock_dataset.get_metadata.return_value = [None]
+
+    with patch("coord2region.coord2study.BIO_AVAILABLE", False):
+        entry = _extract_study_metadata(mock_dataset, sid="99999")
+
+    assert entry["title"] == "CR Title"
+    assert entry["abstract"] == "CR Abstract"
+    mock_crossref.assert_called_once_with("99999")
+
 @pytest.mark.unit
 def test_remove_duplicate_studies():
     """

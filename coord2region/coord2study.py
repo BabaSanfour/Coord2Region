@@ -3,7 +3,8 @@
 This module fetches, converts, and queries NiMARE-compatible datasets (e.g.,
 Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
 coordinates of interest. It also provides helpers for deduplicating studies
-across datasets.
+across datasets. Metadata may be enriched with PubMed or CrossRef queries when
+available.
 
 Notes
 -----
@@ -17,6 +18,9 @@ import os
 import sys
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import re
+import requests
 
 import nimare
 from nimare.extract import fetch_neurosynth, fetch_neuroquery
@@ -51,6 +55,42 @@ except Exception:  # pragma: no cover - import is optional
     logger.warning(
         "NiMARE 'get_resource_path' not found. Skipping NIDM-Pain dataset support."
     )
+
+
+def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
+    """Fetch title and abstract from CrossRef using a PMID.
+
+    Parameters
+    ----------
+    pmid : str
+        PubMed identifier for the study.
+
+    Returns
+    -------
+    dict[str, Optional[str]]
+        Dictionary containing ``title`` and ``abstract`` keys when available.
+    """
+    try:
+        headers = {
+            "User-Agent": "coord2region (mailto:example@example.com)"
+        }
+        url = f"https://api.crossref.org/works?filter=pmid:{pmid}"
+        resp = requests.get(url, headers=headers, timeout=5)
+        resp.raise_for_status()
+        data = resp.json().get("message", {}).get("items", [])
+        if not data:
+            return {}
+        item = data[0]
+        title_list = item.get("title", [])
+        title = title_list[0] if title_list else None
+        abstract = item.get("abstract")
+        if abstract:
+            # Remove simple XML/HTML tags
+            abstract = re.sub("<[^>]+>", "", abstract).strip()
+        return {"title": title, "abstract": abstract}
+    except Exception as exc:  # pragma: no cover - network errors
+        logger.warning(f"Failed to fetch CrossRef metadata for PMID {pmid}: {exc}")
+        return {}
 
 
 def fetch_datasets(
@@ -298,7 +338,8 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     -------
     dict[str, Any]
         Dictionary with keys ``"id"``, ``"title"`` and, when available,
-        ``"abstract"``.
+        ``"abstract"``. Metadata are drawn from NiMARE and supplemented with
+        PubMed (via Biopython) or CrossRef when necessary.
     """
     study_entry: Dict[str, Any] = {"id": str(sid)}
 
@@ -315,7 +356,10 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
         try:
             authors = dset.get_metadata(ids=[sid], field="authors")
             year = dset.get_metadata(ids=[sid], field="year")
-            if authors and year:
+            if (
+                authors and authors[0] not in (None, "", "NaN")
+                and year and year[0] not in (None, "", "NaN")
+            ):
                 title = f"{authors[0]} ({year[0]})"
         except Exception:
             title = None
@@ -323,9 +367,10 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     if title:
         study_entry["title"] = title
 
+    pmid = str(sid).split("-")[0]
+
     # Optionally retrieve abstract via Entrez if email provided and Bio available.
     if BIO_AVAILABLE and study_entry.get("id") and "email" in study_entry:
-        pmid = str(sid).split("-")[0]
         try:
             handle = Entrez.efetch(
                 db="pubmed", id=pmid, rettype="medline", retmode="text"
@@ -343,6 +388,14 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
                         study_entry["title"] = pub_title.strip()
         except Exception as e:
             logger.warning(f"Failed to fetch abstract for PMID {pmid}: {e}")
+
+    # Fallback to CrossRef when information is missing
+    if not study_entry.get("title") or "abstract" not in study_entry:
+        crossref_data = _fetch_crossref_metadata(pmid)
+        if crossref_data.get("title"):
+            study_entry["title"] = crossref_data["title"]
+        if crossref_data.get("abstract") and "abstract" not in study_entry:
+            study_entry["abstract"] = crossref_data["abstract"]
 
     return study_entry
 
@@ -395,6 +448,8 @@ def get_studies_for_coordinate(
     -------
     List[Dict[str, Any]]
         Study metadata dictionaries for the coordinate across all datasets.
+        Titles and abstracts may be sourced from the dataset itself, PubMed,
+        or CrossRef.
     """
     # NiMARE expects a list of coordinates.
     coord_list = [list(coord)]
