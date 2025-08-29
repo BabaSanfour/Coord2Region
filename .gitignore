@@ -33,3 +33,5 @@ make.bat
 docs/source/generated
 docs/source/auto_examples
 
+.venv_coord2region/
+
