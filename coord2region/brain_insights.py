@@ -17,8 +17,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .coord2study import (
     get_studies_for_coordinate,
-    generate_llm_prompt,
     prepare_datasets,
+)
+from .prompt_utils import (
+    generate_llm_prompt,
+    generate_region_image_prompt as _generate_region_image_prompt,
 )
 from .ai_model_interface import AIModelInterface
 
@@ -399,88 +402,20 @@ class BrainInsights:
         image_type: str = "anatomical",
         include_atlas_labels: bool = True
     ) -> str:
-        """
-        Generate a prompt for creating images of brain regions.
-        
-        Parameters
-        ----------
-        coordinate : Union[List[float], Tuple[float, float, float]]
-            MNI coordinate [x, y, z]
-        image_type : str, default="anatomical"
-            Type of image to generate:
-            - "anatomical": Anatomical visualization
-            - "functional": Functional activity visualization
-            - "schematic": Schematic diagram
-            - "artistic": Artistic representation
-        include_atlas_labels : bool, default=True
-            Whether to include atlas labels in the region information
-            
-        Returns
-        -------
-        str
-            A detailed prompt for image generation models
-        """
-        # First get a summary to identify the region
+        """Generate a prompt for creating images of brain regions."""
+
         region_info = self.get_region_summary(
-            coordinate, 
+            coordinate,
             summary_type="region_name",
-            include_atlas_labels=include_atlas_labels
+            include_atlas_labels=include_atlas_labels,
         )
-        summary = region_info["summary"]
-        
-        # Extract likely region names from the summary (this is a simple approach)
-        # A more sophisticated approach would use NLP to extract the region names
-        first_paragraph = summary.split("\n\n")[0] if "\n\n" in summary else summary
-        
-        # Get a string representation of atlas labels if available
-        atlas_context = ""
-        if include_atlas_labels and "atlas_labels" in region_info and region_info["atlas_labels"]:
-            atlas_context = "According to brain atlases, this region corresponds to: "
-            atlas_parts = []
-            for atlas_name, label in region_info["atlas_labels"].items():
-                atlas_parts.append(f"{atlas_name}: {label}")
-            atlas_context += ", ".join(atlas_parts) + ". "
-        
-        # Base prompt template
-        if image_type == "anatomical":
-            prompt = f"""Create a detailed anatomical illustration of the brain region at MNI coordinate {coordinate}.
-Based on neuroimaging studies, this location corresponds to: {first_paragraph}
-{atlas_context}
-Show a clear, labeled anatomical visualization with the specific coordinate marked.
-Include surrounding brain structures for context. Use a professional medical illustration style with
-accurate colors and textures of brain tissue."""
-            
-        elif image_type == "functional":
-            prompt = f"""Create a functional brain activation visualization showing activity at MNI coordinate {coordinate}.
-This region corresponds to: {first_paragraph}
-{atlas_context}
-Show the activation as a heat map or colored overlay on a standardized brain template.
-Use a scientific visualization style similar to fMRI results in neuroscience publications,
-with the activation at the specified coordinate clearly highlighted."""
-            
-        elif image_type == "schematic":
-            prompt = f"""Create a schematic diagram of brain networks involving the region at MNI coordinate {coordinate}.
-This coordinate corresponds to: {first_paragraph}
-{atlas_context}
-Show this region as a node in its relevant brain networks, with connections to other regions.
-Use a simplified, clean diagram style with labeled regions and connection lines indicating functional
-or structural connectivity. Include a small reference brain to indicate the location."""
-            
-        elif image_type == "artistic":
-            prompt = f"""Create an artistic visualization of the brain region at MNI coordinate {coordinate}.
-This region is: {first_paragraph}
-{atlas_context}
-Create an artistic interpretation that conveys the function of this region through metaphorical
-or abstract elements, while still maintaining scientific accuracy in the brain anatomy.
-Balance creativity with neuroscientific precision."""
-            
-        else:
-            prompt = f"""Create a clear visualization of the brain region at MNI coordinate {coordinate}.
-Based on neuroimaging studies, this region corresponds to: {first_paragraph}
-{atlas_context}
-Show this region clearly marked on a standard brain template with proper anatomical context."""
-        
-        return prompt
+
+        return _generate_region_image_prompt(
+            coordinate,
+            region_info,
+            image_type=image_type,
+            include_atlas_labels=include_atlas_labels,
+        )
     
     def generate_region_image(
         self, 

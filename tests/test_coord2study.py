@@ -13,8 +13,8 @@ from coord2region.coord2study import (
     prepare_datasets,
     deduplicate_datasets,
     load_deduplicated_dataset,
-    generate_llm_prompt,
 )
+from coord2region.prompt_utils import generate_llm_prompt
 
 
 @pytest.mark.integration
