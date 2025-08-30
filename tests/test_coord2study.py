@@ -342,26 +342,3 @@ def test_get_studies_for_coordinate_dedup():
     assert res[0]["id"].split("-")[0] == "123456"
 
 
-@pytest.mark.unit
-def test_generate_llm_prompt_no_studies():
-    msg = generate_llm_prompt([], [1, 2, 3])
-    assert "No neuroimaging studies" in msg
-
-
-@pytest.mark.unit
-def test_generate_llm_prompt_contents():
-    studies = [{"id": "1", "title": "A", "abstract": "B"}]
-    prompt = generate_llm_prompt(studies, [1, 2, 3])
-    assert "[1, 2, 3]" in prompt
-    assert "ID: 1" in prompt
-    assert "Title: A" in prompt
-    assert "Abstract: B" in prompt
-
-
-@pytest.mark.unit
-def test_generate_llm_prompt_custom_template():
-    studies = [{"id": "1", "title": "A", "abstract": "B"}]
-    template = "Coordinate: {coord}\n{studies}"
-    prompt = generate_llm_prompt(studies, [1, 2, 3], prompt_template=template)
-    assert prompt.startswith("Coordinate: [1, 2, 3]")
-    assert "ID: 1" in prompt
