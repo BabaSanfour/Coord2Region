@@ -210,7 +210,8 @@ class BrainInsights:
         studies: List[Dict[str, Any]],
         coordinate: Union[List[float], Tuple[float, float, float]],
         prompt_type: str = "summary",
-        include_atlas_labels: bool = True
+        include_atlas_labels: bool = True,
+        prompt_template: Optional[str] = None,
     ) -> str:
         """
         Generate an enriched prompt that includes both study data and atlas labels.
@@ -225,6 +226,9 @@ class BrainInsights:
             Type of prompt to generate (summary, region_name, function)
         include_atlas_labels : bool, default=True
             Whether to include atlas labels in the prompt
+        prompt_template : str, optional
+            Custom template passed to :func:`generate_llm_prompt`. If provided, it
+            should contain ``{coord}`` and ``{studies}`` placeholders.
             
         Returns
         -------
@@ -232,7 +236,12 @@ class BrainInsights:
             A detailed prompt for language models including study information and atlas labels
         """
         # Get the base prompt from coord2study
-        base_prompt = generate_llm_prompt(studies, coordinate, prompt_type)
+        base_prompt = generate_llm_prompt(
+            studies,
+            coordinate,
+            prompt_type,
+            prompt_template=prompt_template,
+        )
         
         # If we're not using atlas information, return the base prompt
         if not include_atlas_labels or not self.use_atlases or not self.atlases:
@@ -269,7 +278,8 @@ class BrainInsights:
         coordinate: Union[List[float], Tuple[float, float, float]],
         summary_type: str = "summary",
         model: str = "gemini-2.0-flash",
-        include_atlas_labels: bool = True
+        include_atlas_labels: bool = True,
+        prompt_template: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate a comprehensive summary of a brain region at the specified coordinate.
@@ -290,6 +300,9 @@ class BrainInsights:
             AI model to use for generating the summary
         include_atlas_labels : bool, default=True
             Whether to include atlas labels in the prompt
+        prompt_template : str, optional
+            Custom template to override the default prompt generation. See
+            :func:`generate_llm_prompt` for placeholder details.
             
         Returns
         -------
@@ -337,10 +350,11 @@ class BrainInsights:
         
         # Generate enriched prompt with atlas labels
         prompt = self.get_enriched_prompt(
-            studies, 
-            coordinate, 
+            studies,
+            coordinate,
             prompt_type=summary_type,
-            include_atlas_labels=include_atlas_labels
+            include_atlas_labels=include_atlas_labels,
+            prompt_template=prompt_template,
         )
         
         # Generate summary using AI model

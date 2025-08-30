@@ -356,3 +356,12 @@ def test_generate_llm_prompt_contents():
     assert "ID: 1" in prompt
     assert "Title: A" in prompt
     assert "Abstract: B" in prompt
+
+
+@pytest.mark.unit
+def test_generate_llm_prompt_custom_template():
+    studies = [{"id": "1", "title": "A", "abstract": "B"}]
+    template = "Coordinate: {coord}\n{studies}"
+    prompt = generate_llm_prompt(studies, [1, 2, 3], prompt_template=template)
+    assert prompt.startswith("Coordinate: [1, 2, 3]")
+    assert "ID: 1" in prompt

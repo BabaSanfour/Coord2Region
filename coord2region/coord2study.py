@@ -482,7 +482,8 @@ def get_studies_for_coordinate(
 def generate_llm_prompt(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    prompt_type: str = "summary"
+    prompt_type: str = "summary",
+    prompt_template: Optional[str] = None,
 ) -> str:
     """
     Generate a detailed prompt for language models based on studies found for a coordinate.
@@ -498,6 +499,11 @@ def generate_llm_prompt(
         The MNI coordinate [x, y, z] that was searched.
     prompt_type : str, default="summary"
         Type of prompt to generate ("summary", "region_name", "function", etc.).
+    prompt_template : str, optional
+        Custom prompt template. If provided, it should contain the placeholders
+        ``{coord}`` for the coordinate string and ``{studies}`` for the formatted
+        study list. When supplied, this template overrides the built-in prompt
+        generation logic.
         
     Returns
     -------
@@ -511,6 +517,18 @@ def generate_llm_prompt(
         )
 
     coord_str = f"[{coordinate[0]}, {coordinate[1]}, {coordinate[2]}]"
+
+    # Format study details once for reuse
+    studies_section = ""
+    for i, study in enumerate(studies, 1):
+        studies_section += f"\n--- STUDY {i} ---\n"
+        studies_section += f"ID: {study.get('id', 'Unknown ID')}\n"
+        studies_section += f"Title: {study.get('title', 'No title available')}\n"
+        abstract_text = study.get("abstract", "No abstract available")
+        studies_section += f"Abstract: {abstract_text}\n"
+
+    if prompt_template:
+        return prompt_template.format(coord=coord_str, studies=studies_section)
 
     # Build the prompt header with clear instructions
     if prompt_type == "summary":
@@ -557,13 +575,9 @@ def generate_llm_prompt(
         )
 
     # Add study details
-    prompt_body = "STUDIES REPORTING ACTIVATION AT MNI COORDINATE " + coord_str + ":\n"
-    for i, study in enumerate(studies, 1):
-        prompt_body += f"\n--- STUDY {i} ---\n"
-        prompt_body += f"ID: {study.get('id', 'Unknown ID')}\n"
-        prompt_body += f"Title: {study.get('title', 'No title available')}\n"
-        abstract_text = study.get("abstract", "No abstract available")
-        prompt_body += f"Abstract: {abstract_text}\n"
+    prompt_body = (
+        "STUDIES REPORTING ACTIVATION AT MNI COORDINATE " + coord_str + ":\n" + studies_section
+    )
 
     # Final instructions
     prompt_outro = (
