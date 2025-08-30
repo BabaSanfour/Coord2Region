@@ -9,10 +9,11 @@ def generate_llm_prompt(
     prompt_type: str = "summary",
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a detailed prompt for language models based on studies found for a coordinate.
+    """Generate a detailed prompt for language models based on studies.
 
-    This function creates a structured prompt that includes study IDs, titles, and abstracts
-    formatted for optimal LLM analysis and summarization.
+    This function creates a structured prompt that includes study IDs,
+    titles, and abstracts formatted for optimal LLM analysis and
+    summarization.
 
     Parameters
     ----------
@@ -20,93 +21,109 @@ def generate_llm_prompt(
         List of study metadata dictionaries.
     coordinate : Union[List[float], Tuple[float, float, float]]
         The MNI coordinate [x, y, z] that was searched.
-    prompt_type : str, default="summary"
-        Type of prompt to generate ("summary", "region_name", "function", etc.).
+    prompt_type : str, optional
+        Type of prompt to generate ("summary", "region_name", "function",
+        etc.). Default is "summary".
     prompt_template : str, optional
-        Custom prompt template. If provided, it should contain the placeholders
-        ``{coord}`` for the coordinate string and ``{studies}`` for the formatted
-        study list. When supplied, this template overrides the built-in prompt
-        generation logic.
+        Custom prompt template. If provided, it should contain the
+        placeholders ``{coord}`` for the coordinate string and
+        ``{studies}`` for the formatted study list. When supplied, this
+        template overrides the built-in prompt generation logic.
 
     Returns
     -------
     str
-        A detailed prompt for language models, incorporating all relevant study info.
+        A detailed prompt for language models, incorporating all relevant
+        study information.
     """
+    # Format coordinate string safely.
+    try:
+        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
+            float(coordinate[0]), float(coordinate[1]), float(coordinate[2])
+        )
+    except Exception:
+        coord_str = str(coordinate)
+
     if not studies:
         return (
-            "No neuroimaging studies were found reporting activation at MNI "
-            f"coordinate {coordinate}."
+            "No neuroimaging studies were found reporting activation at "
+            f"MNI coordinate {coord_str}."
         )
 
-    coord_str = f"[{coordinate[0]}, {coordinate[1]}, {coordinate[2]}]"
-
-    # Format study details once for reuse
-    studies_section = ""
-    for i, study in enumerate(studies, 1):
-        studies_section += f"\n--- STUDY {i} ---\n"
-        studies_section += f"ID: {study.get('id', 'Unknown ID')}\n"
-        studies_section += f"Title: {study.get('title', 'No title available')}\n"
+    # Build the studies section efficiently.
+    study_lines: List[str] = []
+    for i, study in enumerate(studies, start=1):
+        study_lines.append(f"\n--- STUDY {i} ---\n")
+        study_lines.append(f"ID: {study.get('id', 'Unknown ID')}\n")
+        study_lines.append(f"Title: {study.get('title', 'No title available')}\n")
         abstract_text = study.get("abstract", "No abstract available")
-        studies_section += f"Abstract: {abstract_text}\n"
+        study_lines.append(f"Abstract: {abstract_text}\n")
+    studies_section = "".join(study_lines)
 
+    # If a custom template is provided, use it.
     if prompt_template:
         return prompt_template.format(coord=coord_str, studies=studies_section)
 
-    # Build the prompt header with clear instructions
+    # Build the prompt header with clear instructions depending on type.
     if prompt_type == "summary":
         prompt_intro = (
-            "You are an advanced AI with expertise in neuroanatomy and cognitive "
-            "neuroscience. "
-            f"The user is interested in understanding the significance of MNI "
-            f"coordinate {coord_str}.\n\n"
+            "You are an advanced AI with expertise in neuroanatomy and "
+            "cognitive neuroscience. The user is interested in understanding "
+            f"the significance of MNI coordinate {coord_str}.\n\n"
             "Below is a list of neuroimaging studies that report activation at "
             "this coordinate. Your task is to integrate and synthesize the "
             "knowledge from these studies, focusing on:\n"
-            "1) The anatomical structure(s) most commonly associated with this coordinate\n"
-            "2) The typical functional roles or processes linked to activation in this region\n"
-            "3) The main tasks or experimental conditions in which it was reported\n"
+            "1) The anatomical structure(s) most commonly associated with this "
+            "coordinate\n"
+            "2) The typical functional roles or processes linked to activation "
+            "in this region\n"
+            "3) The main tasks or experimental conditions in which it was "
+            "reported\n"
             "4) Patterns, contradictions, or debates in the findings\n\n"
-            "Do NOT simply list each study separately. Provide an integrated, cohesive summary.\n"
+            "Do NOT simply list each study separately. Provide an integrated, "
+            "cohesive summary.\n"
         )
     elif prompt_type == "region_name":
         prompt_intro = (
-            "You are a neuroanatomy expert. The user wants to identify the probable "
-            f"anatomical labels for MNI coordinate {coord_str}. The following "
-            "studies reported activation around this location. Incorporate "
-            "anatomical knowledge and any direct references to brain regions from "
-            "these studies. If multiple labels are possible, mention all and "
-            "provide rationale and confidence levels.\n\n"
+            "You are a neuroanatomy expert. The user wants to identify the "
+            "probable anatomical labels for MNI coordinate "
+            f"{coord_str}. The following studies reported activation around "
+            "this location. Incorporate anatomical knowledge and any direct "
+            "references to brain regions from these studies. If multiple "
+            "labels are possible, mention all and provide rationale and "
+            "confidence levels.\n\n"
         )
     elif prompt_type == "function":
         prompt_intro = (
             "You are a cognitive neuroscience expert. The user wants a deep "
             "functional profile of the brain region(s) around "
-            f"MNI coordinate {coord_str}. The studies below report activation at "
-            "or near this coordinate. Synthesize a clear description of:\n"
+            f"{coord_str}. The studies below report activation at or near this "
+            "coordinate. Synthesize a clear description of:\n"
             "1) Core functions or cognitive processes\n"
             "2) Typical experimental paradigms or tasks\n"
             "3) Known functional networks or connectivity\n"
             "4) Divergent or debated viewpoints in the literature\n\n"
         )
     else:
-        # Default to a basic integrated summary
         prompt_intro = (
-            "Please analyze the following neuroimaging studies reporting activation at "
-            f"MNI coordinate {coord_str} and provide a concise yet thorough "
-            "discussion of its anatomical location and functional significance.\n\n"
+            "Please analyze the following neuroimaging studies reporting "
+            f"activation at MNI coordinate {coord_str} and provide a concise "
+            "yet thorough discussion of its anatomical location and functional "
+            "significance.\n\n"
         )
 
-    # Add study details
     prompt_body = (
-        "STUDIES REPORTING ACTIVATION AT MNI COORDINATE " + coord_str + ":\n" + studies_section
+        "STUDIES REPORTING ACTIVATION AT MNI COORDINATE "
+        + coord_str
+        + ":\n"
+        + studies_section
     )
 
-    # Final instructions
     prompt_outro = (
-        "\nUsing ALL of the information above, produce a single cohesive synthesis. "
-        "Avoid bullet-by-bullet summaries of each study. Instead, integrate the findings "
-        "across them to describe the region's location, function, and context."
+        "\nUsing ALL of the information above, produce a single cohesive "
+        "synthesis. Avoid bullet-by-bullet summaries of each study. Instead, "
+        "integrate the findings across them to describe the region's "
+        "location, function, and context."
     )
 
     return prompt_intro + prompt_body + prompt_outro
