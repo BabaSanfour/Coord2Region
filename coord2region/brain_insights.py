@@ -6,6 +6,17 @@ comprehensive insights about brain regions, including:
 - Region identification and functional analysis
 - Text summaries of brain regions based on neuroimaging literature
 - Brain region visualization and image generation
+
+Environment Variables
+---------------------
+GEMINI_API_KEY : Optional
+    API key for Google's Generative AI (Gemini) models.
+OPENROUTER_API_KEY : Optional
+    API key for OpenRouter to access DeepSeek models.
+DALLE_API_KEY : Optional
+    API key for OpenAI's DALL·E image generation.
+STABILITY_API_KEY : Optional
+    API key for Stability AI image generation.
 """
 
 import os
@@ -61,9 +72,11 @@ class BrainInsights:
         data_dir : str, default="nimare_data"
             Directory for NiMARE datasets and cached results
         gemini_api_key : Optional[str], default=None
-            API key for Google's Generative AI (Gemini) models
+            API key for Google's Generative AI (Gemini) models. If not provided,
+            the ``GEMINI_API_KEY`` environment variable will be used.
         openrouter_api_key : Optional[str], default=None
-            API key for OpenRouter to access DeepSeek models
+            API key for OpenRouter to access DeepSeek models. If not provided,
+            the ``OPENROUTER_API_KEY`` environment variable will be used.
         use_cached_dataset : bool, default=True
             Whether to use cached deduplicated dataset if available
         email_for_abstracts : Optional[str], default=None
@@ -85,6 +98,9 @@ class BrainInsights:
         self.cache_dir = os.path.join(data_dir, "cache")
         os.makedirs(self.cache_dir, exist_ok=True)
         
+        gemini_api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY")
+        openrouter_api_key = openrouter_api_key or os.environ.get("OPENROUTER_API_KEY")
+
         # Initialize AI model interface if keys are provided
         self.ai = None
         if gemini_api_key or openrouter_api_key:
@@ -369,9 +385,11 @@ class BrainInsights:
         image_type : str, default="anatomical"
             Type of image to generate (anatomical, functional, schematic, artistic)
         dalle_api_key : Optional[str], default=None
-            OpenAI API key for DALL-E image generation
+            OpenAI API key for DALL-E image generation. If not provided,
+            the ``DALLE_API_KEY`` environment variable will be used.
         stability_api_key : Optional[str], default=None
-            Stability AI API key for image generation
+            Stability AI API key for image generation. If not provided,
+            the ``STABILITY_API_KEY`` environment variable will be used.
         save_image : bool, default=True
             Whether to save the generated image to disk
         include_atlas_labels : bool, default=True
@@ -385,19 +403,22 @@ class BrainInsights:
             - "image_url": URL of the generated image (if using DALL-E)
             - "image_path": Path to saved image (if save_image is True)
         """
+        dalle_api_key = dalle_api_key or os.environ.get("DALLE_API_KEY")
+        stability_api_key = stability_api_key or os.environ.get("STABILITY_API_KEY")
+
         # Generate the prompt for image creation
         prompt = self.generate_region_image_prompt(
-            coordinate, 
+            coordinate,
             image_type,
             include_atlas_labels=include_atlas_labels
         )
-        
+
         result = {
             "prompt": prompt,
             "coordinate": coordinate,
             "image_type": image_type,
         }
-        
+
         # Check if we have any API keys
         if not dalle_api_key and not stability_api_key:
             result["error"] = "No image generation API keys provided."
@@ -551,10 +572,10 @@ if __name__ == "__main__":
     # Configure logging to output to the console
     logging.basicConfig(level=logging.INFO)
 
-    # Initialize with API keys
+    # Initialize with API keys from environment variables
     insights = BrainInsights(
-        gemini_api_key="AIzaSyBXQFQ4PbB29BteSFs1zDq5dD8o8YkbKxg",
-        openrouter_api_key="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",
+        gemini_api_key=os.environ.get("GEMINI_API_KEY"),
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY"),
         email_for_abstracts="snesmaeil@gmail.com",
         use_atlases=True,
         atlas_names=['harvard-oxford', 'juelich', 'aal']
@@ -597,7 +618,7 @@ if __name__ == "__main__":
     logger.info("-"*80)
 
     # Note: Uncomment to actually generate images if you have API keys
-    # dalle_api_key = "your_dalle_api_key"
+    # dalle_api_key = os.environ.get("DALLE_API_KEY")
     # image_result = insights.generate_region_image(
     #     coordinate=coordinate,
     #     image_type="anatomical",

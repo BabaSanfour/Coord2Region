@@ -69,6 +69,23 @@ If you wish to contribute or modify the package, set up a development environmen
    pytest
    ```
 
+## Environment Variables
+
+Some features rely on external AI services. Provide the following optional
+environment variables to enable them:
+
+- `GEMINI_API_KEY` – Google's Generative AI (Gemini) models.
+- `OPENROUTER_API_KEY` – OpenRouter access for DeepSeek models.
+- `DALLE_API_KEY` – OpenAI's DALL·E image generation service.
+- `STABILITY_API_KEY` – Stability AI image generation service.
+
+Set these variables in your shell before running examples or tests, for example:
+
+```bash
+export GEMINI_API_KEY="..."
+export OPENROUTER_API_KEY="..."
+```
+
 ## Usage
 
 Below is a simple example of how to use coord2region in your Python code:
