@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from coord2region.pipeline import run_pipeline
+from coord2region.pipeline import PipelineResult, _export_results, run_pipeline
 
 
 @pytest.mark.unit
@@ -91,3 +91,53 @@ def test_run_pipeline_async(mock_ai, mock_prepare, mock_get):
 
     assert [r.summary for r in results] == ["ASYNC", "ASYNC"]
     assert len(progress_calls) == 2
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_summary", side_effect=["S1", "S2"])
+@patch("coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}])
+@patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.AIModelInterface")
+def test_run_pipeline_batch_coords(mock_ai, mock_prepare, mock_get, mock_summary):
+    results = run_pipeline(
+        inputs=[[0, 0, 0], [1, 1, 1]],
+        input_type="coords",
+        outputs=["summaries", "raw_studies"],
+        brain_insights_kwargs={
+            "use_atlases": False,
+            "gemini_api_key": "key",
+        },
+    )
+    assert [r.summary for r in results] == ["S1", "S2"]
+    assert all(r.studies == [{"id": "1"}] for r in results)
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.save_as_pdf")
+@patch("coord2region.pipeline.generate_summary", return_value="SUM")
+@patch("coord2region.pipeline.get_studies_for_coordinate", return_value=[])
+@patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.AIModelInterface")
+def test_run_pipeline_export_pdf(
+    mock_ai, mock_prepare, mock_get, mock_summary, mock_save_pdf, tmp_path
+):
+    out_file = tmp_path / "results.pdf"
+    res = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["summaries"],
+        output_format="pdf",
+        output_path=str(out_file),
+        brain_insights_kwargs={
+            "use_atlases": False,
+            "gemini_api_key": "key",
+        },
+    )
+    assert res[0].summary == "SUM"
+    mock_save_pdf.assert_called_once()
+
+
+@pytest.mark.unit
+def test_export_results_invalid_format(tmp_path):
+    with pytest.raises(ValueError):
+        _export_results([PipelineResult()], "xml", str(tmp_path / "out"))
