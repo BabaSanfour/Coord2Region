@@ -1,3 +1,5 @@
+"""Command-line interface for Coord2Region."""
+
 import argparse
 import json
 from dataclasses import asdict
@@ -26,7 +28,7 @@ def _load_coords_file(path: str) -> List[List[float]]:
     The file is expected to contain at least three columns representing ``x``,
     ``y`` and ``z`` values. Any additional columns are ignored.
     """
-    if path.lower().endswith(('.xls', '.xlsx')):
+    if path.lower().endswith((".xls", ".xlsx")):
         df = pd.read_excel(path)
     else:
         df = pd.read_csv(path)
@@ -47,6 +49,7 @@ def _batch(seq: Sequence, size: int) -> Iterable[Sequence]:
 
 
 def _collect_kwargs(args: argparse.Namespace) -> dict:
+    """Collect keyword arguments for :func:`run_pipeline` from parsed args."""
     kwargs = {}
     if getattr(args, "gemini_api_key", None):
         kwargs["gemini_api_key"] = args.gemini_api_key
@@ -58,10 +61,12 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
 
 
 def _print_results(results):
+    """Pretty-print pipeline results as JSON."""
     print(json.dumps([asdict(r) for r in results], indent=2))
 
 
 def run_from_config(path: str) -> None:
+    """Execute the pipeline using a YAML configuration file."""
     with open(path, "r", encoding="utf8") as f:
         cfg = yaml.safe_load(f) or {}
     res = run_pipeline(
@@ -76,6 +81,7 @@ def run_from_config(path: str) -> None:
 
 
 def create_parser() -> argparse.ArgumentParser:
+    """Create the top-level argument parser for the CLI."""
     parser = argparse.ArgumentParser(prog="coord2region")
     parser.add_argument("--config", help="YAML configuration file")
     subparsers = parser.add_subparsers(dest="command")
@@ -122,6 +128,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    """Entry point for the ``coord2region`` console script."""
     parser = create_parser()
     args = parser.parse_args(argv)
 

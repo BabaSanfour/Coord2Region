@@ -423,12 +423,13 @@ class HuggingFaceProvider(ModelProvider):
 
 
 class HuggingFaceLocalProvider(ModelProvider):
-    """Provider that runs HuggingFace models locally using ``transformers`` and
-    ``diffusers``.
+    """Provider that runs HuggingFace models locally.
 
-    Both text and image generation can be configured independently by
-    specifying ``text_model`` and/or ``image_model`` when registering the
-    provider. The heavy model weights are loaded on first use."""
+    Uses ``transformers`` for text and ``diffusers`` for images. Both text and
+    image generation can be configured independently by specifying
+    ``text_model`` and/or ``image_model`` when registering the provider. The
+    heavy model weights are loaded on first use.
+    """
 
     def __init__(
         self,

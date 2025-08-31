@@ -41,7 +41,6 @@ def generate_mni152_image(
         PNG-encoded image bytes representing the sphere on the MNI152
         template.
     """
-
     template = load_mni152_template()
     data = np.zeros(template.shape, dtype=float)
     affine = template.affine
@@ -87,7 +86,6 @@ def add_watermark(
     bytes
         PNG-encoded image bytes with the watermark applied.
     """
-
     base = Image.open(BytesIO(image_bytes)).convert("RGBA")
     width, height = base.size
 

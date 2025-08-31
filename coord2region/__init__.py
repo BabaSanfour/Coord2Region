@@ -4,6 +4,7 @@ This package provides tools to map MNI coordinates to brain regions using
 various atlases, fetch and manage atlases, and retrieve neuroimaging studies
 associated with specific coordinates.
 """
+
 from .coord2region import (
     AtlasMapper,
     BatchAtlasMapper,
@@ -32,10 +33,9 @@ from .pipeline import run_pipeline
 
 # AI model interface
 try:
-    from .ai_model_interface import AIModelInterface
+    from .ai_model_interface import AIModelInterface  # noqa: F401
 except ImportError:
-    # Make AIModelInterface optional to avoid breaking if dependencies aren't installed
-    pass
+    AIModelInterface = None  # type: ignore
 __all__ = [
     "AtlasMapper",
     "BatchAtlasMapper",
@@ -43,6 +43,8 @@ __all__ = [
     "AtlasFetcher",
     "AtlasFileHandler",
     "fetch_datasets",
+    "load_deduplicated_dataset",
+    "deduplicate_datasets",
     "prepare_datasets",
     "search_studies",
     "get_studies_for_coordinate",
@@ -52,4 +54,5 @@ __all__ = [
     "run_pipeline",
     "LLM_PROMPT_TEMPLATES",
     "IMAGE_PROMPT_TEMPLATES",
+    "AIModelInterface",
 ]

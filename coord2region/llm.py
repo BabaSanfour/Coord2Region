@@ -204,9 +204,7 @@ def generate_region_image_prompt(
             atlas_context=atlas_context,
         )
     # Retrieve prompt template by image type or fall back to default.
-    template = IMAGE_PROMPT_TEMPLATES.get(
-        image_type, IMAGE_PROMPT_TEMPLATES["default"]
-    )
+    template = IMAGE_PROMPT_TEMPLATES.get(image_type, IMAGE_PROMPT_TEMPLATES["default"])
     return template.format(
         coordinate=coord_str,
         first_paragraph=first_paragraph,
@@ -276,9 +274,7 @@ def generate_region_image(
         include_atlas_labels=include_atlas_labels,
         prompt_template=prompt_template,
     )
-    img_bytes = ai.generate_image(
-        model=model, prompt=prompt, retries=retries, **kwargs
-    )
+    img_bytes = ai.generate_image(model=model, prompt=prompt, retries=retries, **kwargs)
     if watermark:
         img_bytes = add_watermark(img_bytes)
     return img_bytes
@@ -364,7 +360,6 @@ def generate_batch_summaries(
     split using an internal delimiter. Otherwise, each summary is generated
     sequentially via :func:`generate_summary`.
     """
-
     if not coord_studies_pairs:
         return []
 
@@ -409,7 +404,9 @@ def generate_batch_summaries(
             cache.move_to_end(key)
             return cached
 
-    response = ai.generate_text(model=model, prompt=combined_prompt, max_tokens=max_tokens)
+    response = ai.generate_text(
+        model=model, prompt=combined_prompt, max_tokens=max_tokens
+    )
     results = [part.strip() for part in response.split(delimiter) if part.strip()]
 
     if cache_size > 0:

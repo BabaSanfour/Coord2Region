@@ -1,9 +1,8 @@
 nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn
 nibabel
 mne
-flake8
-flake8-docstrings
-pydocstyle
+pre-commit
+ruff
 pytest-cov
 nimare>=0.4.0
 bio

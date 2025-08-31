@@ -75,7 +75,6 @@ class PipelineResult:
 
 def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
     """Export pipeline results to the requested format."""
-
     dict_results = [asdict(r) for r in results]
 
     if fmt in {"json", "pickle"}:
@@ -116,9 +115,7 @@ def run_pipeline(
     *,
     brain_insights_kwargs: Optional[Dict[str, Any]] = None,
     async_mode: bool = False,
-    progress_callback: Optional[
-        Callable[[int, int, PipelineResult], None]
-    ] = None,
+    progress_callback: Optional[Callable[[int, int, PipelineResult], None]] = None,
 ) -> List[PipelineResult]:
     """Run the Coord2Region analysis pipeline.
 
@@ -159,7 +156,6 @@ def run_pipeline(
     list of :class:`PipelineResult`
         One result object per item in ``inputs``.
     """
-
     input_type = input_type.lower()
     if input_type not in {"coords", "region_names", "studies"}:
         raise ValueError("input_type must be 'coords', 'region_names' or 'studies'")
@@ -224,7 +220,13 @@ def run_pipeline(
         for name, cfg in provider_configs.items():
             ai.register_provider(name, **cfg)
     elif any(
-        [gemini_api_key, openrouter_api_key, openai_api_key, anthropic_api_key, huggingface_api_key]
+        [
+            gemini_api_key,
+            openrouter_api_key,
+            openai_api_key,
+            anthropic_api_key,
+            huggingface_api_key,
+        ]
     ):
         ai = AIModelInterface(
             gemini_api_key=gemini_api_key,
@@ -377,7 +379,6 @@ async def _run_pipeline_async(
     progress_callback: Optional[Callable[[int, int, PipelineResult], None]],
 ) -> List[PipelineResult]:
     """Asynchronous implementation backing :func:`run_pipeline`."""
-
     kwargs = brain_insights_kwargs or {}
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -416,7 +417,13 @@ async def _run_pipeline_async(
         for name, cfg in provider_configs.items():
             ai.register_provider(name, **cfg)
     elif any(
-        [gemini_api_key, openrouter_api_key, openai_api_key, anthropic_api_key, huggingface_api_key]
+        [
+            gemini_api_key,
+            openrouter_api_key,
+            openai_api_key,
+            anthropic_api_key,
+            huggingface_api_key,
+        ]
     ):
         ai = AIModelInterface(
             gemini_api_key=gemini_api_key,

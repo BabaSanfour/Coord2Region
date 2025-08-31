@@ -40,15 +40,16 @@ def fetch_labels(labels):
     """
     if isinstance(labels, str):
         import xml.etree.ElementTree as ET
+
         try:
             tree = ET.parse(labels)
             root = tree.getroot()
-            data = root.find('data')
+            data = root.find("data")
             if data is None:
                 raise ValueError("Invalid XML file: missing 'data' element.")
             label_list = []
-            for label in data.findall('label'):
-                name_elem = label.find('name')
+            for label in data.findall("label"):
+                name_elem = label.find("name")
                 if name_elem is not None:
                     label_list.append(name_elem.text)
             if not label_list:
@@ -91,34 +92,36 @@ def pack_vol_output(file):
         _, ext = os.path.splitext(file)
         ext = ext.lower()
 
-        if ext in ['.nii', '.gz', '.nii.gz']:
+        if ext in [".nii", ".gz", ".nii.gz"]:
             import nibabel as nib
+
             img = nib.load(file)
             vol_data = img.get_fdata(dtype=np.float32)
             hdr_matrix = img.affine
             return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
+                "vol": vol_data,
+                "hdr": hdr_matrix,
             }
 
-        elif ext == '.npz':
+        elif ext == ".npz":
             arch = np.load(path, allow_pickle=True)
-            vol_data = arch['vol']
-            hdr_matrix = arch['hdr']
+            vol_data = arch["vol"]
+            hdr_matrix = arch["hdr"]
             return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
+                "vol": vol_data,
+                "hdr": hdr_matrix,
             }
         else:
             raise ValueError(f"Unrecognized file format '{ext}' for path: {path}")
     else:
         from nibabel.nifti1 import Nifti1Image
+
         if isinstance(file, Nifti1Image):
             vol_data = file.get_fdata(dtype=np.float32)
             hdr_matrix = file.affine
             return {
-                'vol': vol_data,
-                'hdr': hdr_matrix,
+                "vol": vol_data,
+                "hdr": hdr_matrix,
             }
         else:
             raise ValueError("Unsupported type for pack_vol_output")
@@ -162,12 +165,15 @@ def pack_surf_output(
     """
     # Determine subjects_dir: use provided or from MNE config
     import mne
+
     if subjects_dir is None:
-        subjects_dir = mne.get_config('SUBJECTS_DIR', None)
+        subjects_dir = mne.get_config("SUBJECTS_DIR", None)
         if subjects_dir is None:
             import os
+
             subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
     from pathlib import Path
+
     subjects_dir = Path(subjects_dir)
     if fetcher is None:
         try:
@@ -199,12 +205,12 @@ def pack_surf_output(
 
     src = mne.setup_source_space(
         subject,
-        spacing='oct6',
+        spacing="oct6",
         subjects_dir=subjects_dir,
         add_dist=False,
     )
-    lh_vert = src[0]['vertno']  # Left hemisphere vertices
-    rh_vert = src[1]['vertno']  # Right hemisphere vertices
+    lh_vert = src[0]["vertno"]  # Left hemisphere vertices
+    rh_vert = src[1]["vertno"]  # Right hemisphere vertices
 
     # Map label names to indices in the vertex arrays.
     from collections import defaultdict
@@ -215,21 +221,25 @@ def pack_surf_output(
     labmap_rh = {}
 
     for label in labels:
-        if label.hemi == 'lh':
+        if label.hemi == "lh":
             match = np.nonzero(np.isin(lh_vert, label.vertices))[0]
             verts = lh_vert[match]
             region_vertices_lh[label.name].extend(verts.tolist())
             for idx in match:
                 labmap_lh[idx] = label.name
-        elif label.hemi == 'rh':
+        elif label.hemi == "rh":
             match = np.nonzero(np.isin(rh_vert, label.vertices))[0]
             verts = rh_vert[match]
             region_vertices_rh[label.name].extend(verts.tolist())
             for idx in match:
                 labmap_rh[idx] = label.name
 
-    region_vertices_lh = {k: np.array(v, dtype=int) for k, v in region_vertices_lh.items()}
-    region_vertices_rh = {k: np.array(v, dtype=int) for k, v in region_vertices_rh.items()}
+    region_vertices_lh = {
+        k: np.array(v, dtype=int) for k, v in region_vertices_lh.items()
+    }
+    region_vertices_rh = {
+        k: np.array(v, dtype=int) for k, v in region_vertices_rh.items()
+    }
     region_vertices = {**region_vertices_lh, **region_vertices_rh}
 
     indexes_lh = np.sort(np.array(list(labmap_lh.keys())))
@@ -244,9 +254,9 @@ def pack_surf_output(
     indexes_combined = np.concatenate([vmap_lh, vmap_rh])
 
     return {
-        'vol': [lh_vert, rh_vert],
-        'hdr': None,
-        'labels': labels_combined,
-        'indexes': indexes_combined,
-        'regions': region_vertices,
+        "vol": [lh_vert, rh_vert],
+        "hdr": None,
+        "labels": labels_combined,
+        "indexes": indexes_combined,
+        "regions": region_vertices,
     }

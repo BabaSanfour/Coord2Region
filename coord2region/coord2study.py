@@ -2,7 +2,7 @@
 
 This module fetches, converts, and queries NiMARE-compatible datasets (e.g.,
 Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
-coordinates of interest. 
+coordinates of interest.
 """
 
 import os
@@ -45,9 +45,7 @@ def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
         Dictionary containing ``title`` and ``abstract`` keys when available.
     """
     try:
-        headers = {
-            "User-Agent": "coord2region (mailto:example@example.com)"
-        }
+        headers = {"User-Agent": "coord2region (mailto:example@example.com)"}
         url = f"https://api.crossref.org/works?filter=pmid:{pmid}"
         resp = requests.get(url, headers=headers, timeout=5)
         resp.raise_for_status()
@@ -181,7 +179,9 @@ def load_deduplicated_dataset(filepath: str) -> Optional[Dataset]:
     try:
         dataset = Dataset.load(filepath, compressed=True)
         logger.info(
-            f"Loaded deduplicated dataset with {len(dataset.ids)} studies from {filepath}"
+            "Loaded deduplicated dataset with %d studies from %s",
+            len(dataset.ids),
+            filepath,
         )
         return dataset
     except Exception as e:
@@ -193,7 +193,7 @@ def deduplicate_datasets(
     datasets: Dict[str, Dataset], save_dir: Optional[str] = None
 ) -> Optional[Dataset]:
     """Create a deduplicated dataset across sources using PMIDs.
-    
+
     Duplicates are identified via PubMed IDs extracted from study identifiers.
     Datasets are merged sequentially using :meth:`~nimare.dataset.Dataset.merge`,
     introduced in NiMARE 0.0.9. Older NiMARE versions without ``merge`` will
@@ -328,8 +328,10 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
             authors = dset.get_metadata(ids=[sid], field="authors")
             year = dset.get_metadata(ids=[sid], field="year")
             if (
-                authors and authors[0] not in (None, "", "NaN")
-                and year and year[0] not in (None, "", "NaN")
+                authors
+                and authors[0] not in (None, "", "NaN")
+                and year
+                and year[0] not in (None, "", "NaN")
             ):
                 title = f"{authors[0]} ({year[0]})"
         except Exception:
@@ -481,4 +483,3 @@ def get_studies_for_coordinate(
         Email address for Entrez (if abstract fetching is enabled).
     """
     return search_studies(datasets, coord, radius=radius, email=email)
-

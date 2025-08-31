@@ -330,7 +330,7 @@ class AtlasFileHandler:
             base_name = file_name
             for ext in [".tar.gz", ".tgz", ".tar"]:
                 if base_name.endswith(ext):
-                    base_name = base_name[:-len(ext)]
+                    base_name = base_name[: -len(ext)]
                     break
             extract_dir = os.path.join(self.data_dir, base_name)
             with tarfile.open(local_path, "r:*") as tar_ref:
@@ -349,7 +349,6 @@ class AtlasFileHandler:
 
 def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
     """Convert dataclass or mapping results to plain dictionaries."""
-
     dicts: List[dict] = []
     for res in results:
         if is_dataclass(res):
@@ -363,7 +362,6 @@ def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
 
 def save_as_pdf(results: Sequence[Any], path: str) -> None:
     """Save pipeline results to a PDF file or directory."""
-
     if FPDF is None:  # pragma: no cover - optional dependency
         raise ImportError("PDF export requires the 'fpdf' package to be installed")
 
@@ -398,10 +396,16 @@ def save_as_pdf(results: Sequence[Any], path: str) -> None:
 
 def save_as_csv(results: Sequence[Any], path: str) -> None:
     """Save pipeline results to a CSV file."""
-
     dict_results = _results_to_dicts(results)
 
-    fieldnames = ["coordinate", "region_labels", "summary", "studies", "image", "images"]
+    fieldnames = [
+        "coordinate",
+        "region_labels",
+        "summary",
+        "studies",
+        "image",
+        "images",
+    ]
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     with open(path, "w", newline="", encoding="utf8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -416,7 +420,6 @@ def save_as_csv(results: Sequence[Any], path: str) -> None:
 
 def save_batch_folder(results: Sequence[Any], path: str) -> None:
     """Save results as a directory with individual JSON files and images."""
-
     dict_results = _results_to_dicts(results)
     os.makedirs(path, exist_ok=True)
     for idx, res in enumerate(dict_results, start=1):

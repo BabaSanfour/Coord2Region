@@ -32,4 +32,16 @@ Issues = "https://github.com/pypa/Coord2Region/issues"
 coord2region = "coord2region.cli:main"
 
 [tool.setuptools_scm]
-write_to = "Coord2Region/_version.py"  
+write_to = "Coord2Region/_version.py"
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+exclude = ["docs", "examples", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "D"]
+ignore = ["D203", "D213"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
