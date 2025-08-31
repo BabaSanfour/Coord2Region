@@ -25,7 +25,10 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 import openai
-from google import genai
+try:
+    import genai
+except:
+    import google.generativeai as genai
 import anthropic
 import requests
 from transformers import pipeline as hf_local_pipeline

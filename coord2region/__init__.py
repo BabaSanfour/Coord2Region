@@ -26,8 +26,12 @@ from .llm import (
     IMAGE_PROMPT_TEMPLATES,
     LLM_PROMPT_TEMPLATES,
     generate_llm_prompt,
-    generate_region_image_prompt,
+    generate_region_image,
     generate_summary,
+    generate_batch_summaries,
+    generate_summary_async,
+    stream_summary,
+    generate_mni152_image,
 )
 from .pipeline import run_pipeline
 from .ai_model_interface import AIModelInterface  # noqa: F401
@@ -46,7 +50,12 @@ __all__ = [
     "get_studies_for_coordinate",
     "generate_llm_prompt",
     "generate_region_image_prompt",
+    "generate_region_image",
     "generate_summary",
+    "generate_batch_summaries",
+    "generate_summary_async",
+    "stream_summary",
+    "generate_mni152_image",
     "run_pipeline",
     "LLM_PROMPT_TEMPLATES",
     "IMAGE_PROMPT_TEMPLATES",
