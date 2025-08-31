@@ -6,6 +6,7 @@ Welcome to Coord2Region's documentation!
    :caption: Contents:
 
    README.md
+   pipeline.rst
    auto_examples/index.rst
    autoapi/index.rst
    GitHub Repository <https://github.com/BabaSanfour/Coord2Region>

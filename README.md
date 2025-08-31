@@ -69,6 +69,30 @@ If you wish to contribute or modify the package, set up a development environmen
    pytest
    ```
 
+## Quickstart Pipeline
+
+The high-level pipeline combines atlas lookup, study queries and optional AI
+generation. It can return multiple output types in one call and optionally
+export the results.
+
+```python
+from coord2region.pipeline import run_pipeline
+
+results = run_pipeline(
+    inputs=[[30, -22, 50]],
+    input_type="coords",
+    outputs=["region_labels", "summaries", "images"],
+    output_format="pdf",
+    output_path="quickstart.pdf",
+)
+
+print(results[0].summary)
+print("Image saved to", results[0].image)
+```
+
+See `examples/example_pipeline.py` for a complete script demonstrating mixed
+outputs and PDF export.
+
 ## Environment Variables
 
 Some features rely on external AI services. Provide the following optional
