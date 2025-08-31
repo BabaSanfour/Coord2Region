@@ -1,4 +1,4 @@
-"""Utilities for constructing prompts for language and image models."""
+"""LLM utilities for prompt construction and summary generation."""
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -103,33 +103,7 @@ def generate_llm_prompt(
     prompt_type: str = "summary",
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a detailed prompt for language models based on studies.
-
-    This function creates a structured prompt that includes study IDs,
-    titles, and abstracts formatted for optimal LLM analysis and
-    summarization.
-
-    Parameters
-    ----------
-    studies : List[Dict[str, Any]]
-        List of study metadata dictionaries.
-    coordinate : Union[List[float], Tuple[float, float, float]]
-        The MNI coordinate [x, y, z] that was searched.
-    prompt_type : str, optional
-        Type of prompt to generate ("summary", "region_name", "function",
-        etc.). Default is "summary".
-    prompt_template : str, optional
-        Custom prompt template. If provided, it should contain the
-        placeholders ``{coord}`` for the coordinate string and
-        ``{studies}`` for the formatted study list. When supplied, this
-        template overrides the built-in prompt generation logic.
-
-    Returns
-    -------
-    str
-        A detailed prompt for language models, incorporating all relevant
-        study information.
-    """
+    """Generate a detailed prompt for language models based on studies."""
     # Format coordinate string safely.
     try:
         coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
@@ -157,6 +131,7 @@ def generate_llm_prompt(
     # If a custom template is provided, use it.
     if prompt_template:
         return prompt_template.format(coord=coord_str, studies=studies_section)
+
     # Build the prompt header using the templates dictionary.
     template = LLM_PROMPT_TEMPLATES.get(prompt_type, LLM_PROMPT_TEMPLATES["default"])
     prompt_intro = template.format(coord=coord_str)
@@ -185,27 +160,7 @@ def generate_region_image_prompt(
     include_atlas_labels: bool = True,
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a prompt for creating images of brain regions.
-
-    The prompt summarizes the region information and instructs an image
-    generation model to produce an anatomical, functional, schematic, or
-    artistic visualization for the given MNI coordinate.
-
-    Args:
-        coordinate: MNI coordinate as [x, y, z] or (x, y, z).
-        region_info: Dictionary containing at least a "summary" key and
-            optionally an "atlas_labels" mapping of atlas names to labels.
-        image_type: Type of image to generate. One of: "anatomical",
-            "functional", "schematic", "artistic". Defaults to "anatomical".
-        include_atlas_labels: Whether to include atlas labels from
-            region_info in the prompt. Defaults to True.
-        prompt_template: Optional custom template overriding default
-            prompts. Available placeholders are ``{coordinate}``,
-            ``{first_paragraph}``, and ``{atlas_context}``.
-
-    Returns:
-        A detailed prompt string suitable for image generation models.
-    """
+    """Generate a prompt for creating images of brain regions."""
     # Safely get the summary and a short first paragraph.
     summary = region_info.get("summary", "No summary available.")
     first_paragraph = summary.split("\n\n", 1)[0]
@@ -223,9 +178,7 @@ def generate_region_image_prompt(
     atlas_context = ""
     atlas_labels = region_info.get("atlas_labels") or {}
     if include_atlas_labels and isinstance(atlas_labels, dict) and atlas_labels:
-        atlas_parts = [
-            f"{atlas_name}: {label}" for atlas_name, label in atlas_labels.items()
-        ]
+        atlas_parts = [f"{atlas_name}: {label}" for atlas_name, label in atlas_labels.items()]
         atlas_context = (
             "According to brain atlases, this region corresponds to: "
             + ", ".join(atlas_parts)
@@ -294,3 +247,59 @@ def generate_region_image_prompt(
         )
 
     return prompt
+
+
+# ---------------------------------------------------------------------------
+# Summary generation
+# ---------------------------------------------------------------------------
+
+try:  # Optional dependency
+    from .ai_model_interface import AIModelInterface
+except Exception:  # pragma: no cover - used only when dependencies missing
+    AIModelInterface = None  # type: ignore
+
+
+def generate_summary(
+    ai: "AIModelInterface",
+    studies: List[Dict[str, Any]],
+    coordinate: Union[List[float], Tuple[float, float, float]],
+    summary_type: str = "summary",
+    model: str = "gemini-2.0-flash",
+    atlas_labels: Optional[Dict[str, str]] = None,
+    prompt_template: Optional[str] = None,
+    max_tokens: int = 1000,
+) -> str:
+    """Generate a text summary for a coordinate based on studies."""
+    # Build base prompt with study information
+    prompt = generate_llm_prompt(
+        studies,
+        coordinate,
+        prompt_type=summary_type,
+        prompt_template=prompt_template,
+    )
+
+    # Insert atlas label information when provided
+    if atlas_labels:
+        parts = prompt.split("STUDIES REPORTING ACTIVATION AT MNI COORDINATE")
+        atlas_info = "\nATLAS LABELS FOR THIS COORDINATE:\n"
+        for atlas_name, label in atlas_labels.items():
+            atlas_info += f"- {atlas_name}: {label}\n"
+        if len(parts) >= 2:
+            intro = parts[0]
+            rest = "STUDIES REPORTING ACTIVATION AT MNI COORDINATE" + parts[1]
+            prompt = intro + atlas_info + "\n" + rest
+        else:
+            prompt = atlas_info + prompt
+
+    # Generate and return the summary using the AI interface
+    return ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
+
+
+__all__ = [
+    "LLM_PROMPT_TEMPLATES",
+    "IMAGE_PROMPT_TEMPLATES",
+    "generate_llm_prompt",
+    "generate_region_image_prompt",
+    "generate_summary",
+]
+

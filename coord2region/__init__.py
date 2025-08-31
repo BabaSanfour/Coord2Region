@@ -21,13 +21,13 @@ from .coord2study import (
     search_studies,
     get_studies_for_coordinate,
 )
-from .prompt_utils import (
+from .llm import (
     IMAGE_PROMPT_TEMPLATES,
     LLM_PROMPT_TEMPLATES,
     generate_llm_prompt,
     generate_region_image_prompt,
+    generate_summary,
 )
-from .llm_service import generate_summary
 
 # AI model interface
 try:

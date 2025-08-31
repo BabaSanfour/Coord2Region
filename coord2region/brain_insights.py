@@ -36,11 +36,11 @@ from .coord2study import (
     get_studies_for_coordinate,
     prepare_datasets,
 )
-from .prompt_utils import (
+from .llm import (
     generate_region_image_prompt as _generate_region_image_prompt,
+    generate_summary,
 )
 from .ai_model_interface import AIModelInterface
-from .llm_service import generate_summary
 
 # Import from coord2region.py for atlas-based mapping
 from .coord2region import (
