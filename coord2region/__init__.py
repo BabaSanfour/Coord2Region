@@ -27,6 +27,7 @@ from .prompt_utils import (
     generate_llm_prompt,
     generate_region_image_prompt,
 )
+from .llm_service import generate_summary
 
 # AI model interface
 try:
@@ -46,6 +47,7 @@ __all__ = [
     "get_studies_for_coordinate",
     "generate_llm_prompt",
     "generate_region_image_prompt",
+    "generate_summary",
     "LLM_PROMPT_TEMPLATES",
     "IMAGE_PROMPT_TEMPLATES",
 ]

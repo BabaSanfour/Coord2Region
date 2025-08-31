@@ -47,12 +47,11 @@ def test_get_region_studies_loads_dataset(mock_get, mock_prepare):
 
 
 @pytest.mark.unit
-def test_get_region_summary_caches(tmp_path):
+@patch("coord2region.brain_insights.generate_summary", return_value="SUMMARY")
+def test_get_region_summary_caches(mock_generate, tmp_path):
     coord = [1, 2, 3]
     with patch("coord2region.brain_insights.AIModelInterface") as mock_ai_cls:
-        mock_ai = MagicMock()
-        mock_ai.generate_text.return_value = "SUMMARY"
-        mock_ai_cls.return_value = mock_ai
+        mock_ai_cls.return_value = MagicMock()
 
         brain = BrainInsights(
             data_dir=str(tmp_path),
@@ -62,7 +61,6 @@ def test_get_region_summary_caches(tmp_path):
         )
 
         brain.get_region_studies = MagicMock(return_value=[{"id": "1", "title": "T", "abstract": "A"}])
-        brain.get_enriched_prompt = MagicMock(return_value="PROMPT")
 
         first = brain.get_region_summary(coord, include_atlas_labels=False)
         assert first["summary"] == "SUMMARY"
@@ -72,13 +70,11 @@ def test_get_region_summary_caches(tmp_path):
         )
         assert os.path.exists(cache_file)
 
-        # Second call should hit cache and skip AI/generation
-        mock_ai.generate_text.reset_mock()
+        # Second call should hit cache and skip generation
+        mock_generate.reset_mock()
         brain.get_region_studies.reset_mock()
-        brain.get_enriched_prompt.reset_mock()
 
         second = brain.get_region_summary(coord, include_atlas_labels=False)
-        mock_ai.generate_text.assert_not_called()
+        mock_generate.assert_not_called()
         brain.get_region_studies.assert_not_called()
-        brain.get_enriched_prompt.assert_not_called()
         assert second["summary"] == "SUMMARY"

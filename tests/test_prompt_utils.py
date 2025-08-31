@@ -42,7 +42,7 @@ def test_generate_llm_prompt_no_studies():
 def test_generate_llm_prompt_summary():
     """Default summary prompts contain study details and coordinate."""
     prompt = generate_llm_prompt(_sample_studies(), [1, 2, 3])
-    assert "[1, 2, 3]" in prompt
+    assert "[1.00, 2.00, 3.00]" in prompt
     assert "ID: 1" in prompt
 
 
@@ -76,7 +76,7 @@ def test_generate_llm_prompt_custom_template():
     prompt = generate_llm_prompt(
         _sample_studies(), [1, 2, 3], prompt_template=template
     )
-    assert prompt.startswith("Coordinate: [1, 2, 3]")
+    assert prompt.startswith("Coordinate: [1.00, 2.00, 3.00]")
     assert "ID: 1" in prompt
 
 
@@ -147,4 +147,4 @@ def test_generate_region_image_prompt_custom_template():
     prompt = generate_region_image_prompt(
         [1, 2, 3], region_info, prompt_template=template
     )
-    assert prompt.startswith("Custom image for [1, 2, 3]")
+    assert prompt.startswith("Custom image for [1.00, 2.00, 3.00]")

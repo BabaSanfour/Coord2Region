@@ -228,6 +228,7 @@ def generate_region_image_prompt(
     region_info: Dict[str, Any],
     image_type: str = "anatomical",
     include_atlas_labels: bool = True,
+    prompt_template: Optional[str] = None,
 ) -> str:
     """Generate a prompt for creating images of brain regions.
 
@@ -243,6 +244,9 @@ def generate_region_image_prompt(
             "functional", "schematic", "artistic". Defaults to "anatomical".
         include_atlas_labels: Whether to include atlas labels from
             region_info in the prompt. Defaults to True.
+        prompt_template: Optional custom template overriding default
+            prompts. Available placeholders are ``{coordinate}``,
+            ``{first_paragraph}``, and ``{atlas_context}``.
 
     Returns:
         A detailed prompt string suitable for image generation models.
@@ -271,6 +275,14 @@ def generate_region_image_prompt(
             "According to brain atlases, this region corresponds to: "
             + ", ".join(atlas_parts)
             + ". "
+        )
+
+    # If a custom template is provided, use it directly.
+    if prompt_template:
+        return prompt_template.format(
+            coordinate=coord_str,
+            first_paragraph=first_paragraph,
+            atlas_context=atlas_context,
         )
 
     # Construct prompts for supported image types.

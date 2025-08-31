@@ -20,10 +20,10 @@ from .coord2study import (
     prepare_datasets,
 )
 from .prompt_utils import (
-    generate_llm_prompt,
     generate_region_image_prompt as _generate_region_image_prompt,
 )
 from .ai_model_interface import AIModelInterface
+from .llm_service import generate_summary
 
 # Import from coord2region.py for atlas-based mapping
 from .coord2region import (
@@ -208,74 +208,6 @@ class BrainInsights:
         )
         return studies
     
-    def get_enriched_prompt(
-        self,
-        studies: List[Dict[str, Any]],
-        coordinate: Union[List[float], Tuple[float, float, float]],
-        prompt_type: str = "summary",
-        include_atlas_labels: bool = True,
-        prompt_template: Optional[str] = None,
-    ) -> str:
-        """
-        Generate an enriched prompt that includes both study data and atlas labels.
-        
-        Parameters
-        ----------
-        studies : List[Dict[str, Any]]
-            List of study metadata dictionaries
-        coordinate : Union[List[float], Tuple[float, float, float]]
-            MNI coordinate [x, y, z]
-        prompt_type : str, default="summary"
-            Type of prompt to generate (summary, region_name, function)
-        include_atlas_labels : bool, default=True
-            Whether to include atlas labels in the prompt
-        prompt_template : str, optional
-            Custom template passed to :func:`generate_llm_prompt`. If provided, it
-            should contain ``{coord}`` and ``{studies}`` placeholders.
-            
-        Returns
-        -------
-        str
-            A detailed prompt for language models including study information and atlas labels
-        """
-        # Get the base prompt from coord2study
-        base_prompt = generate_llm_prompt(
-            studies,
-            coordinate,
-            prompt_type,
-            prompt_template=prompt_template,
-        )
-        
-        # If we're not using atlas information, return the base prompt
-        if not include_atlas_labels or not self.use_atlases or not self.atlases:
-            return base_prompt
-        
-        # Get atlas labels for the coordinate
-        atlas_labels = self.get_atlas_labels(coordinate)
-        
-        if not atlas_labels:
-            return base_prompt
-        
-        # Extract the first part of the prompt (before the study listings)
-        prompt_parts = base_prompt.split("STUDIES REPORTING ACTIVATION AT MNI COORDINATE")
-        
-        if len(prompt_parts) < 2:
-            # If we can't split properly, add atlas info at the beginning
-            atlas_info = "\nATLAS LABELS FOR THIS COORDINATE:\n"
-            for atlas_name, label in atlas_labels.items():
-                atlas_info += f"- {atlas_name}: {label}\n"
-            return atlas_info + base_prompt
-        
-        # Insert atlas labels after the introduction but before the study listings
-        intro_part = prompt_parts[0]
-        remaining_part = "STUDIES REPORTING ACTIVATION AT MNI COORDINATE" + prompt_parts[1]
-        
-        atlas_info = "\nATLAS LABELS FOR THIS COORDINATE:\n"
-        for atlas_name, label in atlas_labels.items():
-            atlas_info += f"- {atlas_name}: {label}\n"
-        
-        return intro_part + atlas_info + "\n" + remaining_part
-    
     def get_region_summary(
         self,
         coordinate: Union[List[float], Tuple[float, float, float]],
@@ -336,12 +268,12 @@ class BrainInsights:
         
         # Get studies for the coordinate
         studies = self.get_region_studies(coordinate)
-        
+
         # Get atlas labels if requested
-        atlas_labels = {}
+        atlas_labels: Dict[str, str] = {}
         if include_atlas_labels and self.use_atlases:
             atlas_labels = self.get_atlas_labels(coordinate)
-        
+
         if not studies and not atlas_labels:
             return {
                 "coordinate": coordinate,
@@ -350,18 +282,17 @@ class BrainInsights:
                 "studies_count": 0,
                 "atlas_labels": {}
             }
-        
-        # Generate enriched prompt with atlas labels
-        prompt = self.get_enriched_prompt(
+
+        # Generate summary using centralized LLM service
+        summary = generate_summary(
+            self.ai,
             studies,
             coordinate,
-            prompt_type=summary_type,
-            include_atlas_labels=include_atlas_labels,
+            summary_type=summary_type,
+            model=model,
+            atlas_labels=atlas_labels if include_atlas_labels else None,
             prompt_template=prompt_template,
         )
-        
-        # Generate summary using AI model
-        summary = self.ai.generate_text(model=model, prompt=prompt)
         
         # Prepare result
         result = {
