@@ -12,18 +12,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
-        node:  [18] # might need to update this manually?
+        python-version: ['3.10']
+        node-version: [18] # might need to update this manually?
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    # - name: Use Node.js ${{ matrix.node }}
+    # - name: Use Node.js ${{ matrix.node-version }}
     #   uses: actions/setup-node@v1
     #   with:
-    #     node-version: ${{ matrix.node }}
+    #     node-version: ${{ matrix.node-version }}
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
