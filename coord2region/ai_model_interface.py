@@ -86,7 +86,11 @@ def _retry_stream(func, retries: int = 3, base_delay: float = 0.1) -> Iterator[s
 
 
 class ModelProvider(ABC):
-    """Base class for all model providers."""
+    """Base class for all model providers.
+
+    See the ``README`` section *Adding a Custom LLM Provider* for
+    guidance on implementing subclasses.
+    """
 
     def __init__(self, models: Dict[str, str]):
         self.models = models
@@ -143,9 +147,7 @@ class GeminiProvider(ModelProvider):
             prompt = " ".join(
                 msg["content"] for msg in prompt if msg.get("role") == "user"
             )
-        response = self.client.models.generate_content(
-            model=model, contents=[prompt]
-        )
+        response = self.client.models.generate_content(model=model, contents=[prompt])
         return response.text
 
     async def generate_text_async(
@@ -377,7 +379,11 @@ class AIModelInterface:
             self.register_provider(provider)
 
     def register_provider(self, provider: ModelProvider) -> None:
-        """Register a provider and its models."""
+        """Register a provider and its models.
+
+        The ``README`` section *Adding a Custom LLM Provider* shows how to
+        create a provider and register it with this interface.
+        """
         for model in provider.models:
             self._providers[model] = provider
 

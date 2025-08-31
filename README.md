@@ -109,6 +109,34 @@ print(ai.list_available_models())
 response = ai.generate_text(model="gpt-4", prompt="Hello")
 ```
 
+### Adding a Custom LLM Provider
+
+To support additional large language models, create a subclass of
+`ModelProvider` and register it with
+`AIModelInterface.register_provider`. The provider should define a
+dictionary of model names and implement `generate_text`.
+
+```python
+from coord2region.ai_model_interface import AIModelInterface, ModelProvider
+
+class EchoProvider(ModelProvider):
+    """Minimal provider that echoes the prompt."""
+
+    def __init__(self):
+        super().__init__({"echo-1": "echo-1"})
+
+    def generate_text(self, model, prompt, max_tokens):
+        if isinstance(prompt, str):
+            return prompt
+        return " ".join(m["content"] for m in prompt)
+
+ai = AIModelInterface()
+ai.register_provider(EchoProvider())
+print(ai.generate_text("echo-1", "Hello"))
+```
+
+See `examples/custom_provider_example.py` for a complete runnable example.
+
 ## Usage
 
 Below is a simple example of how to use coord2region in your Python code:
