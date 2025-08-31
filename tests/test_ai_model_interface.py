@@ -116,3 +116,23 @@ def test_huggingface_generate_image(mock_post):
     result = ai.generate_image("stabilityai/stable-diffusion-2", "cat")
     assert result == b"IMG"
     mock_post.assert_called_once()
+
+
+@pytest.mark.unit
+def test_supports_batching_flag():
+    class DummyProvider(ModelProvider):
+        supports_batching = True
+
+        def __init__(self):
+            super().__init__({"m": "m"})
+
+        def generate_text(self, model: str, prompt, max_tokens: int) -> str:
+            return "ok"
+
+    ai = AIModelInterface()
+    provider = DummyProvider()
+    ai.register_provider(provider)
+
+    assert ai.supports_batching("m") is True
+    provider.supports_batching = False
+    assert ai.supports_batching("m") is False

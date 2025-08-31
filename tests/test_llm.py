@@ -10,6 +10,7 @@ from coord2region.llm import (
     generate_region_image_prompt,
     generate_region_image,
     generate_summary,
+    generate_batch_summaries,
     generate_summary_async,
     stream_summary,
 )
@@ -267,3 +268,30 @@ def test_stream_summary_calls_ai(mock_prompt):
         model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
     )
     assert result == ["A", "B"]
+
+
+@patch("coord2region.llm.generate_llm_prompt", side_effect=["P1", "P2"])
+def test_generate_batch_summaries_no_batching(mock_prompt):
+    ai = MagicMock()
+    ai.supports_batching.return_value = False
+    ai.generate_text.side_effect = ["S1", "S2"]
+    pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
+
+    result = generate_batch_summaries(ai, pairs, cache_size=0)
+
+    assert result == ["S1", "S2"]
+    assert ai.generate_text.call_count == 2
+
+
+@patch("coord2region.llm.generate_llm_prompt", side_effect=["P1", "P2"])
+def test_generate_batch_summaries_with_batching(mock_prompt):
+    ai = MagicMock()
+    ai.supports_batching.return_value = True
+    delimiter = "\n@@@\n"
+    ai.generate_text.return_value = f"S1{delimiter}S2"
+    pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
+
+    result = generate_batch_summaries(ai, pairs, cache_size=0)
+
+    assert result == ["S1", "S2"]
+    ai.generate_text.assert_called_once()

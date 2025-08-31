@@ -354,6 +354,81 @@ def generate_summary(
     return result
 
 
+def generate_batch_summaries(
+    ai: "AIModelInterface",
+    coord_studies_pairs: List[
+        Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
+    ],
+    summary_type: str = "summary",
+    model: str = "gemini-2.0-flash",
+    prompt_template: Optional[str] = None,
+    max_tokens: int = 1000,
+    cache_size: int = 128,
+) -> List[str]:
+    """Generate summaries for multiple coordinates.
+
+    If the underlying provider reports that it supports batching, the prompts
+    for all coordinates are combined into a single request and the response is
+    split using an internal delimiter. Otherwise, each summary is generated
+    sequentially via :func:`generate_summary`.
+    """
+
+    if not coord_studies_pairs:
+        return []
+
+    if not ai.supports_batching(model):
+        return [
+            generate_summary(
+                ai,
+                studies,
+                coord,
+                summary_type=summary_type,
+                model=model,
+                prompt_template=prompt_template,
+                max_tokens=max_tokens,
+                cache_size=cache_size,
+            )
+            for coord, studies in coord_studies_pairs
+        ]
+
+    delimiter = "\n@@@\n"
+    prompts: List[str] = []
+    for coord, studies in coord_studies_pairs:
+        prompts.append(
+            generate_llm_prompt(
+                studies,
+                coord,
+                prompt_type=summary_type,
+                prompt_template=prompt_template,
+            )
+        )
+
+    combined_prompt = (
+        "Provide separate summaries for each coordinate below. "
+        f"Separate each summary with the delimiter '{delimiter.strip()}'.\n\n"
+        + delimiter.join(prompts)
+    )
+
+    key = (model, combined_prompt)
+    cache: "OrderedDict[Tuple[str, str], List[str]]" = generate_batch_summaries._cache
+    if cache_size > 0:
+        cached = cache.get(key)
+        if cached is not None:
+            cache.move_to_end(key)
+            return cached
+
+    response = ai.generate_text(model=model, prompt=combined_prompt, max_tokens=max_tokens)
+    results = [part.strip() for part in response.split(delimiter) if part.strip()]
+
+    if cache_size > 0:
+        cache[key] = results
+        cache.move_to_end(key)
+        while len(cache) > cache_size:
+            cache.popitem(last=False)
+
+    return results
+
+
 async def generate_summary_async(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
@@ -471,6 +546,7 @@ def stream_summary(
 
 
 generate_summary._cache = OrderedDict()
+generate_batch_summaries._cache = OrderedDict()
 generate_summary_async._cache = OrderedDict()
 stream_summary._cache = OrderedDict()
 
@@ -482,6 +558,7 @@ __all__ = [
     "generate_region_image_prompt",
     "generate_region_image",
     "generate_summary",
+    "generate_batch_summaries",
     "generate_summary_async",
     "stream_summary",
 ]

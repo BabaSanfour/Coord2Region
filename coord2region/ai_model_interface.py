@@ -98,6 +98,11 @@ class ModelProvider(ABC):
     guidance on implementing subclasses.
     """
 
+    #: Whether the provider natively supports batching multiple prompts in a
+    #: single API call. Subclasses can override this to ``True`` when their
+    #: backend exposes such functionality.
+    supports_batching: bool = False
+
     def __init__(self, models: Dict[str, str]):
         self.models = models
 
@@ -434,6 +439,16 @@ class AIModelInterface:
         """
         for model in provider.models:
             self._providers[model] = provider
+
+    def supports_batching(self, model: str) -> bool:
+        """Return whether the provider for ``model`` supports batching."""
+        provider = self._providers.get(model)
+        if provider is None:
+            available = list(self._providers.keys())
+            raise ValueError(
+                f"Model '{model}' not supported. Available models: {available}"
+            )
+        return getattr(provider, "supports_batching", False)
 
     def generate_text(
         self,
