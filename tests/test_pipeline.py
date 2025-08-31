@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 from io import BytesIO
@@ -193,3 +194,20 @@ def test_pipeline_ai_watermark(mock_generate, tmp_path):
 def test_export_results_invalid_format(tmp_path):
     with pytest.raises(ValueError):
         _export_results([PipelineResult()], "xml", str(tmp_path / "out"))
+
+
+@pytest.mark.unit
+def test_export_results_csv(tmp_path):
+    csv_path = tmp_path / "out" / "res.csv"
+    _export_results([PipelineResult(summary="A")], "csv", str(csv_path))
+    assert csv_path.exists()
+    with open(csv_path, newline="", encoding="utf8") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["summary"] == "A"
+
+
+@pytest.mark.unit
+def test_export_results_directory(tmp_path):
+    out_dir = tmp_path / "batch"
+    _export_results([PipelineResult(summary="B")], "directory", str(out_dir))
+    assert (out_dir / "result_1" / "result.json").exists()
