@@ -157,54 +157,9 @@ def generate_llm_prompt(
     # If a custom template is provided, use it.
     if prompt_template:
         return prompt_template.format(coord=coord_str, studies=studies_section)
-
-    # Build the prompt header with clear instructions depending on type.
-    if prompt_type == "summary":
-        prompt_intro = (
-            "You are an advanced AI with expertise in neuroanatomy and "
-            "cognitive neuroscience. The user is interested in understanding "
-            f"the significance of MNI coordinate {coord_str}.\n\n"
-            "Below is a list of neuroimaging studies that report activation at "
-            "this coordinate. Your task is to integrate and synthesize the "
-            "knowledge from these studies, focusing on:\n"
-            "1) The anatomical structure(s) most commonly associated with this "
-            "coordinate\n"
-            "2) The typical functional roles or processes linked to activation "
-            "in this region\n"
-            "3) The main tasks or experimental conditions in which it was "
-            "reported\n"
-            "4) Patterns, contradictions, or debates in the findings\n\n"
-            "Do NOT simply list each study separately. Provide an integrated, "
-            "cohesive summary.\n"
-        )
-    elif prompt_type == "region_name":
-        prompt_intro = (
-            "You are a neuroanatomy expert. The user wants to identify the "
-            "probable anatomical labels for MNI coordinate "
-            f"{coord_str}. The following studies reported activation around "
-            "this location. Incorporate anatomical knowledge and any direct "
-            "references to brain regions from these studies. If multiple "
-            "labels are possible, mention all and provide rationale and "
-            "confidence levels.\n\n"
-        )
-    elif prompt_type == "function":
-        prompt_intro = (
-            "You are a cognitive neuroscience expert. The user wants a deep "
-            "functional profile of the brain region(s) around "
-            f"{coord_str}. The studies below report activation at or near this "
-            "coordinate. Synthesize a clear description of:\n"
-            "1) Core functions or cognitive processes\n"
-            "2) Typical experimental paradigms or tasks\n"
-            "3) Known functional networks or connectivity\n"
-            "4) Divergent or debated viewpoints in the literature\n\n"
-        )
-    else:
-        prompt_intro = (
-            "Please analyze the following neuroimaging studies reporting "
-            f"activation at MNI coordinate {coord_str} and provide a concise "
-            "yet thorough discussion of its anatomical location and functional "
-            "significance.\n\n"
-        )
+    # Build the prompt header using the templates dictionary.
+    template = LLM_PROMPT_TEMPLATES.get(prompt_type, LLM_PROMPT_TEMPLATES["default"])
+    prompt_intro = template.format(coord=coord_str)
 
     prompt_body = (
         "STUDIES REPORTING ACTIVATION AT MNI COORDINATE "

@@ -40,34 +40,46 @@ def test_generate_llm_prompt_no_studies():
 
 
 def test_generate_llm_prompt_summary():
-    """Default summary prompts contain study details and coordinate."""
+    """Summary prompts use the corresponding template."""
     prompt = generate_llm_prompt(_sample_studies(), [1, 2, 3])
-    assert "[1.00, 2.00, 3.00]" in prompt
+    expected_intro = LLM_PROMPT_TEMPLATES["summary"].format(
+        coord="[1.00, 2.00, 3.00]"
+    )
+    assert prompt.startswith(expected_intro)
     assert "ID: 1" in prompt
 
 
 def test_generate_llm_prompt_region_name():
-    """Region-name prompt mentions anatomical labels."""
+    """Region-name prompts come from the template dictionary."""
     prompt = generate_llm_prompt(
         _sample_studies(), [1, 2, 3], prompt_type="region_name"
     )
-    assert "probable anatomical labels" in prompt
+    expected_intro = LLM_PROMPT_TEMPLATES["region_name"].format(
+        coord="[1.00, 2.00, 3.00]"
+    )
+    assert prompt.startswith(expected_intro)
 
 
 def test_generate_llm_prompt_function():
-    """Function prompt references cognitive processes."""
+    """Function prompts come from the template dictionary."""
     prompt = generate_llm_prompt(
         _sample_studies(), [1, 2, 3], prompt_type="function"
     )
-    assert "functional profile" in prompt
+    expected_intro = LLM_PROMPT_TEMPLATES["function"].format(
+        coord="[1.00, 2.00, 3.00]"
+    )
+    assert prompt.startswith(expected_intro)
 
 
-def test_generate_llm_prompt_unknown_type():
-    """Unknown prompt types fall back to the default template."""
+def test_generate_llm_prompt_unsupported_type():
+    """Unsupported prompt types fall back to the default template."""
     prompt = generate_llm_prompt(
         _sample_studies(), [1, 2, 3], prompt_type="other"
     )
-    assert "Please analyze" in prompt
+    expected_intro = LLM_PROMPT_TEMPLATES["default"].format(
+        coord="[1.00, 2.00, 3.00]"
+    )
+    assert prompt.startswith(expected_intro)
 
 
 def test_generate_llm_prompt_custom_template():
