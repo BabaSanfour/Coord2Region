@@ -276,7 +276,6 @@ def prepare_datasets(
         The deduplicated NiMARE ``Dataset`` object, or ``None`` if preparation
         fails.
     """
-
     # Resolve data directory similar to AtlasFileHandler so cached datasets and
     # atlases can reside alongside one another.
     home_dir = os.path.expanduser("~")
@@ -475,6 +474,18 @@ def get_studies_for_coordinate(
 
     This is a thin wrapper around :func:`search_studies` that searches every
     dataset in ``datasets``.
+
+    Parameters
+    ----------
+    datasets : Dict[str, Dataset]
+        NiMARE ``Dataset`` objects keyed by source name.
+    coord : Union[List[float], Tuple[float, float, float]]
+        MNI coordinate ``[x, y, z]``.
+    radius : float, default=0
+        Search radius in millimeters around the coordinate. ``0`` indicates an
+        exact match.
+    email : Optional[str], optional
+        Email address for Entrez (if abstract fetching is enabled).
     """
     return search_studies(datasets, coord, radius=radius, email=email)
 
