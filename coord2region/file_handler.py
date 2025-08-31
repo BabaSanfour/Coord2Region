@@ -8,7 +8,17 @@ packing volumetric atlas outputs.
 import os
 import logging
 import pickle
-from typing import Optional, Union, List
+import csv
+import json
+import shutil
+from dataclasses import asdict, is_dataclass
+from typing import Optional, Union, List, Any, Sequence
+
+try:  # Optional dependency – used for PDF export
+    from fpdf import FPDF  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    FPDF = None
+
 import mne
 from .utils import fetch_labels, pack_vol_output
 
@@ -318,3 +328,88 @@ class AtlasFileHandler:
                 decompressed_path = decompressed_file
 
         return decompressed_path
+
+
+def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
+    """Convert dataclass or mapping results to plain dictionaries."""
+
+    dicts: List[dict] = []
+    for res in results:
+        if is_dataclass(res):
+            dicts.append(asdict(res))
+        elif isinstance(res, dict):
+            dicts.append(res)
+        else:
+            dicts.append(dict(res))  # type: ignore[arg-type]
+    return dicts
+
+
+def save_as_pdf(results: Sequence[Any], path: str) -> None:
+    """Save pipeline results to a PDF file or directory."""
+
+    if FPDF is None:  # pragma: no cover - optional dependency
+        raise ImportError("PDF export requires the 'fpdf' package to be installed")
+
+    dict_results = _results_to_dicts(results)
+
+    if len(dict_results) > 1 or os.path.isdir(path):
+        os.makedirs(path, exist_ok=True)
+
+    for idx, res in enumerate(dict_results, start=1):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        coord = res.get("coordinate")
+        if coord is not None:
+            pdf.multi_cell(0, 10, f"Coordinate: {coord}")
+        summary = res.get("summary")
+        if summary:
+            pdf.multi_cell(0, 10, summary)
+        img = res.get("image")
+        if img:
+            try:  # pragma: no cover - depends on PIL
+                pdf.image(img, w=100)
+            except Exception:
+                pass
+        fname = (
+            os.path.join(path, f"result_{idx}.pdf")
+            if os.path.isdir(path) or len(dict_results) > 1
+            else path
+        )
+        pdf.output(fname)
+
+
+def save_as_csv(results: Sequence[Any], path: str) -> None:
+    """Save pipeline results to a CSV file."""
+
+    dict_results = _results_to_dicts(results)
+
+    fieldnames = ["coordinate", "region_labels", "summary", "studies", "image"]
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", newline="", encoding="utf8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in dict_results:
+            flat = {
+                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                for k, v in row.items()
+            }
+            writer.writerow(flat)
+
+
+def save_batch_folder(results: Sequence[Any], path: str) -> None:
+    """Save results as a directory with individual JSON files and images."""
+
+    dict_results = _results_to_dicts(results)
+    os.makedirs(path, exist_ok=True)
+    for idx, res in enumerate(dict_results, start=1):
+        out_dir = os.path.join(path, f"result_{idx}")
+        os.makedirs(out_dir, exist_ok=True)
+        with open(os.path.join(out_dir, "result.json"), "w", encoding="utf8") as f:
+            json.dump(res, f, indent=2)
+        img = res.get("image")
+        if img and os.path.exists(img):
+            try:
+                shutil.copy(img, os.path.join(out_dir, os.path.basename(img)))
+            except Exception:
+                pass

@@ -183,6 +183,27 @@ studies = get_studies_for_coordinate({"Combined": dataset}, coord=[30, -22, 50])
 print(f"Found {len(studies)} studies")
 ```
 
+### Running the high-level pipeline
+
+The :func:`coord2region.pipeline.run_pipeline` function ties together atlas
+lookup, study queries and optional AI generation. Results can be exported in
+several formats using the ``output_format`` argument:
+
+```python
+from coord2region.pipeline import run_pipeline
+
+run_pipeline(
+    inputs=[[30, -22, 50]],
+    input_type="coords",
+    outputs=["region_labels"],
+    output_format="csv",
+    output_path="results.csv",
+)
+```
+
+Supported formats include ``"json"``, ``"pickle"``, ``"csv"``, ``"pdf"`` and
+``"directory"``.
+
 For more examples and detailed API usage, please refer to the code in `combined_python_code.txt` and the examples in the repository.
 
 ### Adding NiMARE datasets and refreshing the cache

@@ -15,3 +15,4 @@ Here we show some exemplary use cases for Coord2Region.
    example_6_dataset_cache
    example_7_ai_providers
    example_8_conditional_provider_activation
+   example_9_output_formats

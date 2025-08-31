@@ -20,18 +20,13 @@ on the optional ``fpdf`` package which is lightweight and pure Python.
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import pickle
-import shutil
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, cast
 
-try:  # Optional dependency – used for PDF export
-    from fpdf import FPDF  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    FPDF = None
+from .file_handler import save_as_csv, save_as_pdf, save_batch_folder
 
 from .coord2study import get_studies_for_coordinate, prepare_datasets
 from .coord2region import AtlasMapper, MultiAtlasMapper
@@ -70,7 +65,7 @@ def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
 
     dict_results = [asdict(r) for r in results]
 
-    if fmt in {"json", "pickle", "csv"}:
+    if fmt in {"json", "pickle"}:
         os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
 
     if fmt == "json":
@@ -84,59 +79,15 @@ def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
         return
 
     if fmt == "csv":
-        fieldnames = ["coordinate", "region_labels", "summary", "studies", "image"]
-        with open(path, "w", newline="", encoding="utf8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for row in dict_results:
-                flat = {
-                    k: json.dumps(v) if isinstance(v, (list, dict)) else v
-                    for k, v in row.items()
-                }
-                writer.writerow(flat)
+        save_as_csv(results, path)
         return
 
     if fmt == "pdf":
-        if FPDF is None:  # pragma: no cover - optional dependency
-            raise ImportError(
-                "PDF export requires the optional 'fpdf' package to be installed."
-            )
-        if len(results) > 1 or os.path.isdir(path):
-            os.makedirs(path, exist_ok=True)
-        for idx, res in enumerate(results, start=1):
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            if res.coordinate is not None:
-                pdf.multi_cell(0, 10, f"Coordinate: {res.coordinate}")
-            if res.summary:
-                pdf.multi_cell(0, 10, res.summary)
-            if res.image:
-                try:  # pragma: no cover - image handling depends on PIL
-                    pdf.image(res.image, w=100)
-                except Exception:
-                    pass
-            fname = (
-                os.path.join(path, f"result_{idx}.pdf")
-                if os.path.isdir(path) or len(results) > 1
-                else path
-            )
-            pdf.output(fname)
+        save_as_pdf(results, path)
         return
 
     if fmt == "directory":
-        os.makedirs(path, exist_ok=True)
-        for idx, res in enumerate(dict_results, start=1):
-            out_dir = os.path.join(path, f"result_{idx}")
-            os.makedirs(out_dir, exist_ok=True)
-            with open(os.path.join(out_dir, "result.json"), "w", encoding="utf8") as f:
-                json.dump(res, f, indent=2)
-            img = res.get("image")
-            if img and os.path.exists(img):
-                try:
-                    shutil.copy(img, os.path.join(out_dir, os.path.basename(img)))
-                except Exception:
-                    pass
+        save_batch_folder(results, path)
         return
 
     raise ValueError(f"Unknown export format: {fmt}")
