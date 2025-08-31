@@ -1,7 +1,13 @@
-"""LLM utilities for prompt construction and summary generation."""
+"""LLM utilities for prompt construction and summary generation.
 
-from typing import Any, Dict, List, Optional, Tuple, Union
-from typing import Iterator
+The summary generation helpers provide an in-memory LRU cache keyed by
+``(model, prompt)``. The cache size can be controlled with the
+``cache_size`` parameter on the public functions; setting it to ``0``
+disables caching.
+"""
+
+from collections import OrderedDict
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -179,7 +185,9 @@ def generate_region_image_prompt(
     atlas_context = ""
     atlas_labels = region_info.get("atlas_labels") or {}
     if include_atlas_labels and isinstance(atlas_labels, dict) and atlas_labels:
-        atlas_parts = [f"{atlas_name}: {label}" for atlas_name, label in atlas_labels.items()]
+        atlas_parts = [
+            f"{atlas_name}: {label}" for atlas_name, label in atlas_labels.items()
+        ]
         atlas_context = (
             "According to brain atlases, this region corresponds to: "
             + ", ".join(atlas_parts)
@@ -269,8 +277,13 @@ def generate_summary(
     atlas_labels: Optional[Dict[str, str]] = None,
     prompt_template: Optional[str] = None,
     max_tokens: int = 1000,
+    cache_size: int = 128,
 ) -> str:
-    """Generate a text summary for a coordinate based on studies."""
+    """Generate a text summary for a coordinate based on studies.
+
+    Results are cached in an LRU cache keyed by ``(model, prompt)``. Use
+    ``cache_size=0`` to disable caching or increase the size if needed.
+    """
     # Build base prompt with study information
     prompt = generate_llm_prompt(
         studies,
@@ -292,8 +305,24 @@ def generate_summary(
         else:
             prompt = atlas_info + prompt
 
-    # Generate and return the summary using the AI interface
-    return ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
+    # Generate and return the summary using the AI interface with caching
+    key = (model, prompt)
+    cache: "OrderedDict[Tuple[str, str], str]" = generate_summary._cache
+    if cache_size > 0:
+        cached = cache.get(key)
+        if cached is not None:
+            cache.move_to_end(key)
+            return cached
+
+    result = ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
+
+    if cache_size > 0:
+        cache[key] = result
+        cache.move_to_end(key)
+        while len(cache) > cache_size:
+            cache.popitem(last=False)
+
+    return result
 
 
 async def generate_summary_async(
@@ -305,9 +334,12 @@ async def generate_summary_async(
     atlas_labels: Optional[Dict[str, str]] = None,
     prompt_template: Optional[str] = None,
     max_tokens: int = 1000,
+    cache_size: int = 128,
 ) -> str:
-    """Asynchronously generate a text summary for a coordinate."""
+    """Asynchronously generate a text summary for a coordinate.
 
+    Results are cached in an LRU cache keyed by ``(model, prompt)``.
+    """
     prompt = generate_llm_prompt(
         studies,
         coordinate,
@@ -327,7 +359,25 @@ async def generate_summary_async(
         else:
             prompt = atlas_info + prompt
 
-    return await ai.generate_text_async(model=model, prompt=prompt, max_tokens=max_tokens)
+    key = (model, prompt)
+    cache: "OrderedDict[Tuple[str, str], str]" = generate_summary_async._cache
+    if cache_size > 0:
+        cached = cache.get(key)
+        if cached is not None:
+            cache.move_to_end(key)
+            return cached
+
+    result = await ai.generate_text_async(
+        model=model, prompt=prompt, max_tokens=max_tokens
+    )
+
+    if cache_size > 0:
+        cache[key] = result
+        cache.move_to_end(key)
+        while len(cache) > cache_size:
+            cache.popitem(last=False)
+
+    return result
 
 
 def stream_summary(
@@ -339,9 +389,14 @@ def stream_summary(
     atlas_labels: Optional[Dict[str, str]] = None,
     prompt_template: Optional[str] = None,
     max_tokens: int = 1000,
+    cache_size: int = 128,
 ) -> Iterator[str]:
-    """Stream a text summary for a coordinate in chunks."""
+    """Stream a text summary for a coordinate in chunks.
 
+    Responses are cached and subsequent calls with the same ``model`` and
+    ``prompt`` will yield cached chunks. Disable caching with
+    ``cache_size=0``.
+    """
     prompt = generate_llm_prompt(
         studies,
         coordinate,
@@ -361,7 +416,34 @@ def stream_summary(
         else:
             prompt = atlas_info + prompt
 
-    return ai.stream_generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
+    key = (model, prompt)
+    cache: "OrderedDict[Tuple[str, str], List[str]]" = stream_summary._cache
+    if cache_size > 0:
+        cached_chunks = cache.get(key)
+        if cached_chunks is not None:
+            cache.move_to_end(key)
+            for chunk in cached_chunks:
+                yield chunk
+            return
+
+    chunks: List[str] = []
+    try:
+        for chunk in ai.stream_generate_text(
+            model=model, prompt=prompt, max_tokens=max_tokens
+        ):
+            chunks.append(chunk)
+            yield chunk
+    finally:
+        if cache_size > 0 and chunks:
+            cache[key] = chunks
+            cache.move_to_end(key)
+            while len(cache) > cache_size:
+                cache.popitem(last=False)
+
+
+generate_summary._cache = OrderedDict()
+generate_summary_async._cache = OrderedDict()
+stream_summary._cache = OrderedDict()
 
 
 __all__ = [
@@ -373,4 +455,3 @@ __all__ = [
     "generate_summary_async",
     "stream_summary",
 ]
-

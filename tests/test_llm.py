@@ -153,27 +153,64 @@ def test_generate_region_image_prompt_custom_template():
 
 @patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
 def test_generate_summary_calls_ai(mock_prompt):
+    generate_summary._cache.clear()
     ai = MagicMock()
     ai.generate_text.return_value = "SUMMARY"
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result = generate_summary(ai, studies, coord)
+    result = generate_summary(ai, studies, coord, cache_size=0)
 
     mock_prompt.assert_called_once()
-    ai.generate_text.assert_called_once_with(model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000)
+    ai.generate_text.assert_called_once_with(
+        model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
+    )
     assert result == "SUMMARY"
+
+
+@patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
+def test_generate_summary_uses_cache(mock_prompt):
+    generate_summary._cache.clear()
+    ai = MagicMock()
+    ai.generate_text.return_value = "SUMMARY"
+    studies = _sample_studies()
+    coord = [1, 2, 3]
+
+    result1 = generate_summary(ai, studies, coord, cache_size=2)
+    result2 = generate_summary(ai, studies, coord, cache_size=2)
+
+    ai.generate_text.assert_called_once()
+    assert result1 == result2 == "SUMMARY"
+
+
+
+@patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
+def test_generate_summary_uses_cache(mock_prompt):
+    generate_summary._cache.clear()
+    ai = MagicMock()
+    ai.generate_text.return_value = "SUMMARY"
+    studies = _sample_studies()
+    coord = [1, 2, 3]
+
+    result1 = generate_summary(ai, studies, coord, cache_size=2)
+    result2 = generate_summary(ai, studies, coord, cache_size=2)
+
+    ai.generate_text.assert_called_once()
+    assert result1 == result2 == "SUMMARY"
 
 
 @patch("coord2region.llm.generate_llm_prompt")
 def test_generate_summary_includes_atlas_labels(mock_prompt):
+    generate_summary._cache.clear()
     base = "Intro\nSTUDIES REPORTING ACTIVATION AT MNI COORDINATE more"
     mock_prompt.return_value = base
     ai = MagicMock()
     ai.generate_text.return_value = "SUMMARY"
 
     atlas_labels = {"Atlas": "Label"}
-    generate_summary(ai, [], [1, 2, 3], atlas_labels=atlas_labels)
+    generate_summary(
+        ai, [], [1, 2, 3], atlas_labels=atlas_labels, cache_size=0
+    )
 
     prompt_used = ai.generate_text.call_args.kwargs["prompt"]
     assert "ATLAS LABELS FOR THIS COORDINATE" in prompt_used
@@ -182,12 +219,15 @@ def test_generate_summary_includes_atlas_labels(mock_prompt):
 
 @patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
 def test_generate_summary_async_calls_ai(mock_prompt):
+    generate_summary_async._cache.clear()
     ai = MagicMock()
     ai.generate_text_async = AsyncMock(return_value="SUMMARY")
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result = asyncio.run(generate_summary_async(ai, studies, coord))
+    result = asyncio.run(
+        generate_summary_async(ai, studies, coord, cache_size=0)
+    )
 
     mock_prompt.assert_called_once()
     ai.generate_text_async.assert_awaited_once_with(
@@ -198,17 +238,20 @@ def test_generate_summary_async_calls_ai(mock_prompt):
 
 @patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
 def test_stream_summary_calls_ai(mock_prompt):
+    stream_summary._cache.clear()
     ai = MagicMock()
 
     def _stream(**kwargs):
         yield "A"
         yield "B"
 
-    ai.stream_generate_text = MagicMock(side_effect=lambda **kwargs: _stream())
+    ai.stream_generate_text = MagicMock(
+        side_effect=lambda **kwargs: _stream()
+    )
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result = list(stream_summary(ai, studies, coord))
+    result = list(stream_summary(ai, studies, coord, cache_size=0))
 
     mock_prompt.assert_called_once()
     ai.stream_generate_text.assert_called_once_with(

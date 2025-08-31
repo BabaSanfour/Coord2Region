@@ -15,6 +15,7 @@ sys.modules.setdefault("google", google_module)
 sys.modules.setdefault("google.genai", google_module.genai)
 
 from coord2region.ai_model_interface import AIModelInterface
+from coord2region.ai_model_interface import ModelProvider
 
 
 @pytest.mark.unit
@@ -59,3 +60,25 @@ def test_generate_text_runtime_error():
         ai = AIModelInterface(openrouter_api_key="key")
         with pytest.raises(RuntimeError):
             ai.generate_text("deepseek-r1", "oops")
+
+
+@pytest.mark.unit
+def test_generate_text_retries_transient_failure():
+    class FlakyProvider(ModelProvider):
+        def __init__(self):
+            super().__init__({"m": "m"})
+            self.calls = 0
+
+        def generate_text(self, model: str, prompt, max_tokens: int) -> str:
+            self.calls += 1
+            if self.calls < 2:
+                raise RuntimeError("temp")
+            return "ok"
+
+    ai = AIModelInterface()
+    provider = FlakyProvider()
+    ai.register_provider(provider)
+
+    result = ai.generate_text("m", "hi")
+    assert result == "ok"
+    assert provider.calls == 2

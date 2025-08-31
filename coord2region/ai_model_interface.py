@@ -1,11 +1,17 @@
-"""AI model interface and provider abstraction."""
+"""AI model interface and provider abstraction with retry support.
+
+All provider calls are wrapped with an exponential backoff retry to cope
+with transient failures. The retry behaviour can be configured via
+``retries`` parameters on the public methods.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import os
+import time
 from abc import ABC, abstractmethod
-from typing import Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 
 # Optional imports. Each provider checks for the modules it needs and will only
@@ -35,6 +41,50 @@ except Exception:  # pragma: no cover - optional dependency
 PromptType = Union[str, List[Dict[str, str]]]
 
 
+def _retry_sync(func, retries: int = 3, base_delay: float = 0.1) -> Any:
+    """Retry ``func`` with exponential backoff."""
+    delay = base_delay
+    for attempt in range(retries):
+        try:
+            return func()
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            time.sleep(delay)
+            delay *= 2
+
+
+async def _retry_async(func, retries: int = 3, base_delay: float = 0.1) -> Any:
+    """Asynchronously retry ``func`` with exponential backoff."""
+    delay = base_delay
+    for attempt in range(retries):
+        try:
+            return await func()
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            await asyncio.sleep(delay)
+            delay *= 2
+
+
+def _retry_stream(func, retries: int = 3, base_delay: float = 0.1) -> Iterator[str]:
+    """Retry a streaming function yielding from successive attempts."""
+
+    def generator() -> Iterator[str]:
+        delay = base_delay
+        for attempt in range(retries):
+            try:
+                yield from func()
+                return
+            except Exception:
+                if attempt == retries - 1:
+                    raise
+                time.sleep(delay)
+                delay *= 2
+
+    return generator()
+
+
 class ModelProvider(ABC):
     """Base class for all model providers."""
 
@@ -42,6 +92,7 @@ class ModelProvider(ABC):
         self.models = models
 
     def supports(self, model: str) -> bool:
+        """Return ``True`` if the provider exposes the requested model."""
         return model in self.models
 
     @abstractmethod
@@ -57,7 +108,6 @@ class ModelProvider(ABC):
         The default implementation simply delegates to :meth:`generate_text`
         using ``asyncio.to_thread`` to avoid blocking the event loop.
         """
-
         return await asyncio.to_thread(self.generate_text, model, prompt, max_tokens)
 
     def stream_generate_text(
@@ -69,7 +119,6 @@ class ModelProvider(ABC):
         method. The base implementation yields the full response in a single
         chunk.
         """
-
         yield self.generate_text(model, prompt, max_tokens)
 
 
@@ -87,10 +136,16 @@ class GeminiProvider(ModelProvider):
         super().__init__(models)
         self.client = genai.Client(api_key=api_key)
 
-    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover - thin wrapper
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover - thin wrapper
         if isinstance(prompt, list):
-            prompt = " ".join(msg["content"] for msg in prompt if msg.get("role") == "user")
-        response = self.client.models.generate_content(model=model, contents=[prompt])
+            prompt = " ".join(
+                msg["content"] for msg in prompt if msg.get("role") == "user"
+            )
+        response = self.client.models.generate_content(
+            model=model, contents=[prompt]
+        )
         return response.text
 
     async def generate_text_async(
@@ -111,7 +166,9 @@ class GeminiProvider(ModelProvider):
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> Iterator[str]:  # pragma: no cover - thin wrapper
         if isinstance(prompt, list):
-            prompt = " ".join(msg["content"] for msg in prompt if msg.get("role") == "user")
+            prompt = " ".join(
+                msg["content"] for msg in prompt if msg.get("role") == "user"
+            )
         stream = self.client.models.generate_content(
             model=model, contents=[prompt], stream=True
         )
@@ -135,7 +192,9 @@ class OpenRouterProvider(ModelProvider):
         openai.api_base = "https://openrouter.ai/api/v1"  # type: ignore[attr-defined]
         openai.api_key = api_key  # type: ignore[attr-defined]
 
-    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
         else:
@@ -158,7 +217,9 @@ class OpenAIProvider(ModelProvider):
         super().__init__(models)
         openai.api_key = api_key  # type: ignore[attr-defined]
 
-    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
         else:
@@ -178,7 +239,8 @@ class OpenAIProvider(ModelProvider):
         else:
             messages = prompt
         if hasattr(openai.ChatCompletion, "acreate"):
-            response = await openai.ChatCompletion.acreate(  # type: ignore[attr-defined]
+            chat_comp = openai.ChatCompletion  # type: ignore[attr-defined]
+            response = await chat_comp.acreate(
                 model=self.models[model],
                 messages=messages,
                 max_tokens=max_tokens,
@@ -218,7 +280,9 @@ class AnthropicProvider(ModelProvider):
         super().__init__(models)
         self.client = anthropic.Anthropic(api_key=api_key)
 
-    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
         else:
@@ -245,7 +309,9 @@ class HuggingFaceProvider(ModelProvider):
         super().__init__(models)
         self.api_key = api_key
 
-    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover
         headers = {"Authorization": f"Bearer {self.api_key}"}
         data = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
         url = self.API_URL.format(model=self.models[model])
@@ -280,10 +346,11 @@ class AIModelInterface:
         enabled_providers: Optional[List[str]] = None,
     ):
         """Initialise the interface and register available providers."""
-
         env_providers = os.environ.get("AI_MODEL_PROVIDERS")
         if enabled_providers is None and env_providers:
-            enabled_providers = [p.strip() for p in env_providers.split(",") if p.strip()]
+            enabled_providers = [
+                p.strip() for p in env_providers.split(",") if p.strip()
+            ]
 
         self._providers: Dict[str, ModelProvider] = {}
 
@@ -311,7 +378,6 @@ class AIModelInterface:
 
     def register_provider(self, provider: ModelProvider) -> None:
         """Register a provider and its models."""
-
         for model in provider.models:
             self._providers[model] = provider
 
@@ -320,16 +386,27 @@ class AIModelInterface:
         model: str,
         prompt: PromptType,
         max_tokens: int = 1000,
+        retries: int = 3,
     ) -> str:
-        """Generate text using a registered model."""
+        """Generate text using a registered model with retry.
 
+        Parameters
+        ----------
+        model, prompt, max_tokens : see :meth:`ModelProvider.generate_text`
+        retries : int
+            Number of attempts before raising the final error.
+        """
         provider = self._providers.get(model)
         if provider is None:
+            available = list(self._providers.keys())
             raise ValueError(
-                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
+                f"Model '{model}' not supported. Available models: {available}"
             )
         try:
-            return provider.generate_text(model, prompt, max_tokens=max_tokens)
+            return _retry_sync(
+                lambda: provider.generate_text(model, prompt, max_tokens=max_tokens),
+                retries=retries,
+            )
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating response with {model}: {e}") from e
 
@@ -338,16 +415,29 @@ class AIModelInterface:
         model: str,
         prompt: PromptType,
         max_tokens: int = 1000,
+        retries: int = 3,
     ) -> str:
-        """Asynchronously generate text using a registered model."""
+        """Asynchronously generate text using a registered model with retry.
 
+        Parameters
+        ----------
+        model, prompt, max_tokens : see :meth:`ModelProvider.generate_text`
+        retries : int
+            Number of attempts before raising the final error.
+        """
         provider = self._providers.get(model)
         if provider is None:
+            available = list(self._providers.keys())
             raise ValueError(
-                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
+                f"Model '{model}' not supported. Available models: {available}"
             )
         try:
-            return await provider.generate_text_async(model, prompt, max_tokens=max_tokens)
+            return await _retry_async(
+                lambda: provider.generate_text_async(
+                    model, prompt, max_tokens=max_tokens
+                ),
+                retries=retries,
+            )
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating response with {model}: {e}") from e
 
@@ -356,22 +446,35 @@ class AIModelInterface:
         model: str,
         prompt: PromptType,
         max_tokens: int = 1000,
+        retries: int = 3,
     ) -> Iterator[str]:
-        """Stream generated text chunks from a registered model."""
+        """Stream generated text chunks from a registered model with retry.
 
+        Parameters
+        ----------
+        model, prompt, max_tokens : see
+            :meth:`ModelProvider.stream_generate_text`
+        retries : int
+            Number of attempts before raising the final error.
+        """
         provider = self._providers.get(model)
         if provider is None:
+            available = list(self._providers.keys())
             raise ValueError(
-                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
+                f"Model '{model}' not supported. Available models: {available}"
             )
         try:
-            return provider.stream_generate_text(model, prompt, max_tokens=max_tokens)
+            return _retry_stream(
+                lambda: provider.stream_generate_text(
+                    model, prompt, max_tokens=max_tokens
+                ),
+                retries=retries,
+            )
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating response with {model}: {e}") from e
 
     def list_available_models(self) -> List[str]:
         """Return the list of registered model names."""
-
         return list(self._providers.keys())
 
 
@@ -379,4 +482,3 @@ __all__ = [
     "AIModelInterface",
     "ModelProvider",
 ]
-
