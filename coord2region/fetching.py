@@ -10,7 +10,7 @@ import numpy as np
 import nilearn.datasets
 import mne
 from nibabel.nifti1 import Nifti1Image
-from .file_handler import AtlasFileHandler
+from .utils.file_handler import AtlasFileHandler
 from .utils import pack_vol_output, pack_surf_output
 
 logger = logging.getLogger(__name__)

@@ -17,6 +17,8 @@ from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
 from nimare.utils import get_resource_path
 
+from .utils import resolve_data_dir
+
 logger = logging.getLogger(__name__)
 
 # Check for Biopython availability (needed for abstract fetching)
@@ -276,30 +278,21 @@ def prepare_datasets(
         The deduplicated NiMARE ``Dataset`` object, or ``None`` if preparation
         fails.
     """
-    # Resolve data directory similar to AtlasFileHandler so cached datasets and
-    # atlases can reside alongside one another.
-    home_dir = os.path.expanduser("~")
-    if data_dir is None:
-        base_dir = os.path.join(home_dir, "coord2region")
-    elif os.path.isabs(data_dir):
-        base_dir = data_dir
-    else:
-        base_dir = os.path.join(home_dir, data_dir)
+    base_dir = resolve_data_dir(data_dir)
+    base_dir.mkdir(parents=True, exist_ok=True)
 
-    os.makedirs(base_dir, exist_ok=True)
+    cache_dir = base_dir / "cached_data"
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
-    cache_dir = os.path.join(base_dir, "cached_data")
-    os.makedirs(cache_dir, exist_ok=True)
-
-    dedup_path = os.path.join(cache_dir, "deduplicated_dataset.pkl.gz")
+    dedup_path = cache_dir / "deduplicated_dataset.pkl.gz"
 
     if os.path.exists(dedup_path):
-        dataset = load_deduplicated_dataset(dedup_path)
+        dataset = load_deduplicated_dataset(str(dedup_path))
         if dataset is not None:
             return dataset
 
-    datasets = fetch_datasets(base_dir, sources=sources)
-    return deduplicate_datasets(datasets, save_dir=cache_dir)
+    datasets = fetch_datasets(str(base_dir), sources=sources)
+    return deduplicate_datasets(datasets, save_dir=str(cache_dir))
 
 
 def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:

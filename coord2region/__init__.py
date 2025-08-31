@@ -10,7 +10,7 @@ from .coord2region import (
     MultiAtlasMapper,
 )
 from .fetching import AtlasFetcher
-from .file_handler import AtlasFileHandler
+from .utils.file_handler import AtlasFileHandler
 
 # coord2study utilities
 from .coord2study import (

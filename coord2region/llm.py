@@ -9,7 +9,7 @@ disables caching.
 from collections import OrderedDict
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .image_utils import generate_mni152_image, add_watermark
+from .utils.image_utils import generate_mni152_image, add_watermark
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates

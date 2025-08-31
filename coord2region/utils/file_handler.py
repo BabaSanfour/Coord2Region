@@ -21,6 +21,7 @@ except Exception:  # pragma: no cover - optional dependency
 
 import mne
 from .utils import fetch_labels, pack_vol_output
+from .paths import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,9 @@ class AtlasFileHandler:
     Parameters
     ----------
     data_dir : str or None, optional
-        Directory for downloaded atlas files. Defaults to ``~/coord2region``.
+        Base directory for downloaded atlas files. Defaults to
+        ``~/coord2region``. Relative paths are interpreted relative to the
+        user's home directory.
     subjects_dir : str or None, optional
         FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is inferred from
         :func:`mne.get_config`.
@@ -39,7 +42,13 @@ class AtlasFileHandler:
     Attributes
     ----------
     data_dir : str
-        Directory where atlas files are stored.
+        Base directory where atlas files and other outputs are stored.
+    cached_data_dir : str
+        Directory for cached datasets.
+    generated_images_dir : str
+        Directory for generated images.
+    results_dir : str
+        Directory for exported results.
     subjects_dir : str or None
         Path to the FreeSurfer subjects directory.
     nilearn_data : str
@@ -58,8 +67,9 @@ class AtlasFileHandler:
         """Initialize the file handler.
 
         data_dir : str or None, optional
-            Directory for storing downloaded atlas files. Defaults to
-            ``~/coord2region``.
+            Base directory for storing downloaded atlas files. Defaults to
+            ``~/coord2region``. Relative paths are interpreted relative to the
+            user's home directory.
         subjects_dir : str or None, optional
             Path to the FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is
             looked up via :func:`mne.get_config`.
@@ -73,13 +83,8 @@ class AtlasFileHandler:
         --------
         >>> AtlasFileHandler()  # doctest: +SKIP
         """
-        home_dir = os.path.expanduser("~")
-        if data_dir is None:
-            self.data_dir = os.path.join(home_dir, "coord2region")
-        elif os.path.isabs(data_dir):
-            self.data_dir = data_dir
-        else:
-            self.data_dir = os.path.join(home_dir, data_dir)
+        base_dir = resolve_data_dir(data_dir)
+        self.data_dir = str(base_dir)
 
         try:
             os.makedirs(self.data_dir, exist_ok=True)
@@ -89,7 +94,19 @@ class AtlasFileHandler:
         if not os.access(self.data_dir, os.W_OK):
             raise ValueError(f"Data directory {self.data_dir} is not writable")
 
-        self.nilearn_data = os.path.join(home_dir, "nilearn_data")
+        self.cached_data_dir = os.path.join(self.data_dir, "cached_data")
+        self.generated_images_dir = os.path.join(self.data_dir, "generated_images")
+        self.results_dir = os.path.join(self.data_dir, "results")
+        self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
+
+        for path in (
+            self.cached_data_dir,
+            self.generated_images_dir,
+            self.results_dir,
+            self.nilearn_data,
+        ):
+            os.makedirs(path, exist_ok=True)
+
         if subjects_dir is not None:
             self.subjects_dir = subjects_dir
         else:

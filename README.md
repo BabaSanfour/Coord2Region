@@ -112,6 +112,22 @@ AI-generated images are watermarked by default with the text
 the watermark, call :func:`coord2region.llm.generate_region_image` with
 ``watermark=False``.
 
+## Data directory
+
+All downloads and generated files are stored in a configurable base directory.
+By default this is ``~/coord2region`` but a different location can be supplied
+via the ``data_dir`` parameter used throughout the library.  The helper
+``coord2region.utils.resolve_data_dir`` expands the user supplied path and
+creates several standard subdirectories:
+
+- ``cached_data/`` – cached NiMARE datasets and intermediate files.
+- ``generated_images/`` – images produced by :func:`pipeline.run_pipeline`.
+- ``results/`` – exported outputs such as JSON or PDF reports.
+
+Relative paths passed to functions like ``output_path`` are resolved against the
+base directory, allowing simple names such as ``"results/report.pdf"`` to be
+placed within the coord2region workspace.
+
 ## Environment Variables
 
 Some features rely on external AI services. Provide the following optional

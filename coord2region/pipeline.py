@@ -25,10 +25,11 @@ import json
 import os
 import pickle
 import logging
+from pathlib import Path
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
-from .file_handler import save_as_csv, save_as_pdf, save_batch_folder
+from .utils.file_handler import save_as_csv, save_as_pdf, save_batch_folder
 
 from .coord2study import get_studies_for_coordinate, prepare_datasets
 from .coord2region import AtlasMapper, MultiAtlasMapper
@@ -40,6 +41,7 @@ from .llm import (
     generate_summary_async,
 )
 from .ai_model_interface import AIModelInterface
+from .utils import resolve_data_dir
 
 
 @dataclass
@@ -132,7 +134,8 @@ def run_pipeline(
     output_format : {"json", "pickle", "csv", "pdf", "directory"}, optional
         When provided, results are exported to the specified format.
     output_path : str, optional
-        Target file or directory for ``output_format``. Required when an
+        Target file or directory for ``output_format``. Relative paths are
+        resolved against the base data directory. Required when an
         ``output_format`` is specified.
     image_backend : {"ai", "nilearn", "both"}, optional
         Backend used to generate images when ``"images"`` is requested.
@@ -188,7 +191,20 @@ def run_pipeline(
         )
 
     kwargs = brain_insights_kwargs or {}
-    data_dir = kwargs.get("data_dir", "nimare_data")
+    base_dir = resolve_data_dir(kwargs.get("data_dir"))
+    base_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = base_dir / "cached_data"
+    image_dir = base_dir / "generated_images"
+    results_dir = base_dir / "results"
+    for p in (cache_dir, image_dir, results_dir):
+        p.mkdir(parents=True, exist_ok=True)
+
+    if output_path is not None:
+        op = Path(output_path).expanduser()
+        if not op.is_absolute():
+            op = results_dir / op
+        output_path = str(op)
+
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
     use_atlases = kwargs.get("use_atlases", True)
@@ -201,7 +217,7 @@ def run_pipeline(
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
-    dataset = prepare_datasets(data_dir) if use_cached_dataset else None
+    dataset = prepare_datasets(str(base_dir)) if use_cached_dataset else None
     ai = None
     if provider_configs:
         ai = AIModelInterface()
@@ -221,7 +237,7 @@ def run_pipeline(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            fetcher = AtlasFetcher()
+            fetcher = AtlasFetcher(data_dir=str(base_dir))
             mappers = []
             for name in atlas_names:
                 try:
@@ -305,7 +321,7 @@ def run_pipeline(
             )
 
         if "images" in outputs:
-            img_dir = os.path.join(data_dir, "generated_images")
+            img_dir = image_dir
             os.makedirs(img_dir, exist_ok=True)
 
             if image_backend in {"ai", "both"} and ai:
@@ -317,27 +333,23 @@ def run_pipeline(
                     img_bytes = generate_region_image(
                         ai, coord, region_info, model=image_model, watermark=True
                     )
-                    img_path = os.path.join(
-                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                    )
+                    img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:
                         f.write(img_bytes)
-                    res.image = res.image or img_path
-                    res.images["ai"] = img_path
+                    res.image = res.image or str(img_path)
+                    res.images["ai"] = str(img_path)
                 except Exception:
                     pass
 
             if image_backend in {"nilearn", "both"}:
                 try:
                     img_bytes = generate_mni152_image(coord)
-                    img_path = os.path.join(
-                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                    )
+                    img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:
                         f.write(img_bytes)
                     if res.image is None:
-                        res.image = img_path
-                    res.images["nilearn"] = img_path
+                        res.image = str(img_path)
+                    res.images["nilearn"] = str(img_path)
                 except Exception:
                     pass
 
@@ -367,7 +379,20 @@ async def _run_pipeline_async(
     """Asynchronous implementation backing :func:`run_pipeline`."""
 
     kwargs = brain_insights_kwargs or {}
-    data_dir = kwargs.get("data_dir", "nimare_data")
+    base_dir = resolve_data_dir(kwargs.get("data_dir"))
+    base_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = base_dir / "cached_data"
+    image_dir = base_dir / "generated_images"
+    results_dir = base_dir / "results"
+    for p in (cache_dir, image_dir, results_dir):
+        p.mkdir(parents=True, exist_ok=True)
+
+    if output_path is not None:
+        op = Path(output_path).expanduser()
+        if not op.is_absolute():
+            op = results_dir / op
+        output_path = str(op)
+
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
     use_atlases = kwargs.get("use_atlases", True)
@@ -380,7 +405,11 @@ async def _run_pipeline_async(
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
-    dataset = await asyncio.to_thread(prepare_datasets, data_dir) if use_cached_dataset else None
+    dataset = (
+        await asyncio.to_thread(prepare_datasets, str(base_dir))
+        if use_cached_dataset
+        else None
+    )
     ai = None
     if provider_configs:
         ai = AIModelInterface()
@@ -400,7 +429,7 @@ async def _run_pipeline_async(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            fetcher = AtlasFetcher()
+            fetcher = AtlasFetcher(data_dir=str(base_dir))
             mappers: List[AtlasMapper] = []
             for name in atlas_names:
                 try:
@@ -481,7 +510,7 @@ async def _run_pipeline_async(
             )
 
         if "images" in outputs:
-            img_dir = os.path.join(data_dir, "generated_images")
+            img_dir = image_dir
             os.makedirs(img_dir, exist_ok=True)
 
             if image_backend in {"ai", "both"} and ai:
@@ -494,12 +523,10 @@ async def _run_pipeline_async(
                     img_bytes = generate_region_image(
                         ai, coord, region_info, model=image_model, watermark=True
                     )
-                    img_path = os.path.join(
-                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                    )
+                    img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:
                         f.write(img_bytes)
-                    return img_path
+                    return str(img_path)
 
                 try:
                     path = await asyncio.to_thread(_save_ai_image)
@@ -512,12 +539,10 @@ async def _run_pipeline_async(
 
                 def _save_nilearn_image() -> str:
                     img_bytes = generate_mni152_image(coord)
-                    img_path = os.path.join(
-                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                    )
+                    img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:
                         f.write(img_bytes)
-                    return img_path
+                    return str(img_path)
 
                 try:
                     path = await asyncio.to_thread(_save_nilearn_image)
