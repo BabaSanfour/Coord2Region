@@ -89,6 +89,8 @@ Set these variables in your shell before running examples or tests, for example:
 ```bash
 export GEMINI_API_KEY="..."
 export OPENROUTER_API_KEY="..."
+export OPENAI_API_KEY="..."
+export ANTHROPIC_API_KEY="..."
 ```
 
 ### Selecting AI providers

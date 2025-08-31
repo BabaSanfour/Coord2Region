@@ -3,6 +3,12 @@
 All provider calls are wrapped with an exponential backoff retry to cope
 with transient failures. The retry behaviour can be configured via
 ``retries`` parameters on the public methods.
+
+The :class:`AIModelInterface` constructor accepts optional API keys for
+multiple providers. Notably, the ``openai_api_key`` and
+``anthropic_api_key`` parameters (or the ``OPENAI_API_KEY`` and
+``ANTHROPIC_API_KEY`` environment variables) enable OpenAI and
+Anthropic models respectively.
 """
 
 from __future__ import annotations
@@ -362,7 +368,34 @@ class AIModelInterface:
         huggingface_api_key: Optional[str] = None,
         enabled_providers: Optional[List[str]] = None,
     ):
-        """Initialise the interface and register available providers."""
+        """Initialise the interface and register available providers.
+
+        The interface accepts optional API keys for different large language
+        model providers. The ``openai_api_key`` and ``anthropic_api_key``
+        parameters, or their respective ``OPENAI_API_KEY`` and
+        ``ANTHROPIC_API_KEY`` environment variables, enable OpenAI and
+        Anthropic support.
+
+        Parameters
+        ----------
+        gemini_api_key : str, optional
+            API key for Google Gemini.
+        openrouter_api_key : str, optional
+            API key for OpenRouter.
+        openai_api_key : str, optional
+            API key for OpenAI. Defaults to ``OPENAI_API_KEY`` environment
+            variable if not provided.
+        anthropic_api_key : str, optional
+            API key for Anthropic. Defaults to ``ANTHROPIC_API_KEY`` environment
+            variable if not provided.
+        huggingface_api_key : str, optional
+            API key for HuggingFace Inference API. Defaults to
+            ``HUGGINGFACE_API_KEY`` or ``HUGGINGFACEHUB_API_TOKEN`` environment
+            variables.
+        enabled_providers : list[str], optional
+            Restrict registration to this subset of providers. By default, all
+            providers with available API keys are enabled.
+        """
         env_providers = os.environ.get("AI_MODEL_PROVIDERS")
         if enabled_providers is None and env_providers:
             enabled_providers = [
