@@ -1,8 +1,11 @@
 import json
 import os
+from io import BytesIO
 from unittest.mock import AsyncMock, patch
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from coord2region.pipeline import PipelineResult, _export_results, run_pipeline
 
@@ -135,6 +138,55 @@ def test_run_pipeline_export_pdf(
     )
     assert res[0].summary == "SUM"
     mock_save_pdf.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_mni152_image")
+def test_pipeline_nilearn_backend(mock_gen, tmp_path):
+    buf = BytesIO()
+    Image.new("RGB", (10, 10), color="white").save(buf, format="PNG")
+    mock_gen.return_value = buf.getvalue()
+
+    res = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["images"],
+        image_backend="nilearn",
+        brain_insights_kwargs={
+            "use_atlases": False,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+        },
+    )
+    path = res[0].images.get("nilearn")
+    assert path and os.path.exists(path)
+
+
+@pytest.mark.unit
+@patch("coord2region.ai_model_interface.AIModelInterface.generate_image")
+def test_pipeline_ai_watermark(mock_generate, tmp_path):
+    buf = BytesIO()
+    Image.new("RGB", (100, 50), color="black").save(buf, format="PNG")
+    mock_generate.return_value = buf.getvalue()
+
+    res = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["images"],
+        image_backend="ai",
+        brain_insights_kwargs={
+            "use_atlases": False,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+            "gemini_api_key": "key",
+        },
+    )
+
+    path = res[0].images.get("ai")
+    assert path and os.path.exists(path)
+    arr = np.array(Image.open(path))
+    bottom = arr[int(arr.shape[0] * 0.8) :, :, :]
+    assert np.any(bottom > 0)
 
 
 @pytest.mark.unit
