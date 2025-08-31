@@ -12,7 +12,7 @@ openpyxl
 Pillow
 fpdf
 openai
-google-generativeai
+google-genai
 anthropic
 transformers
 diffusers

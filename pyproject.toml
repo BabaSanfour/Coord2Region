@@ -31,11 +31,11 @@ dependencies = [
     "openpyxl",
     "Pillow",
     "fpdf",
-    "openai",
-    "google-genai",
     "anthropic",
-    "transformers",
     "diffusers",
+    "google-genai",
+    "openai",
+    "transformers",
 ]
 
 [project.urls]

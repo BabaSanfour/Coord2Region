@@ -24,6 +24,7 @@
 
 - Python 3.8 or higher
 - Nilearn 0.11 or newer
+- Gemini integration relies on the `google-genai` package, imported via `from google import genai`
 
 ### Installing for End Users
 
