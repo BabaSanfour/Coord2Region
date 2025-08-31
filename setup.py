@@ -44,7 +44,7 @@ setuptools.setup(
         "biopython",
         "mne",
         "nibabel",
-        "nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn",
+        "nilearn>=0.11",
         "nimare>=0.4.0",
         "numpy",
         "pandas",
