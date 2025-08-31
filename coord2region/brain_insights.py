@@ -13,6 +13,12 @@ GEMINI_API_KEY : Optional
     API key for Google's Generative AI (Gemini) models.
 OPENROUTER_API_KEY : Optional
     API key for OpenRouter to access DeepSeek models.
+OPENAI_API_KEY : Optional
+    API key for OpenAI's GPT models.
+ANTHROPIC_API_KEY : Optional
+    API key for Anthropic's Claude models.
+HUGGINGFACE_API_KEY or HUGGINGFACEHUB_API_TOKEN : Optional
+    Access token for the HuggingFace Inference API.
 DALLE_API_KEY : Optional
     API key for OpenAI's DALL·E image generation.
 STABILITY_API_KEY : Optional

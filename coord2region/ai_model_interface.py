@@ -1,190 +1,260 @@
-"""
-AI Model Interface
+"""AI model interface and provider abstraction."""
 
-A unified interface for interacting with various AI models including Google's Gemini 
-and DeepSeek models via OpenRouter. This module provides a simple way to generate
-text from different AI models using a consistent API.
-"""
+from __future__ import annotations
 
-import openai
-from google import genai
+import os
+from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union
 
 
+# Optional imports. Each provider checks for the modules it needs and will only
+# be instantiated when its requirements are available. This keeps the
+# dependency surface small for users who only need a subset of providers.
+try:  # pragma: no cover - simple import guard
+    import openai  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    openai = None  # type: ignore
+
+try:  # pragma: no cover
+    from google import genai  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    genai = None  # type: ignore
+
+try:  # pragma: no cover
+    import anthropic  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    anthropic = None  # type: ignore
+
+try:  # pragma: no cover
+    import requests  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    requests = None  # type: ignore
+
+
+PromptType = Union[str, List[Dict[str, str]]]
+
+
+class ModelProvider(ABC):
+    """Base class for all model providers."""
+
+    def __init__(self, models: Dict[str, str]):
+        self.models = models
+
+    def supports(self, model: str) -> bool:
+        return model in self.models
+
+    @abstractmethod
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:
+        """Generate text from the given model."""
+
+
+class GeminiProvider(ModelProvider):
+    """Provider for Google Gemini models."""
+
+    def __init__(self, api_key: str):
+        if genai is None:  # pragma: no cover - handled in tests
+            raise ImportError("google-genai is not installed")
+        models = {
+            "gemini-1.0-pro": "gemini-1.0-pro",
+            "gemini-1.5-pro": "gemini-1.5-pro",
+            "gemini-2.0-flash": "gemini-2.0-flash",
+        }
+        super().__init__(models)
+        self.client = genai.Client(api_key=api_key)
+
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, list):
+            prompt = " ".join(msg["content"] for msg in prompt if msg.get("role") == "user")
+        response = self.client.models.generate_content(model=model, contents=[prompt])
+        return response.text
+
+
+class OpenRouterProvider(ModelProvider):
+    """Provider for models available via OpenRouter (e.g., DeepSeek)."""
+
+    def __init__(self, api_key: str):
+        if openai is None:  # pragma: no cover
+            raise ImportError("openai is not installed")
+        models = {
+            "deepseek-r1": "deepseek/deepseek-r1:free",
+            "deepseek-chat-v3-0324": "deepseek/deepseek-chat-v3-0324:free",
+        }
+        super().__init__(models)
+        openai.api_base = "https://openrouter.ai/api/v1"  # type: ignore[attr-defined]
+        openai.api_key = api_key  # type: ignore[attr-defined]
+
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            model=self.models[model],
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+        return response["choices"][0]["message"]["content"]
+
+
+class OpenAIProvider(ModelProvider):
+    """Provider for OpenAI's GPT models."""
+
+    def __init__(self, api_key: str):
+        if openai is None:  # pragma: no cover
+            raise ImportError("openai is not installed")
+        models = {"gpt-4": "gpt-4"}
+        super().__init__(models)
+        openai.api_key = api_key  # type: ignore[attr-defined]
+
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            model=self.models[model],
+            messages=messages,
+            max_tokens=max_tokens,
+        )
+        return response["choices"][0]["message"]["content"]
+
+
+class AnthropicProvider(ModelProvider):
+    """Provider for Anthropic's Claude models."""
+
+    def __init__(self, api_key: str):
+        if anthropic is None:  # pragma: no cover
+            raise ImportError("anthropic is not installed")
+        models = {
+            "claude-3-haiku": "claude-3-haiku-20240307",
+            "claude-3-opus": "claude-3-opus-20240229",
+        }
+        super().__init__(models)
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        response = self.client.messages.create(
+            model=self.models[model],
+            max_tokens=max_tokens,
+            messages=messages,
+        )
+        if response.content:
+            return response.content[0].text
+        return ""
+
+
+class HuggingFaceProvider(ModelProvider):
+    """Provider using the HuggingFace Inference API."""
+
+    API_URL = "https://api-inference.huggingface.co/models/{model}"
+
+    def __init__(self, api_key: str):
+        if requests is None:  # pragma: no cover
+            raise ImportError("requests is required for the HuggingFace provider")
+        models = {"distilgpt2": "distilgpt2"}
+        super().__init__(models)
+        self.api_key = api_key
+
+    def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:  # pragma: no cover
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        data = {"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}
+        url = self.API_URL.format(model=self.models[model])
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        resp.raise_for_status()
+        result = resp.json()
+        if isinstance(result, list) and result and "generated_text" in result[0]:
+            return result[0]["generated_text"]
+        if isinstance(result, dict) and "generated_text" in result:
+            return result["generated_text"]
+        return str(result)
+
+
 class AIModelInterface:
-    """
-    A unified interface for generating text from various AI models.
-    
-    This class provides a consistent way to interact with different language models
-    including Google's Gemini and DeepSeek models via OpenRouter.
-    
-    Attributes
-    ----------
-    model_configs : Dict[str, Dict]
-        Configuration details for supported models.
-    gemini_client : Optional[genai.Client]
-        Client for Gemini (Google GenAI) if initialized.
-    """
+    """Register and dispatch to different AI model providers."""
+
+    _PROVIDER_CLASSES = {
+        "gemini": GeminiProvider,
+        "openrouter": OpenRouterProvider,
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+        "huggingface": HuggingFaceProvider,
+    }
 
     def __init__(
-        self, 
-        gemini_api_key: Optional[str] = None, 
-        openrouter_api_key: Optional[str] = None
+        self,
+        gemini_api_key: Optional[str] = None,
+        openrouter_api_key: Optional[str] = None,
+        openai_api_key: Optional[str] = None,
+        anthropic_api_key: Optional[str] = None,
+        huggingface_api_key: Optional[str] = None,
+        enabled_providers: Optional[List[str]] = None,
     ):
-        """
-        Initialize the AI model interface with API keys.
-        
-        Parameters
-        ----------
-        gemini_api_key : Optional[str]
-            API key for Google's Generative AI (Gemini) models.
-        openrouter_api_key : Optional[str]
-            API key for OpenRouter to access DeepSeek models.
-        """
-        self.model_configs = {
-            # Example Gemini models
-            "gemini-1.0-pro": {"type": "gemini", "model_name": "gemini-1.0-pro"},
-            "gemini-1.5-pro": {"type": "gemini", "model_name": "gemini-1.5-pro"},
-            "gemini-2.0-flash": {"type": "gemini", "model_name": "gemini-2.0-flash"},
-            
-            # Example DeepSeek models
-            "deepseek-r1": {"type": "deepseek", "model_name": "deepseek/deepseek-r1:free"},
-            "deepseek-chat-v3-0324": {
-                "type": "deepseek", 
-                "model_name": "deepseek/deepseek-chat-v3-0324:free"
-            }
+        """Initialise the interface and register available providers."""
+
+        env_providers = os.environ.get("AI_MODEL_PROVIDERS")
+        if enabled_providers is None and env_providers:
+            enabled_providers = [p.strip() for p in env_providers.split(",") if p.strip()]
+
+        self._providers: Dict[str, ModelProvider] = {}
+
+        provider_kwargs = {
+            "gemini": gemini_api_key or os.environ.get("GEMINI_API_KEY"),
+            "openrouter": openrouter_api_key or os.environ.get("OPENROUTER_API_KEY"),
+            "openai": openai_api_key or os.environ.get("OPENAI_API_KEY"),
+            "anthropic": anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY"),
+            "huggingface": huggingface_api_key
+            or os.environ.get("HUGGINGFACE_API_KEY")
+            or os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
         }
-        
-        # Initialize Gemini client if key provided
-        self.gemini_client = None
-        if gemini_api_key:
-            self.gemini_client = genai.Client(api_key=gemini_api_key)
-        
-        # Configure OpenRouter if key provided
-        if openrouter_api_key:
-            openai.api_base = "https://openrouter.ai/api/v1"
-            openai.api_key = openrouter_api_key
-    
+
+        for name, cls in self._PROVIDER_CLASSES.items():
+            if enabled_providers is not None and name not in enabled_providers:
+                continue
+            api_key = provider_kwargs.get(name)
+            if not api_key:
+                continue
+            try:
+                provider = cls(api_key)
+            except Exception:
+                continue
+            self.register_provider(provider)
+
+    def register_provider(self, provider: ModelProvider) -> None:
+        """Register a provider and its models."""
+
+        for model in provider.models:
+            self._providers[model] = provider
+
     def generate_text(
-        self, 
-        model: str, 
-        prompt: Union[str, List[Dict[str, str]]], 
-        max_tokens: int = 1000
+        self,
+        model: str,
+        prompt: PromptType,
+        max_tokens: int = 1000,
     ) -> str:
-        """
-        Generate text using the specified AI model.
-        
-        Parameters
-        ----------
-        model : str
-            Name of the model to use (e.g., "gemini-2.0-flash", "deepseek-chat-v3-0324").
-        prompt : Union[str, List[Dict[str, str]]]
-            Either a string prompt for simple queries or a list of message dictionaries
-            for chat-based models in the format [{"role": "user", "content": "..."}].
-        max_tokens : int, default=1000
-            Maximum number of tokens to generate.
-        
-        Returns
-        -------
-        str
-            Generated text response from the model.
-        
-        Raises
-        ------
-        ValueError
-            If the model is not supported or required API key isn't set.
-        RuntimeError
-            If there's an error generating the response.
-        """
-        if model not in self.model_configs:
+        """Generate text using a registered model."""
+
+        provider = self._providers.get(model)
+        if provider is None:
             raise ValueError(
-                f"Model '{model}' not supported. "
-                f"Available models: {list(self.model_configs.keys())}"
+                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
             )
-        
-        config = self.model_configs[model]
-        model_type = config["type"]
-        model_name = config["model_name"]
-        
         try:
-            # Handle Gemini models
-            if model_type == "gemini":
-                if not self.gemini_client:
-                    raise ValueError(
-                        "Gemini API key not provided. Initialize AIModelInterface with gemini_api_key."
-                    )
-                
-                # Convert chat-style messages to a single string if needed
-                if isinstance(prompt, list):
-                    prompt = " ".join(
-                        msg["content"] for msg in prompt if msg["role"] == "user"
-                    )
-                
-                # Generate text with the Gemini client
-                response = self.gemini_client.models.generate_content(
-                    model=model_name,
-                    contents=[prompt]
-                )
-                return response.text
-            
-            # Handle DeepSeek models via OpenRouter
-            elif model_type == "deepseek":
-                if not openai.api_key:
-                    raise ValueError(
-                        "OpenRouter API key not provided. Initialize AIModelInterface with openrouter_api_key."
-                    )
-                
-                # Format messages for chat completion
-                if isinstance(prompt, str):
-                    messages = [{"role": "user", "content": prompt}]
-                else:
-                    messages = prompt
-                
-                response = openai.ChatCompletion.create(
-                    model=model_name,
-                    messages=messages,
-                )
-                return response['choices'][0]['message']['content']
-            
-            else:
-                raise ValueError(f"Unknown model type: {model_type}")
-                
-        except Exception as e:
-            raise RuntimeError(f"Error generating response with {model}: {str(e)}")
+            return provider.generate_text(model, prompt, max_tokens=max_tokens)
+        except Exception as e:  # pragma: no cover - simple re-raise
+            raise RuntimeError(f"Error generating response with {model}: {e}") from e
 
     def list_available_models(self) -> List[str]:
-        """
-        Get a list of all available models.
-        
-        Returns
-        -------
-        List[str]
-            List of model names that can be used with this interface.
-        """
-        return list(self.model_configs.keys())
+        """Return the list of registered model names."""
+
+        return list(self._providers.keys())
 
 
-# Example usage
-if __name__ == "__main__":
-    # Initialize with (fake) API keys
-    ai_interface = AIModelInterface(
-        gemini_api_key="AIzaSyBXXXXXX",
-        openrouter_api_key="sk-or-v1-XXXXXXXXXXXXXXXXXXXXXXXX"
-    )
-    
-    # Example: Use a Gemini model
-    gemini_response = ai_interface.generate_text(
-        model="gemini-2.0-flash",
-        prompt="How does AI work?"
-    )
-    print("Gemini response:")
-    print(gemini_response)
-    print("\n" + "-"*50 + "\n")
-    
-    # Example: Use a DeepSeek model
-    deepseek_response = ai_interface.generate_text(
-        model="deepseek-r1",
-        prompt="What is the meaning of life?"
-    )
-    print("DeepSeek response:")
-    print(deepseek_response)
+__all__ = [
+    "AIModelInterface",
+    "ModelProvider",
+]
+

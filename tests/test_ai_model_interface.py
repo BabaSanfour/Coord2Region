@@ -1,5 +1,7 @@
 import sys
 import types
+import sys
+import types
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -45,10 +47,9 @@ def test_generate_text_invalid_model():
 def test_generate_text_missing_keys():
     openai_stub.api_key = None
     ai = AIModelInterface()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         ai.generate_text("gemini-2.0-flash", "test")
-    openai_stub.api_key = None
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         ai.generate_text("deepseek-r1", "test")
 
 

@@ -13,3 +13,4 @@ Here we show some exemplary use cases for Coord2Region.
    :maxdepth: 1
 
    example_6_dataset_cache
+   example_7_ai_providers

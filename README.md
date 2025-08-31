@@ -76,6 +76,11 @@ environment variables to enable them:
 
 - `GEMINI_API_KEY` – Google's Generative AI (Gemini) models.
 - `OPENROUTER_API_KEY` – OpenRouter access for DeepSeek models.
+- `OPENAI_API_KEY` – OpenAI's GPT models (e.g. GPT‑4).
+- `ANTHROPIC_API_KEY` – Anthropic's Claude models.
+- `HUGGINGFACE_API_KEY` or `HUGGINGFACEHUB_API_TOKEN` – HuggingFace Inference API.
+- `AI_MODEL_PROVIDERS` – Comma separated list of providers to enable. If unset,
+  all providers with available API keys are registered.
 - `DALLE_API_KEY` – OpenAI's DALL·E image generation service.
 - `STABILITY_API_KEY` – Stability AI image generation service.
 
@@ -84,6 +89,24 @@ Set these variables in your shell before running examples or tests, for example:
 ```bash
 export GEMINI_API_KEY="..."
 export OPENROUTER_API_KEY="..."
+```
+
+### Selecting AI providers
+
+The :class:`coord2region.ai_model_interface.AIModelInterface` can dispatch to
+multiple backends. Providers are enabled when their API key is supplied and can
+be limited with the ``AI_MODEL_PROVIDERS`` environment variable or the
+``enabled_providers`` constructor argument.
+
+```python
+from coord2region.ai_model_interface import AIModelInterface
+
+# Enable only OpenAI and Gemini providers
+ai = AIModelInterface(
+    openai_api_key="sk-...", gemini_api_key="...", enabled_providers=["openai", "gemini"]
+)
+print(ai.list_available_models())
+response = ai.generate_text(model="gpt-4", prompt="Hello")
 ```
 
 ## Usage
