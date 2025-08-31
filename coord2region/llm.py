@@ -259,13 +259,42 @@ def generate_region_image_prompt(
 
 
 # ---------------------------------------------------------------------------
-# Summary generation
+# Image generation
 # ---------------------------------------------------------------------------
 
 try:  # Optional dependency
     from .ai_model_interface import AIModelInterface
 except Exception:  # pragma: no cover - used only when dependencies missing
     AIModelInterface = None  # type: ignore
+
+
+def generate_region_image(
+    ai: "AIModelInterface",
+    coordinate: Union[List[float], Tuple[float, float, float]],
+    region_info: Dict[str, Any],
+    image_type: str = "anatomical",
+    model: str = "stabilityai/stable-diffusion-2",
+    include_atlas_labels: bool = True,
+    prompt_template: Optional[str] = None,
+    retries: int = 3,
+    **kwargs: Any,
+) -> bytes:
+    """Generate an image for a brain region using an AI model."""
+    prompt = generate_region_image_prompt(
+        coordinate,
+        region_info,
+        image_type=image_type,
+        include_atlas_labels=include_atlas_labels,
+        prompt_template=prompt_template,
+    )
+    return ai.generate_image(
+        model=model, prompt=prompt, retries=retries, **kwargs
+    )
+
+
+# ---------------------------------------------------------------------------
+# Summary generation
+# ---------------------------------------------------------------------------
 
 
 def generate_summary(
@@ -451,6 +480,7 @@ __all__ = [
     "IMAGE_PROMPT_TEMPLATES",
     "generate_llm_prompt",
     "generate_region_image_prompt",
+    "generate_region_image",
     "generate_summary",
     "generate_summary_async",
     "stream_summary",

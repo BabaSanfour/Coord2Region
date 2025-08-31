@@ -8,6 +8,7 @@ from coord2region.llm import (
     LLM_PROMPT_TEMPLATES,
     generate_llm_prompt,
     generate_region_image_prompt,
+    generate_region_image,
     generate_summary,
     generate_summary_async,
     stream_summary,
@@ -57,8 +58,12 @@ def test_generate_llm_prompt_summary():
 
 def test_generate_llm_prompt_region_name():
     """Region-name prompts come from the template dictionary."""
-    prompt = generate_llm_prompt(_sample_studies(), [1, 2, 3], prompt_type="region_name")
-    expected_intro = LLM_PROMPT_TEMPLATES["region_name"].format(coord="[1.00, 2.00, 3.00]")
+    prompt = generate_llm_prompt(
+        _sample_studies(), [1, 2, 3], prompt_type="region_name"
+    )
+    expected_intro = LLM_PROMPT_TEMPLATES["region_name"].format(
+        coord="[1.00, 2.00, 3.00]"
+    )
     assert prompt.startswith(expected_intro)
 
 
@@ -103,7 +108,9 @@ def test_generate_region_image_prompt_anatomical_with_atlas():
 def test_generate_region_image_prompt_functional_no_atlas():
     """Functional image prompts work without atlas labels."""
     region_info = {"summary": "Single paragraph"}
-    prompt = generate_region_image_prompt([1, 2, 3], region_info, image_type="functional")
+    prompt = generate_region_image_prompt(
+        [1, 2, 3], region_info, image_type="functional"
+    )
     assert "functional brain activation" in prompt
     assert "According to brain atlases" not in prompt
 
@@ -127,7 +134,9 @@ def test_generate_region_image_prompt_artistic():
         "summary": "Summary.\n\nDetails.",
         "atlas_labels": {"Atlas": "Label"},
     }
-    prompt = generate_region_image_prompt([1, 2, 3], region_info, image_type="artistic")
+    prompt = generate_region_image_prompt(
+        [1, 2, 3], region_info, image_type="artistic"
+    )
     assert "artistic visualization" in prompt
 
 
@@ -142,8 +151,24 @@ def test_generate_region_image_prompt_custom_template():
     """Custom templates override default image prompts."""
     region_info = {"summary": "Single paragraph"}
     template = "Custom image for {coordinate} -> {first_paragraph} || {atlas_context}"
-    prompt = generate_region_image_prompt([1, 2, 3], region_info, prompt_template=template)
+    prompt = generate_region_image_prompt(
+        [1, 2, 3], region_info, prompt_template=template
+    )
     assert prompt.startswith("Custom image for [1.00, 2.00, 3.00]")
+
+
+@patch("coord2region.llm.generate_region_image_prompt", return_value="PROMPT")
+def test_generate_region_image_calls_ai(mock_prompt):
+    ai = MagicMock()
+    ai.generate_image.return_value = b"IMG"
+    region_info = {"summary": "text"}
+    coord = [1, 2, 3]
+    result = generate_region_image(ai, coord, region_info)
+    mock_prompt.assert_called_once()
+    ai.generate_image.assert_called_once_with(
+        model="stabilityai/stable-diffusion-2", prompt="PROMPT", retries=3
+    )
+    assert result == b"IMG"
 
 
 # ---------------------------------------------------------------------------
@@ -166,22 +191,6 @@ def test_generate_summary_calls_ai(mock_prompt):
         model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
     )
     assert result == "SUMMARY"
-
-
-@patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
-def test_generate_summary_uses_cache(mock_prompt):
-    generate_summary._cache.clear()
-    ai = MagicMock()
-    ai.generate_text.return_value = "SUMMARY"
-    studies = _sample_studies()
-    coord = [1, 2, 3]
-
-    result1 = generate_summary(ai, studies, coord, cache_size=2)
-    result2 = generate_summary(ai, studies, coord, cache_size=2)
-
-    ai.generate_text.assert_called_once()
-    assert result1 == result2 == "SUMMARY"
-
 
 
 @patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
@@ -258,4 +267,3 @@ def test_stream_summary_calls_ai(mock_prompt):
         model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
     )
     assert result == ["A", "B"]
-

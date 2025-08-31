@@ -307,7 +307,10 @@ class HuggingFaceProvider(ModelProvider):
     def __init__(self, api_key: str):
         if requests is None:  # pragma: no cover
             raise ImportError("requests is required for the HuggingFace provider")
-        models = {"distilgpt2": "distilgpt2"}
+        models = {
+            "distilgpt2": "distilgpt2",
+            "stabilityai/stable-diffusion-2": "stabilityai/stable-diffusion-2",
+        }
         super().__init__(models)
         self.api_key = api_key
 
@@ -325,6 +328,18 @@ class HuggingFaceProvider(ModelProvider):
         if isinstance(result, dict) and "generated_text" in result:
             return result["generated_text"]
         return str(result)
+
+    def generate_image(self, model: str, prompt: str) -> bytes:
+        """Generate an image using the HuggingFace Inference API."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "image/png",
+        }
+        data = {"inputs": prompt}
+        url = self.API_URL.format(model=self.models[model])
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        resp.raise_for_status()
+        return resp.content
 
 
 class AIModelInterface:
@@ -478,6 +493,31 @@ class AIModelInterface:
             )
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating response with {model}: {e}") from e
+
+    def generate_image(
+        self,
+        model: str,
+        prompt: str,
+        retries: int = 3,
+        **kwargs: Any,
+    ) -> bytes:
+        """Generate an image using a registered model with retry."""
+        provider = self._providers.get(model)
+        if provider is None or not hasattr(provider, "generate_image"):
+            available = [
+                m for m, p in self._providers.items() if hasattr(p, "generate_image")
+            ]
+            raise ValueError(
+                f"Model '{model}' not supported for image generation. "
+                f"Available image models: {available}"
+            )
+        try:
+            return _retry_sync(
+                lambda: getattr(provider, "generate_image")(model, prompt, **kwargs),
+                retries=retries,
+            )
+        except Exception as e:  # pragma: no cover - simple re-raise
+            raise RuntimeError(f"Error generating image with {model}: {e}") from e
 
     def list_available_models(self) -> List[str]:
         """Return the list of registered model names."""
