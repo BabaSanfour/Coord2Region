@@ -315,7 +315,7 @@ def run_pipeline(
                 }
                 try:
                     img_bytes = generate_region_image(
-                        ai, coord, region_info, model=image_model
+                        ai, coord, region_info, model=image_model, watermark=True
                     )
                     img_path = os.path.join(
                         img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
@@ -492,7 +492,7 @@ async def _run_pipeline_async(
 
                 def _save_ai_image() -> str:
                     img_bytes = generate_region_image(
-                        ai, coord, region_info, model=image_model
+                        ai, coord, region_info, model=image_model, watermark=True
                     )
                     img_path = os.path.join(
                         img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"

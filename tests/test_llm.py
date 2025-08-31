@@ -159,7 +159,8 @@ def test_generate_region_image_prompt_custom_template():
 
 
 @patch("coord2region.llm.generate_region_image_prompt", return_value="PROMPT")
-def test_generate_region_image_calls_ai(mock_prompt):
+@patch("coord2region.llm.add_watermark", return_value=b"WM")
+def test_generate_region_image_calls_ai(mock_watermark, mock_prompt):
     ai = MagicMock()
     ai.generate_image.return_value = b"IMG"
     region_info = {"summary": "text"}
@@ -169,7 +170,8 @@ def test_generate_region_image_calls_ai(mock_prompt):
     ai.generate_image.assert_called_once_with(
         model="stabilityai/stable-diffusion-2", prompt="PROMPT", retries=3
     )
-    assert result == b"IMG"
+    mock_watermark.assert_called_once_with(b"IMG")
+    assert result == b"WM"
 
 
 # ---------------------------------------------------------------------------

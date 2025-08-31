@@ -9,7 +9,7 @@ disables caching.
 from collections import OrderedDict
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .image_utils import generate_mni152_image
+from .image_utils import generate_mni152_image, add_watermark
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -279,9 +279,42 @@ def generate_region_image(
     include_atlas_labels: bool = True,
     prompt_template: Optional[str] = None,
     retries: int = 3,
+    watermark: bool = True,
     **kwargs: Any,
 ) -> bytes:
-    """Generate an image for a brain region using an AI model."""
+    """Generate an image for a brain region using an AI model.
+
+    Parameters
+    ----------
+    ai : AIModelInterface
+        Interface used to generate images.
+    coordinate : sequence of float
+        MNI coordinate for the target region.
+    region_info : dict
+        Dictionary containing region summary and atlas labels.
+    image_type : str, optional
+        Type of image to generate. Defaults to ``"anatomical"``.
+    model : str, optional
+        Name of the AI model to use. Defaults to
+        ``"stabilityai/stable-diffusion-2"``.
+    include_atlas_labels : bool, optional
+        Whether to include atlas label context in the prompt. Defaults to
+        ``True``.
+    prompt_template : str, optional
+        Custom template overriding default prompts.
+    retries : int, optional
+        Number of times to retry generation on failure. Defaults to ``3``.
+    watermark : bool, optional
+        When ``True`` (default), a semi-transparent watermark is applied to the
+        resulting image.
+    **kwargs : Any
+        Additional keyword arguments passed to the underlying AI provider.
+
+    Returns
+    -------
+    bytes
+        PNG image bytes, optionally watermarked.
+    """
     prompt = generate_region_image_prompt(
         coordinate,
         region_info,
@@ -289,9 +322,12 @@ def generate_region_image(
         include_atlas_labels=include_atlas_labels,
         prompt_template=prompt_template,
     )
-    return ai.generate_image(
+    img_bytes = ai.generate_image(
         model=model, prompt=prompt, retries=retries, **kwargs
     )
+    if watermark:
+        img_bytes = add_watermark(img_bytes)
+    return img_bytes
 
 
 # ---------------------------------------------------------------------------

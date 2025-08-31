@@ -107,6 +107,11 @@ results = run_pipeline(
 print("Nilearn image saved to", results[0].images["nilearn"])
 ```
 
+AI-generated images are watermarked by default with the text
+``"AI approximation for illustrative purposes"``. To produce an image without
+the watermark, call :func:`coord2region.llm.generate_region_image` with
+``watermark=False``.
+
 ## Environment Variables
 
 Some features rely on external AI services. Provide the following optional

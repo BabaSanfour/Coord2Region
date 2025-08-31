@@ -42,6 +42,11 @@ image while saving the results to a PDF file:
     print(results[0].summary)
     print("Image saved to", results[0].image)
 
+AI-generated images are watermarked by default with the text
+``"AI approximation for illustrative purposes"``. To produce an image without
+the watermark, call :func:`coord2region.llm.generate_region_image` with
+``watermark=False``.
+
 Command-line interface
 ----------------------
 

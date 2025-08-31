@@ -16,6 +16,7 @@ import numpy as np
 import nibabel as nib
 from nilearn.datasets import load_mni152_template
 from nilearn.plotting import plot_stat_map
+from PIL import Image, ImageDraw, ImageFont
 
 
 def generate_mni152_image(
@@ -65,3 +66,65 @@ def generate_mni152_image(
     display.close()
     buffer.seek(0)
     return buffer.getvalue()
+
+
+def add_watermark(
+    image_bytes: bytes,
+    text: str = "AI approximation for illustrative purposes",
+) -> bytes:
+    """Overlay a semi-transparent watermark onto image bytes.
+
+    Parameters
+    ----------
+    image_bytes : bytes
+        Original image encoded as bytes.
+    text : str, optional
+        Watermark text to overlay. Defaults to
+        ``"AI approximation for illustrative purposes"``.
+
+    Returns
+    -------
+    bytes
+        PNG-encoded image bytes with the watermark applied.
+    """
+
+    base = Image.open(BytesIO(image_bytes)).convert("RGBA")
+    width, height = base.size
+
+    # Create transparent overlay for the text
+    overlay = Image.new("RGBA", base.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    # Choose a font size that covers much of the image width
+    font_size = max(12, int(width * 0.05))
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+    except Exception:
+        font = ImageFont.load_default()
+
+    # If using a scalable font, adjust size so text fits within image
+    if hasattr(font, "getbbox"):
+        while True:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            if text_width <= width * 0.9 or font_size <= 10:
+                break
+            font_size -= 2
+            try:
+                font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+            except Exception:
+                font = ImageFont.load_default()
+                break
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    position = ((width - text_width) / 2, height - text_height - height * 0.05)
+
+    draw.text(position, text, font=font, fill=(255, 255, 255, 128))
+    watermarked = Image.alpha_composite(base, overlay)
+
+    out = BytesIO()
+    watermarked.convert("RGB").save(out, format="PNG")
+    out.seek(0)
+    return out.getvalue()
