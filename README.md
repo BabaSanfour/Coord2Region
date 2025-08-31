@@ -93,6 +93,20 @@ print("Image saved to", results[0].image)
 See `examples/example_pipeline.py` for a complete script demonstrating mixed
 outputs and PDF export.
 
+The ``image_backend`` parameter controls how images are generated. Set it to
+``"nilearn"`` to create a simple brain overlay without relying on an AI model,
+or ``"both"`` to obtain outputs from both approaches:
+
+```python
+results = run_pipeline(
+    inputs=[[30, -22, 50]],
+    input_type="coords",
+    outputs=["images"],
+    image_backend="nilearn",
+)
+print("Nilearn image saved to", results[0].images["nilearn"])
+```
+
 ## Environment Variables
 
 Some features rely on external AI services. Provide the following optional

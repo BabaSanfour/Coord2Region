@@ -9,6 +9,8 @@ disables caching.
 from collections import OrderedDict
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
+from .image_utils import generate_mni152_image
+
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
 # ---------------------------------------------------------------------------
@@ -557,6 +559,7 @@ __all__ = [
     "generate_llm_prompt",
     "generate_region_image_prompt",
     "generate_region_image",
+    "generate_mni152_image",
     "generate_summary",
     "generate_batch_summaries",
     "generate_summary_async",

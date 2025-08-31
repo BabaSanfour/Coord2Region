@@ -384,7 +384,7 @@ def save_as_csv(results: Sequence[Any], path: str) -> None:
 
     dict_results = _results_to_dicts(results)
 
-    fieldnames = ["coordinate", "region_labels", "summary", "studies", "image"]
+    fieldnames = ["coordinate", "region_labels", "summary", "studies", "image", "images"]
     os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
     with open(path, "w", newline="", encoding="utf8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -394,7 +394,7 @@ def save_as_csv(results: Sequence[Any], path: str) -> None:
                 k: json.dumps(v) if isinstance(v, (list, dict)) else v
                 for k, v in row.items()
             }
-            writer.writerow(flat)
+            writer.writerow({k: flat.get(k) for k in fieldnames})
 
 
 def save_batch_folder(results: Sequence[Any], path: str) -> None:
@@ -413,3 +413,9 @@ def save_batch_folder(results: Sequence[Any], path: str) -> None:
                 shutil.copy(img, os.path.join(out_dir, os.path.basename(img)))
             except Exception:
                 pass
+        for extra in res.get("images", {}).values():
+            if extra and os.path.exists(extra):
+                try:
+                    shutil.copy(extra, os.path.join(out_dir, os.path.basename(extra)))
+                except Exception:
+                    pass

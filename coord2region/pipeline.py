@@ -34,6 +34,7 @@ from .coord2study import get_studies_for_coordinate, prepare_datasets
 from .coord2region import AtlasMapper, MultiAtlasMapper
 from .fetching import AtlasFetcher
 from .llm import (
+    generate_mni152_image,
     generate_region_image,
     generate_summary,
     generate_summary_async,
@@ -56,7 +57,10 @@ class PipelineResult:
     studies : List[Dict[str, Any]]
         Raw study metadata dictionaries.
     image : Optional[str]
-        Path or URL to a generated image representing the region.
+        Path or URL to the first generated image (kept for backward
+        compatibility).
+    images : Dict[str, str]
+        Mapping of image backend names to generated image paths.
     """
 
     coordinate: Optional[List[float]] = None
@@ -64,6 +68,7 @@ class PipelineResult:
     summary: Optional[str] = None
     studies: List[Dict[str, Any]] = field(default_factory=list)
     image: Optional[str] = None
+    images: Dict[str, str] = field(default_factory=dict)
 
 
 def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
@@ -105,6 +110,7 @@ def run_pipeline(
     outputs: Sequence[str],
     output_format: Optional[str] = None,
     output_path: Optional[str] = None,
+    image_backend: str = "ai",
     *,
     brain_insights_kwargs: Optional[Dict[str, Any]] = None,
     async_mode: bool = False,
@@ -128,6 +134,9 @@ def run_pipeline(
     output_path : str, optional
         Target file or directory for ``output_format``. Required when an
         ``output_format`` is specified.
+    image_backend : {"ai", "nilearn", "both"}, optional
+        Backend used to generate images when ``"images"`` is requested.
+        Defaults to ``"ai"``.
     brain_insights_kwargs : dict, optional
         Additional configuration for datasets, atlases and model providers. The
         name is kept for backward compatibility with earlier API versions. To
@@ -160,6 +169,10 @@ def run_pipeline(
     if output_format and output_path is None:
         raise ValueError("output_path must be provided when output_format is set")
 
+    image_backend = image_backend.lower()
+    if image_backend not in {"ai", "nilearn", "both"}:
+        raise ValueError("image_backend must be 'ai', 'nilearn' or 'both'")
+
     if async_mode:
         return asyncio.run(
             _run_pipeline_async(
@@ -168,6 +181,7 @@ def run_pipeline(
                 outputs,
                 output_format,
                 output_path,
+                image_backend=image_backend,
                 brain_insights_kwargs=brain_insights_kwargs,
                 progress_callback=progress_callback,
             )
@@ -290,25 +304,42 @@ def run_pipeline(
                 ai, res.studies, coord, atlas_labels=res.region_labels or None
             )
 
-        if "images" in outputs and ai:
-            region_info = {
-                "summary": res.summary or "",
-                "atlas_labels": res.region_labels,
-            }
-            try:
-                img_bytes = generate_region_image(
-                    ai, coord, region_info, model=image_model
-                )
-                img_dir = os.path.join(data_dir, "generated_images")
-                os.makedirs(img_dir, exist_ok=True)
-                img_path = os.path.join(
-                    img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                )
-                with open(img_path, "wb") as f:
-                    f.write(img_bytes)
-                res.image = img_path
-            except Exception:
-                pass
+        if "images" in outputs:
+            img_dir = os.path.join(data_dir, "generated_images")
+            os.makedirs(img_dir, exist_ok=True)
+
+            if image_backend in {"ai", "both"} and ai:
+                region_info = {
+                    "summary": res.summary or "",
+                    "atlas_labels": res.region_labels,
+                }
+                try:
+                    img_bytes = generate_region_image(
+                        ai, coord, region_info, model=image_model
+                    )
+                    img_path = os.path.join(
+                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
+                    )
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    res.image = res.image or img_path
+                    res.images["ai"] = img_path
+                except Exception:
+                    pass
+
+            if image_backend in {"nilearn", "both"}:
+                try:
+                    img_bytes = generate_mni152_image(coord)
+                    img_path = os.path.join(
+                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
+                    )
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    if res.image is None:
+                        res.image = img_path
+                    res.images["nilearn"] = img_path
+                except Exception:
+                    pass
 
         results.append(res)
         if progress_callback:
@@ -328,6 +359,7 @@ async def _run_pipeline_async(
     outputs: Sequence[str],
     output_format: Optional[str],
     output_path: Optional[str],
+    image_backend: str,
     *,
     brain_insights_kwargs: Optional[Dict[str, Any]],
     progress_callback: Optional[Callable[[int, int, PipelineResult], None]],
@@ -448,29 +480,52 @@ async def _run_pipeline_async(
                 ai, res.studies, coord, atlas_labels=res.region_labels or None
             )
 
-        if "images" in outputs and ai:
-            region_info = {
-                "summary": res.summary or "",
-                "atlas_labels": res.region_labels,
-            }
+        if "images" in outputs:
+            img_dir = os.path.join(data_dir, "generated_images")
+            os.makedirs(img_dir, exist_ok=True)
 
-            def _save_image() -> str:
-                img_bytes = generate_region_image(
-                    ai, coord, region_info, model=image_model
-                )
-                img_dir = os.path.join(data_dir, "generated_images")
-                os.makedirs(img_dir, exist_ok=True)
-                img_path = os.path.join(
-                    img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
-                )
-                with open(img_path, "wb") as f:
-                    f.write(img_bytes)
-                return img_path
+            if image_backend in {"ai", "both"} and ai:
+                region_info = {
+                    "summary": res.summary or "",
+                    "atlas_labels": res.region_labels,
+                }
 
-            try:
-                res.image = await asyncio.to_thread(_save_image)
-            except Exception:
-                pass
+                def _save_ai_image() -> str:
+                    img_bytes = generate_region_image(
+                        ai, coord, region_info, model=image_model
+                    )
+                    img_path = os.path.join(
+                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
+                    )
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    return img_path
+
+                try:
+                    path = await asyncio.to_thread(_save_ai_image)
+                    res.image = res.image or path
+                    res.images["ai"] = path
+                except Exception:
+                    pass
+
+            if image_backend in {"nilearn", "both"}:
+
+                def _save_nilearn_image() -> str:
+                    img_bytes = generate_mni152_image(coord)
+                    img_path = os.path.join(
+                        img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
+                    )
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    return img_path
+
+                try:
+                    path = await asyncio.to_thread(_save_nilearn_image)
+                    if res.image is None:
+                        res.image = path
+                    res.images["nilearn"] = path
+                except Exception:
+                    pass
 
         return idx, res
 
