@@ -38,7 +38,13 @@ setuptools.setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn'
+        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn',
+        'pyyaml',
+        'pandas',
+        'openpyxl'
     ],
     include_package_data=True,
+    entry_points={
+        'console_scripts': ['coord2region=coord2region.cli:main']
+    },
 )

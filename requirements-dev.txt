@@ -17,3 +17,5 @@ sphinxcontrib-mermaid
 sphinx-autoapi
 myst-parser
 -e .
+pyyaml
+openpyxl

@@ -12,3 +12,5 @@ setuptools
 urllib3
 wheel
 wrapt
+pyyaml
+openpyxl

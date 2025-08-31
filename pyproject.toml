@@ -19,11 +19,17 @@ license = { text = "MIT" }
 
 dependencies = [
     "nibabel",  # Add any dependencies here
+    "pyyaml",
+    "pandas",
+    "openpyxl",
 ]
 
 [project.urls]
 Homepage = "https://github.com/pypa/Coord2Region"
 Issues = "https://github.com/pypa/Coord2Region/issues"
+
+[project.scripts]
+coord2region = "coord2region.cli:main"
 
 [tool.setuptools_scm]
 write_to = "Coord2Region/_version.py"  
