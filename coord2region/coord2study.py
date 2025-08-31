@@ -477,3 +477,4 @@ def get_studies_for_coordinate(
     dataset in ``datasets``.
     """
     return search_studies(datasets, coord, radius=radius, email=email)
+

@@ -2,6 +2,100 @@
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+# ---------------------------------------------------------------------------
+# Exposed prompt templates
+# ---------------------------------------------------------------------------
+
+# Templates for the introductory portion of LLM prompts. Users can inspect and
+# customize these as needed before passing them to :func:`generate_llm_prompt`.
+LLM_PROMPT_TEMPLATES: Dict[str, str] = {
+    "summary": (
+        "You are an advanced AI with expertise in neuroanatomy and cognitive "
+        "neuroscience. The user is interested in understanding the significance "
+        "of MNI coordinate {coord}.\n\n"
+        "Below is a list of neuroimaging studies that report activation at this "
+        "coordinate. Your task is to integrate and synthesize the knowledge from "
+        "these studies, focusing on:\n"
+        "1) The anatomical structure(s) most commonly associated with this coordinate\n"
+        "2) The typical functional roles or processes linked to activation in this "
+        "region\n"
+        "3) The main tasks or experimental conditions in which it was reported\n"
+        "4) Patterns, contradictions, or debates in the findings\n\n"
+        "Do NOT simply list each study separately. Provide an integrated, cohesive "
+        "summary.\n"
+    ),
+    "region_name": (
+        "You are a neuroanatomy expert. The user wants to identify the probable "
+        "anatomical labels for MNI coordinate {coord}. The following studies "
+        "reported activation around this location. Incorporate anatomical "
+        "knowledge and any direct references to brain regions from these studies. "
+        "If multiple labels are possible, mention all and provide rationale and "
+        "confidence levels.\n\n"
+    ),
+    "function": (
+        "You are a cognitive neuroscience expert. The user wants a deep "
+        "functional profile of the brain region(s) around MNI coordinate {coord}. "
+        "The studies below report activation at or near this coordinate. "
+        "Synthesize a clear description of:\n"
+        "1) Core functions or cognitive processes\n"
+        "2) Typical experimental paradigms or tasks\n"
+        "3) Known functional networks or connectivity\n"
+        "4) Divergent or debated viewpoints in the literature\n\n"
+    ),
+    "default": (
+        "Please analyze the following neuroimaging studies reporting activation at "
+        "MNI coordinate {coord} and provide a concise yet thorough discussion of "
+        "its anatomical location and functional significance.\n\n"
+    ),
+}
+
+
+# Templates for image prompt generation. Each template can be formatted with
+# ``coordinate``, ``first_paragraph``, and ``atlas_context`` variables.
+IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
+    "anatomical": (
+        "Create a detailed anatomical illustration of the brain region at MNI "
+        "coordinate {coordinate}.\nBased on neuroimaging studies, this location "
+        "corresponds to: {first_paragraph}\n"
+        "{atlas_context}Show a clear, labeled anatomical visualization with the "
+        "specific coordinate marked. Include surrounding brain structures for "
+        "context. Use a professional medical illustration style with accurate "
+        "colors and textures of brain tissue."
+    ),
+    "functional": (
+        "Create a functional brain activation visualization showing activity at "
+        "MNI coordinate {coordinate}.\nThis region corresponds to: {first_paragraph}\n"
+        "{atlas_context}Show the activation as a heat map or colored overlay on a "
+        "standardized brain template. Use a scientific visualization style similar "
+        "to fMRI results in neuroscience publications, with the activation at the "
+        "specified coordinate clearly highlighted."
+    ),
+    "schematic": (
+        "Create a schematic diagram of brain networks involving the region at "
+        "MNI coordinate {coordinate}.\nThis coordinate corresponds to: "
+        "{first_paragraph}\n{atlas_context}Show this region as a node in its "
+        "relevant brain networks, with connections to other regions. Use a "
+        "simplified, clean diagram style with labeled regions and connection lines "
+        "indicating functional or structural connectivity. Include a small reference "
+        "brain to indicate the location."
+    ),
+    "artistic": (
+        "Create an artistic visualization of the brain region at MNI coordinate "
+        "{coordinate}.\nThis region is: {first_paragraph}\n"
+        "{atlas_context}Create an artistic interpretation that conveys the function "
+        "of this region through metaphorical or abstract elements, while still "
+        "maintaining scientific accuracy in the brain anatomy. Balance creativity "
+        "with neuroscientific precision."
+    ),
+    "default": (
+        "Create a clear visualization of the brain region at MNI coordinate "
+        "{coordinate}.\n"
+        "Based on neuroimaging studies, this region corresponds to: {first_paragraph}\n"
+        "{atlas_context}Show this region clearly marked on a standard brain template "
+        "with proper anatomical context."
+    ),
+}
+
 
 def generate_llm_prompt(
     studies: List[Dict[str, Any]],

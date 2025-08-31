@@ -22,6 +22,8 @@ from .coord2study import (
     get_studies_for_coordinate,
 )
 from .prompt_utils import (
+    IMAGE_PROMPT_TEMPLATES,
+    LLM_PROMPT_TEMPLATES,
     generate_llm_prompt,
     generate_region_image_prompt,
 )
@@ -42,4 +44,8 @@ __all__ = [
     "prepare_datasets",
     "search_studies",
     "get_studies_for_coordinate",
+    "generate_llm_prompt",
+    "generate_region_image_prompt",
+    "LLM_PROMPT_TEMPLATES",
+    "IMAGE_PROMPT_TEMPLATES",
 ]

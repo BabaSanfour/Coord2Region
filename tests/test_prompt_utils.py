@@ -1,6 +1,8 @@
 """Unit tests for coord2region.prompt_utils."""
 
 from coord2region.prompt_utils import (
+    IMAGE_PROMPT_TEMPLATES,
+    LLM_PROMPT_TEMPLATES,
     generate_llm_prompt,
     generate_region_image_prompt,
 )
@@ -9,6 +11,22 @@ from coord2region.prompt_utils import (
 def _sample_studies():
     """Return a minimal list of study dictionaries for testing."""
     return [{"id": "1", "title": "A", "abstract": "B"}]
+
+
+# ---------------------------------------------------------------------------
+# Template exposure tests
+# ---------------------------------------------------------------------------
+
+def test_llm_prompt_templates_accessible():
+    """LLM prompt templates are exposed for inspection."""
+    assert "summary" in LLM_PROMPT_TEMPLATES
+    assert "region_name" in LLM_PROMPT_TEMPLATES
+
+
+def test_image_prompt_templates_accessible():
+    """Image prompt templates are exposed for inspection."""
+    assert "anatomical" in IMAGE_PROMPT_TEMPLATES
+    assert "functional" in IMAGE_PROMPT_TEMPLATES
 
 
 # ---------------------------------------------------------------------------
@@ -119,3 +137,14 @@ def test_generate_region_image_prompt_unknown_type():
         [1, 2, 3], region_info, image_type="other"
     )
     assert "Create a clear visualization" in prompt
+
+def test_generate_region_image_prompt_custom_template():
+    """Custom templates override default image prompts."""
+    region_info = {"summary": "Single paragraph"}
+    template = (
+        "Custom image for {coordinate} -> {first_paragraph} || {atlas_context}"
+    )
+    prompt = generate_region_image_prompt(
+        [1, 2, 3], region_info, prompt_template=template
+    )
+    assert prompt.startswith("Custom image for [1, 2, 3]")
