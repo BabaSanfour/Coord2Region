@@ -119,8 +119,11 @@ def run_pipeline(
         Target file or directory for ``output_format``. Required when an
         ``output_format`` is specified.
     brain_insights_kwargs : dict, optional
-        Additional configuration for datasets, atlases and model keys. The name
-        is kept for backward compatibility with earlier API versions.
+        Additional configuration for datasets, atlases and model providers. The
+        name is kept for backward compatibility with earlier API versions. To
+        enable or disable AI providers, supply a ``providers`` dictionary mapping
+        provider names to keyword arguments understood by
+        :meth:`AIModelInterface.register_provider`.
 
     Returns
     -------
@@ -146,15 +149,29 @@ def run_pipeline(
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
     use_atlases = kwargs.get("use_atlases", True)
     atlas_names = kwargs.get("atlas_names", ["harvard-oxford", "juelich", "aal"])
+    provider_configs = kwargs.get("providers")
     gemini_api_key = kwargs.get("gemini_api_key")
     openrouter_api_key = kwargs.get("openrouter_api_key")
+    openai_api_key = kwargs.get("openai_api_key")
+    anthropic_api_key = kwargs.get("anthropic_api_key")
+    huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = prepare_datasets(data_dir) if use_cached_dataset else None
     ai = None
-    if gemini_api_key or openrouter_api_key:
+    if provider_configs:
+        ai = AIModelInterface()
+        for name, cfg in provider_configs.items():
+            ai.register_provider(name, **cfg)
+    elif any(
+        [gemini_api_key, openrouter_api_key, openai_api_key, anthropic_api_key, huggingface_api_key]
+    ):
         ai = AIModelInterface(
-            gemini_api_key=gemini_api_key, openrouter_api_key=openrouter_api_key
+            gemini_api_key=gemini_api_key,
+            openrouter_api_key=openrouter_api_key,
+            openai_api_key=openai_api_key,
+            anthropic_api_key=anthropic_api_key,
+            huggingface_api_key=huggingface_api_key,
         )
 
     multi_atlas: Optional[MultiAtlasMapper] = None

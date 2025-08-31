@@ -14,6 +14,8 @@ Anthropic models respectively.
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 import os
 import time
 from abc import ABC, abstractmethod
@@ -42,6 +44,16 @@ try:  # pragma: no cover
     import requests  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
     requests = None  # type: ignore
+
+try:  # pragma: no cover - optional dependency
+    from transformers import pipeline as hf_local_pipeline  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    hf_local_pipeline = None  # type: ignore
+
+try:  # pragma: no cover - optional dependency
+    from diffusers import StableDiffusionPipeline  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    StableDiffusionPipeline = None  # type: ignore
 
 
 PromptType = Union[str, List[Dict[str, str]]]
@@ -226,8 +238,12 @@ class OpenAIProvider(ModelProvider):
     def __init__(self, api_key: str):
         if openai is None:  # pragma: no cover
             raise ImportError("openai is not installed")
-        models = {"gpt-4": "gpt-4"}
+        models = {
+            "gpt-4": "gpt-4",
+            "gpt-image-1": "gpt-image-1",
+        }
         super().__init__(models)
+        self._image_models = {"gpt-image-1"}
         openai.api_key = api_key  # type: ignore[attr-defined]
 
     def generate_text(
@@ -279,6 +295,15 @@ class OpenAIProvider(ModelProvider):
             if delta:
                 yield delta
 
+    def generate_image(self, model: str, prompt: str) -> bytes:
+        if model not in self._image_models:
+            raise ValueError(f"Model '{model}' is not an image model")
+        resp = openai.Image.create(  # type: ignore[attr-defined]
+            model=self.models[model], prompt=prompt, response_format="b64_json"
+        )
+        data = resp["data"][0]["b64_json"]
+        return base64.b64decode(data)
+
 
 class AnthropicProvider(ModelProvider):
     """Provider for Anthropic's Claude models."""
@@ -289,8 +314,10 @@ class AnthropicProvider(ModelProvider):
         models = {
             "claude-3-haiku": "claude-3-haiku-20240307",
             "claude-3-opus": "claude-3-opus-20240229",
+            "claude-image": "claude-3-opus-20240229",
         }
         super().__init__(models)
+        self._image_models = {"claude-image"}
         self.client = anthropic.Anthropic(api_key=api_key)
 
     def generate_text(
@@ -308,6 +335,13 @@ class AnthropicProvider(ModelProvider):
         if response.content:
             return response.content[0].text
         return ""
+
+    def generate_image(self, model: str, prompt: str) -> bytes:
+        if model not in self._image_models:
+            raise ValueError(f"Model '{model}' is not an image model")
+        resp = self.client.images.generate(model=self.models[model], prompt=prompt)
+        data = resp.data[0].b64_json  # type: ignore[attr-defined]
+        return base64.b64decode(data)
 
 
 class HuggingFaceProvider(ModelProvider):
@@ -353,6 +387,72 @@ class HuggingFaceProvider(ModelProvider):
         return resp.content
 
 
+class HuggingFaceLocalProvider(ModelProvider):
+    """Provider that runs HuggingFace models locally using ``transformers`` and
+    ``diffusers``.
+
+    Both text and image generation can be configured independently by
+    specifying ``text_model`` and/or ``image_model`` when registering the
+    provider. The heavy model weights are loaded on first use."""
+
+    def __init__(
+        self,
+        *,
+        text_model: Optional[str] = None,
+        image_model: Optional[str] = None,
+    ):
+        models: Dict[str, str] = {}
+        if text_model:
+            models[text_model] = text_model
+        if image_model:
+            models[image_model] = image_model
+        if not models:
+            raise ValueError("At least one of text_model or image_model must be set")
+        super().__init__(models)
+        self._text_model = text_model
+        self._image_model = image_model
+        self._text_generator = None
+        self._image_pipeline = None
+
+    def _ensure_text_pipeline(self) -> None:
+        if self._text_generator is None:
+            if hf_local_pipeline is None:  # pragma: no cover - optional dep
+                raise ImportError("transformers is not installed")
+            self._text_generator = hf_local_pipeline(
+                "text-generation", model=self._text_model
+            )
+
+    def _ensure_image_pipeline(self) -> None:
+        if self._image_pipeline is None:
+            if StableDiffusionPipeline is None:  # pragma: no cover - optional dep
+                raise ImportError("diffusers is not installed")
+            self._image_pipeline = StableDiffusionPipeline.from_pretrained(
+                self._image_model
+            )
+
+    def generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover - optional heavy dependency
+        if model != self._text_model or not self._text_model:
+            raise ValueError(f"Model '{model}' is not configured for text generation")
+        if isinstance(prompt, list):
+            prompt = " ".join(
+                msg["content"] for msg in prompt if msg.get("role") == "user"
+            )
+        self._ensure_text_pipeline()
+        result = self._text_generator(prompt, max_new_tokens=max_tokens)
+        return result[0]["generated_text"]
+
+    def generate_image(self, model: str, prompt: str) -> bytes:  # pragma: no cover
+        if model != self._image_model or not self._image_model:
+            raise ValueError(f"Model '{model}' is not configured for image generation")
+        self._ensure_image_pipeline()
+        image = self._image_pipeline(prompt).images[0]
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        return buf.getvalue()
+
+
 class AIModelInterface:
     """Register and dispatch to different AI model providers."""
 
@@ -362,6 +462,7 @@ class AIModelInterface:
         "openai": OpenAIProvider,
         "anthropic": AnthropicProvider,
         "huggingface": HuggingFaceProvider,
+        "huggingface_local": HuggingFaceLocalProvider,
     }
 
     def __init__(
@@ -419,26 +520,48 @@ class AIModelInterface:
             or os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
         }
 
-        for name, cls in self._PROVIDER_CLASSES.items():
+        for name in self._PROVIDER_CLASSES:
             if enabled_providers is not None and name not in enabled_providers:
                 continue
             api_key = provider_kwargs.get(name)
             if not api_key:
                 continue
             try:
-                provider = cls(api_key)
+                self.register_provider(name, api_key=api_key)
             except Exception:
                 continue
-            self.register_provider(provider)
 
-    def register_provider(self, provider: ModelProvider) -> None:
+    def register_provider(
+        self,
+        provider: Union[ModelProvider, str],
+        *,
+        enabled: bool = True,
+        **config: Any,
+    ) -> None:
         """Register a provider and its models.
 
-        The ``README`` section *Adding a Custom LLM Provider* shows how to
-        create a provider and register it with this interface.
+        Parameters
+        ----------
+        provider : ModelProvider | str
+            Either an instantiated provider or the name of a provider defined in
+            :attr:`_PROVIDER_CLASSES`.
+        enabled : bool, optional
+            When ``False`` the provider is skipped.
+        **config : dict, optional
+            Configuration forwarded to the provider constructor when ``provider``
+            is given as a string.
         """
-        for model in provider.models:
-            self._providers[model] = provider
+        if not enabled:
+            return
+        if isinstance(provider, str):
+            cls = self._PROVIDER_CLASSES.get(provider)
+            if cls is None:
+                raise ValueError(f"Unknown provider '{provider}'")
+            provider_obj = cls(**config)
+        else:
+            provider_obj = provider
+        for model in provider_obj.models:
+            self._providers[model] = provider_obj
 
     def supports_batching(self, model: str) -> bool:
         """Return whether the provider for ``model`` supports batching."""
