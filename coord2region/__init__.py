@@ -30,12 +30,8 @@ from .llm import (
     generate_summary,
 )
 from .pipeline import run_pipeline
+from .ai_model_interface import AIModelInterface  # noqa: F401
 
-# AI model interface
-try:
-    from .ai_model_interface import AIModelInterface  # noqa: F401
-except ImportError:
-    AIModelInterface = None  # type: ignore
 __all__ = [
     "AtlasMapper",
     "BatchAtlasMapper",

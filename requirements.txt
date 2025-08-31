@@ -1,5 +1,4 @@
-bio
-coverage
+biopython
 mne
 nibabel
 nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn
@@ -8,9 +7,12 @@ numpy
 pandas
 scipy
 requests
-setuptools
-urllib3
-wheel
-wrapt
 pyyaml
 openpyxl
+Pillow
+fpdf
+openai
+google-genai
+anthropic
+transformers
+diffusers

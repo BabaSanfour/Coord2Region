@@ -14,10 +14,7 @@ import shutil
 from dataclasses import asdict, is_dataclass
 from typing import Optional, Union, List, Any, Sequence
 
-try:  # Optional dependency – used for PDF export
-    from fpdf import FPDF  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    FPDF = None
+from fpdf import FPDF
 
 import mne
 from .utils import fetch_labels, pack_vol_output
@@ -362,9 +359,6 @@ def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
 
 def save_as_pdf(results: Sequence[Any], path: str) -> None:
     """Save pipeline results to a PDF file or directory."""
-    if FPDF is None:  # pragma: no cover - optional dependency
-        raise ImportError("PDF export requires the 'fpdf' package to be installed")
-
     dict_results = _results_to_dicts(results)
 
     if len(dict_results) > 1 or os.path.isdir(path):

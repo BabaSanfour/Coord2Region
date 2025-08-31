@@ -163,7 +163,7 @@ def test_extract_study_metadata_crossref_fallback(mock_crossref):
     mock_dataset = MagicMock()
     mock_dataset.get_metadata.return_value = [None]
 
-    with patch("coord2region.coord2study.BIO_AVAILABLE", False):
+    with patch("coord2region.coord2study.Entrez.efetch", side_effect=Exception):
         entry = _extract_study_metadata(mock_dataset, sid="99999")
 
     assert entry["title"] == "CR Title"

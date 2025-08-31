@@ -3,19 +3,7 @@ import types
 
 import pytest
 from unittest.mock import MagicMock, patch
-
-# Stub external dependencies
-openai_stub = types.SimpleNamespace(
-    ChatCompletion=types.SimpleNamespace(create=MagicMock()),
-    api_key=None,
-    api_base=None,
-)
-sys.modules.setdefault("openai", openai_stub)
-
-google_module = types.ModuleType("google")
-google_module.genai = types.SimpleNamespace(Client=MagicMock())
-sys.modules.setdefault("google", google_module)
-sys.modules.setdefault("google.genai", google_module.genai)
+import openai
 
 from coord2region.ai_model_interface import AIModelInterface  # noqa: E402
 from coord2region.ai_model_interface import ModelProvider  # noqa: E402
@@ -54,7 +42,7 @@ def test_generate_text_invalid_model():
 
 @pytest.mark.unit
 def test_generate_text_missing_keys():
-    openai_stub.api_key = None
+    openai.api_key = None
     ai = AIModelInterface()
     with pytest.raises(ValueError):
         ai.generate_text("gemini-2.0-flash", "test")

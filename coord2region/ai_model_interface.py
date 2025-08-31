@@ -9,6 +9,9 @@ multiple providers. Notably, the ``openai_api_key`` and
 ``anthropic_api_key`` parameters (or the ``OPENAI_API_KEY`` and
 ``ANTHROPIC_API_KEY`` environment variables) enable OpenAI and
 Anthropic models respectively.
+
+This module requires the ``openai``, ``google-genai``, ``anthropic``,
+``requests``, ``transformers`` and ``diffusers`` packages.
 """
 
 from __future__ import annotations
@@ -21,39 +24,12 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-
-# Optional imports. Each provider checks for the modules it needs and will only
-# be instantiated when its requirements are available. This keeps the
-# dependency surface small for users who only need a subset of providers.
-try:  # pragma: no cover - simple import guard
-    import openai  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    openai = None  # type: ignore
-
-try:  # pragma: no cover
-    from google import genai  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    genai = None  # type: ignore
-
-try:  # pragma: no cover
-    import anthropic  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    anthropic = None  # type: ignore
-
-try:  # pragma: no cover
-    import requests  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    requests = None  # type: ignore
-
-try:  # pragma: no cover - optional dependency
-    from transformers import pipeline as hf_local_pipeline  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    hf_local_pipeline = None  # type: ignore
-
-try:  # pragma: no cover - optional dependency
-    from diffusers import StableDiffusionPipeline  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    StableDiffusionPipeline = None  # type: ignore
+import openai
+from google import genai
+import anthropic
+import requests
+from transformers import pipeline as hf_local_pipeline
+from diffusers import StableDiffusionPipeline
 
 
 PromptType = Union[str, List[Dict[str, str]]]
@@ -153,8 +129,6 @@ class GeminiProvider(ModelProvider):
     """Provider for Google Gemini models."""
 
     def __init__(self, api_key: str):
-        if genai is None:  # pragma: no cover - handled in tests
-            raise ImportError("google-genai is not installed")
         models = {
             "gemini-1.0-pro": "gemini-1.0-pro",
             "gemini-1.5-pro": "gemini-1.5-pro",
@@ -207,8 +181,6 @@ class OpenRouterProvider(ModelProvider):
     """Provider for models available via OpenRouter (e.g., DeepSeek)."""
 
     def __init__(self, api_key: str):
-        if openai is None:  # pragma: no cover
-            raise ImportError("openai is not installed")
         models = {
             "deepseek-r1": "deepseek/deepseek-r1:free",
             "deepseek-chat-v3-0324": "deepseek/deepseek-chat-v3-0324:free",
@@ -271,8 +243,6 @@ class OpenAIProvider(ModelProvider):
     """Provider for OpenAI's GPT models."""
 
     def __init__(self, api_key: str):
-        if openai is None:  # pragma: no cover
-            raise ImportError("openai is not installed")
         models = {
             "gpt-4": "gpt-4",
             "gpt-image-1": "gpt-image-1",
@@ -344,8 +314,6 @@ class AnthropicProvider(ModelProvider):
     """Provider for Anthropic's Claude models."""
 
     def __init__(self, api_key: str):
-        if anthropic is None:  # pragma: no cover
-            raise ImportError("anthropic is not installed")
         models = {
             "claude-3-haiku": "claude-3-haiku-20240307",
             "claude-3-opus": "claude-3-opus-20240229",
@@ -385,8 +353,6 @@ class HuggingFaceProvider(ModelProvider):
     API_URL = "https://api-inference.huggingface.co/models/{model}"
 
     def __init__(self, api_key: str):
-        if requests is None:  # pragma: no cover
-            raise ImportError("requests is required for the HuggingFace provider")
         models = {
             "distilgpt2": "distilgpt2",
             "stabilityai/stable-diffusion-2": "stabilityai/stable-diffusion-2",
@@ -452,16 +418,12 @@ class HuggingFaceLocalProvider(ModelProvider):
 
     def _ensure_text_pipeline(self) -> None:
         if self._text_generator is None:
-            if hf_local_pipeline is None:  # pragma: no cover - optional dep
-                raise ImportError("transformers is not installed")
             self._text_generator = hf_local_pipeline(
                 "text-generation", model=self._text_model
             )
 
     def _ensure_image_pipeline(self) -> None:
         if self._image_pipeline is None:
-            if StableDiffusionPipeline is None:  # pragma: no cover - optional dep
-                raise ImportError("diffusers is not installed")
             self._image_pipeline = StableDiffusionPipeline.from_pretrained(
                 self._image_model
             )

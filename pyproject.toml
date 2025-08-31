@@ -18,10 +18,24 @@ classifiers = [
 license = { text = "MIT" }
 
 dependencies = [
-    "nibabel",  # Add any dependencies here
-    "pyyaml",
+    "biopython",
+    "mne",
+    "nibabel",
+    "nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn",
+    "nimare>=0.4.0",
+    "numpy",
     "pandas",
+    "scipy",
+    "requests",
+    "pyyaml",
     "openpyxl",
+    "Pillow",
+    "fpdf",
+    "openai",
+    "google-genai",
+    "anthropic",
+    "transformers",
+    "diffusers",
 ]
 
 [project.urls]

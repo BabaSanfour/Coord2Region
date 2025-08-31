@@ -10,6 +10,7 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .utils.image_utils import generate_mni152_image, add_watermark
+from .ai_model_interface import AIModelInterface
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -215,11 +216,6 @@ def generate_region_image_prompt(
 # ---------------------------------------------------------------------------
 # Image generation
 # ---------------------------------------------------------------------------
-
-try:  # Optional dependency
-    from .ai_model_interface import AIModelInterface
-except Exception:  # pragma: no cover - used only when dependencies missing
-    AIModelInterface = None  # type: ignore
 
 
 def generate_region_image(

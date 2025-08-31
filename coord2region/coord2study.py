@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import re
 import requests
+from Bio import Entrez, Medline
 
 from nimare.extract import fetch_neurosynth, fetch_neuroquery, download_nidm_pain
 from nimare.io import convert_neurosynth_to_dataset
@@ -20,15 +21,6 @@ from nimare.utils import get_resource_path
 from .utils import resolve_data_dir
 
 logger = logging.getLogger(__name__)
-
-# Check for Biopython availability (needed for abstract fetching)
-try:
-    from Bio import Entrez, Medline
-
-    BIO_AVAILABLE = True
-except ImportError:
-    BIO_AVAILABLE = False
-    logger.warning("Biopython not found. Abstract fetching will be disabled.")
 
 
 def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
@@ -343,7 +335,7 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     pmid = str(sid).split("-")[0]
 
     # Optionally retrieve abstract via Entrez if email provided and Bio available.
-    if BIO_AVAILABLE and study_entry.get("id") and "email" in study_entry:
+    if study_entry.get("id") and "email" in study_entry:
         try:
             handle = Entrez.efetch(
                 db="pubmed", id=pmid, rettype="medline", retmode="text"
