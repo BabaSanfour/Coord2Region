@@ -28,6 +28,7 @@ from .llm import (
     generate_region_image_prompt,
     generate_summary,
 )
+from .pipeline import run_pipeline
 
 # AI model interface
 try:
@@ -48,6 +49,7 @@ __all__ = [
     "generate_llm_prompt",
     "generate_region_image_prompt",
     "generate_summary",
+    "run_pipeline",
     "LLM_PROMPT_TEMPLATES",
     "IMAGE_PROMPT_TEMPLATES",
 ]
