@@ -20,18 +20,24 @@ on the optional ``fpdf`` package which is lightweight and pure Python.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import pickle
+import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 from .file_handler import save_as_csv, save_as_pdf, save_batch_folder
 
 from .coord2study import get_studies_for_coordinate, prepare_datasets
 from .coord2region import AtlasMapper, MultiAtlasMapper
 from .fetching import AtlasFetcher
-from .llm import generate_region_image, generate_summary
+from .llm import (
+    generate_region_image,
+    generate_summary,
+    generate_summary_async,
+)
 from .ai_model_interface import AIModelInterface
 
 
@@ -101,6 +107,10 @@ def run_pipeline(
     output_path: Optional[str] = None,
     *,
     brain_insights_kwargs: Optional[Dict[str, Any]] = None,
+    async_mode: bool = False,
+    progress_callback: Optional[
+        Callable[[int, int, PipelineResult], None]
+    ] = None,
 ) -> List[PipelineResult]:
     """Run the Coord2Region analysis pipeline.
 
@@ -124,6 +134,13 @@ def run_pipeline(
         enable or disable AI providers, supply a ``providers`` dictionary mapping
         provider names to keyword arguments understood by
         :meth:`AIModelInterface.register_provider`.
+    async_mode : bool, optional
+        When ``True``, processing occurs concurrently using asyncio and summaries
+        are generated with :func:`generate_summary_async`.
+    progress_callback : callable, optional
+        Function invoked after each input is processed. Receives the number of
+        completed items, the total count and the :class:`PipelineResult` for the
+        processed item. When ``None``, progress is logged via ``logging``.
 
     Returns
     -------
@@ -142,6 +159,19 @@ def run_pipeline(
 
     if output_format and output_path is None:
         raise ValueError("output_path must be provided when output_format is set")
+
+    if async_mode:
+        return asyncio.run(
+            _run_pipeline_async(
+                inputs,
+                input_type,
+                outputs,
+                output_format,
+                output_path,
+                brain_insights_kwargs=brain_insights_kwargs,
+                progress_callback=progress_callback,
+            )
+        )
 
     kwargs = brain_insights_kwargs or {}
     data_dir = kwargs.get("data_dir", "nimare_data")
@@ -229,10 +259,18 @@ def run_pipeline(
             if "summaries" in outputs and ai:
                 res.summary = generate_summary(ai, res.studies, coord or [0, 0, 0])
             results.append(res)
+            if progress_callback:
+                progress_callback(len(results), len(inputs), res)
+            else:
+                logging.info("Processed %d/%d inputs", len(results), len(inputs))
             continue
 
         if coord is None:
             results.append(res)
+            if progress_callback:
+                progress_callback(len(results), len(inputs), res)
+            else:
+                logging.info("Processed %d/%d inputs", len(results), len(inputs))
             continue
 
         if "region_labels" in outputs and multi_atlas:
@@ -273,8 +311,189 @@ def run_pipeline(
                 pass
 
         results.append(res)
+        if progress_callback:
+            progress_callback(len(results), len(inputs), res)
+        else:
+            logging.info("Processed %d/%d inputs", len(results), len(inputs))
 
     if output_format:
         _export_results(results, output_format.lower(), cast(str, output_path))
 
     return results
+
+
+async def _run_pipeline_async(
+    inputs: Sequence[Any],
+    input_type: str,
+    outputs: Sequence[str],
+    output_format: Optional[str],
+    output_path: Optional[str],
+    *,
+    brain_insights_kwargs: Optional[Dict[str, Any]],
+    progress_callback: Optional[Callable[[int, int, PipelineResult], None]],
+) -> List[PipelineResult]:
+    """Asynchronous implementation backing :func:`run_pipeline`."""
+
+    kwargs = brain_insights_kwargs or {}
+    data_dir = kwargs.get("data_dir", "nimare_data")
+    email = kwargs.get("email_for_abstracts")
+    use_cached_dataset = kwargs.get("use_cached_dataset", True)
+    use_atlases = kwargs.get("use_atlases", True)
+    atlas_names = kwargs.get("atlas_names", ["harvard-oxford", "juelich", "aal"])
+    provider_configs = kwargs.get("providers")
+    gemini_api_key = kwargs.get("gemini_api_key")
+    openrouter_api_key = kwargs.get("openrouter_api_key")
+    openai_api_key = kwargs.get("openai_api_key")
+    anthropic_api_key = kwargs.get("anthropic_api_key")
+    huggingface_api_key = kwargs.get("huggingface_api_key")
+    image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
+
+    dataset = await asyncio.to_thread(prepare_datasets, data_dir) if use_cached_dataset else None
+    ai = None
+    if provider_configs:
+        ai = AIModelInterface()
+        for name, cfg in provider_configs.items():
+            ai.register_provider(name, **cfg)
+    elif any(
+        [gemini_api_key, openrouter_api_key, openai_api_key, anthropic_api_key, huggingface_api_key]
+    ):
+        ai = AIModelInterface(
+            gemini_api_key=gemini_api_key,
+            openrouter_api_key=openrouter_api_key,
+            openai_api_key=openai_api_key,
+            anthropic_api_key=anthropic_api_key,
+            huggingface_api_key=huggingface_api_key,
+        )
+
+    multi_atlas: Optional[MultiAtlasMapper] = None
+    if use_atlases:
+        try:
+            fetcher = AtlasFetcher()
+            mappers: List[AtlasMapper] = []
+            for name in atlas_names:
+                try:
+                    atlas = fetcher.fetch_atlas(name)
+                    mappers.append(
+                        AtlasMapper(
+                            name=name,
+                            vol=atlas["vol"],
+                            hdr=atlas["hdr"],
+                            labels=atlas["labels"],
+                        )
+                    )
+                except Exception:
+                    continue
+            if mappers:
+                multi_atlas = MultiAtlasMapper(mappers)
+        except Exception:
+            multi_atlas = None
+
+    def _from_region_name(name: str) -> Optional[List[float]]:
+        if not multi_atlas:
+            return None
+        coords_dict = multi_atlas.batch_region_name_to_mni([name])
+        for atlas_coords in coords_dict.values():
+            if atlas_coords:
+                coord = atlas_coords[0]
+                if coord is not None:
+                    try:
+                        return coord.tolist()  # type: ignore[attr-defined]
+                    except Exception:
+                        return list(coord)  # type: ignore[arg-type]
+        return None
+
+    total = len(inputs)
+    results: List[Optional[PipelineResult]] = [None] * total
+
+    async def _process(idx: int, item: Any) -> Tuple[int, PipelineResult]:
+        if input_type == "coords":
+            coord = list(item) if item is not None else None
+        elif input_type == "region_names":
+            coord = await asyncio.to_thread(_from_region_name, str(item))
+        else:  # "studies"
+            coord = None
+
+        res = PipelineResult(coordinate=coord)
+
+        if input_type == "studies":
+            if "raw_studies" in outputs:
+                res.studies = [item] if isinstance(item, dict) else list(item)
+            if "summaries" in outputs and ai:
+                res.summary = await generate_summary_async(
+                    ai, res.studies, coord or [0, 0, 0]
+                )
+            return idx, res
+
+        if coord is None:
+            return idx, res
+
+        if "region_labels" in outputs and multi_atlas:
+            try:
+                res.region_labels = await asyncio.to_thread(
+                    multi_atlas.mni_to_region_names, coord
+                )
+            except Exception:
+                res.region_labels = {}
+
+        if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
+            try:
+                res.studies = await asyncio.to_thread(
+                    get_studies_for_coordinate, coord, dataset, email
+                )
+            except Exception:
+                res.studies = []
+
+        if "summaries" in outputs and ai:
+            res.summary = await generate_summary_async(
+                ai, res.studies, coord, atlas_labels=res.region_labels or None
+            )
+
+        if "images" in outputs and ai:
+            region_info = {
+                "summary": res.summary or "",
+                "atlas_labels": res.region_labels,
+            }
+
+            def _save_image() -> str:
+                img_bytes = generate_region_image(
+                    ai, coord, region_info, model=image_model
+                )
+                img_dir = os.path.join(data_dir, "generated_images")
+                os.makedirs(img_dir, exist_ok=True)
+                img_path = os.path.join(
+                    img_dir, f"image_{len(os.listdir(img_dir)) + 1}.png"
+                )
+                with open(img_path, "wb") as f:
+                    f.write(img_bytes)
+                return img_path
+
+            try:
+                res.image = await asyncio.to_thread(_save_image)
+            except Exception:
+                pass
+
+        return idx, res
+
+    tasks = [asyncio.create_task(_process(i, item)) for i, item in enumerate(inputs)]
+
+    completed = 0
+    for fut in asyncio.as_completed(tasks):
+        idx, res = await fut
+        results[idx] = res
+        completed += 1
+        if progress_callback:
+            progress_callback(completed, total, res)
+        else:
+            logging.info("Processed %d/%d inputs", completed, total)
+
+    final_results = [r for r in results if r is not None]
+
+    if output_format:
+        await asyncio.to_thread(
+            _export_results,
+            final_results,
+            output_format.lower(),
+            cast(str, output_path),
+        )
+
+    return final_results

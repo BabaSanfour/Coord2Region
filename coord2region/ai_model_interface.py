@@ -231,6 +231,41 @@ class OpenRouterProvider(ModelProvider):
         )
         return response["choices"][0]["message"]["content"]
 
+    async def generate_text_async(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        if hasattr(openai.ChatCompletion, "acreate"):
+            chat_comp = openai.ChatCompletion  # type: ignore[attr-defined]
+            response = await chat_comp.acreate(
+                model=self.models[model],
+                messages=messages,
+                max_tokens=max_tokens,
+            )
+            return response["choices"][0]["message"]["content"]
+        return await super().generate_text_async(model, prompt, max_tokens)
+
+    def stream_generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> Iterator[str]:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        stream = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            model=self.models[model],
+            messages=messages,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk["choices"][0]["delta"].get("content")
+            if delta:
+                yield delta
+
 
 class OpenAIProvider(ModelProvider):
     """Provider for OpenAI's GPT models."""
