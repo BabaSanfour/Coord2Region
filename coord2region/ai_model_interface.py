@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterator, List, Optional, Union
 
 
 # Optional imports. Each provider checks for the modules it needs and will only
@@ -47,6 +48,30 @@ class ModelProvider(ABC):
     def generate_text(self, model: str, prompt: PromptType, max_tokens: int) -> str:
         """Generate text from the given model."""
 
+    async def generate_text_async(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:
+        """Asynchronously generate text.
+
+        Providers that expose native async APIs should override this method.
+        The default implementation simply delegates to :meth:`generate_text`
+        using ``asyncio.to_thread`` to avoid blocking the event loop.
+        """
+
+        return await asyncio.to_thread(self.generate_text, model, prompt, max_tokens)
+
+    def stream_generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> Iterator[str]:
+        """Yield generated text chunks.
+
+        Providers that support server-side streaming should override this
+        method. The base implementation yields the full response in a single
+        chunk.
+        """
+
+        yield self.generate_text(model, prompt, max_tokens)
+
 
 class GeminiProvider(ModelProvider):
     """Provider for Google Gemini models."""
@@ -67,6 +92,33 @@ class GeminiProvider(ModelProvider):
             prompt = " ".join(msg["content"] for msg in prompt if msg.get("role") == "user")
         response = self.client.models.generate_content(model=model, contents=[prompt])
         return response.text
+
+    async def generate_text_async(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover - thin wrapper
+        if hasattr(self.client.models, "generate_content_async"):
+            if isinstance(prompt, list):
+                prompt = " ".join(
+                    msg["content"] for msg in prompt if msg.get("role") == "user"
+                )
+            response = await self.client.models.generate_content_async(
+                model=model, contents=[prompt]
+            )
+            return response.text
+        return await super().generate_text_async(model, prompt, max_tokens)
+
+    def stream_generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> Iterator[str]:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, list):
+            prompt = " ".join(msg["content"] for msg in prompt if msg.get("role") == "user")
+        stream = self.client.models.generate_content(
+            model=model, contents=[prompt], stream=True
+        )
+        for chunk in stream:
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text
 
 
 class OpenRouterProvider(ModelProvider):
@@ -117,6 +169,40 @@ class OpenAIProvider(ModelProvider):
             max_tokens=max_tokens,
         )
         return response["choices"][0]["message"]["content"]
+
+    async def generate_text_async(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> str:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        if hasattr(openai.ChatCompletion, "acreate"):
+            response = await openai.ChatCompletion.acreate(  # type: ignore[attr-defined]
+                model=self.models[model],
+                messages=messages,
+                max_tokens=max_tokens,
+            )
+            return response["choices"][0]["message"]["content"]
+        return await super().generate_text_async(model, prompt, max_tokens)
+
+    def stream_generate_text(
+        self, model: str, prompt: PromptType, max_tokens: int
+    ) -> Iterator[str]:  # pragma: no cover - thin wrapper
+        if isinstance(prompt, str):
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = prompt
+        stream = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            model=self.models[model],
+            messages=messages,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk["choices"][0]["delta"].get("content")
+            if delta:
+                yield delta
 
 
 class AnthropicProvider(ModelProvider):
@@ -244,6 +330,42 @@ class AIModelInterface:
             )
         try:
             return provider.generate_text(model, prompt, max_tokens=max_tokens)
+        except Exception as e:  # pragma: no cover - simple re-raise
+            raise RuntimeError(f"Error generating response with {model}: {e}") from e
+
+    async def generate_text_async(
+        self,
+        model: str,
+        prompt: PromptType,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Asynchronously generate text using a registered model."""
+
+        provider = self._providers.get(model)
+        if provider is None:
+            raise ValueError(
+                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
+            )
+        try:
+            return await provider.generate_text_async(model, prompt, max_tokens=max_tokens)
+        except Exception as e:  # pragma: no cover - simple re-raise
+            raise RuntimeError(f"Error generating response with {model}: {e}") from e
+
+    def stream_generate_text(
+        self,
+        model: str,
+        prompt: PromptType,
+        max_tokens: int = 1000,
+    ) -> Iterator[str]:
+        """Stream generated text chunks from a registered model."""
+
+        provider = self._providers.get(model)
+        if provider is None:
+            raise ValueError(
+                f"Model '{model}' not supported. Available models: {list(self._providers.keys())}"
+            )
+        try:
+            return provider.stream_generate_text(model, prompt, max_tokens=max_tokens)
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating response with {model}: {e}") from e
 

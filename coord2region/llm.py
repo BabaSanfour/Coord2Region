@@ -1,6 +1,7 @@
 """LLM utilities for prompt construction and summary generation."""
 
 from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Iterator
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -295,11 +296,81 @@ def generate_summary(
     return ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
 
 
+async def generate_summary_async(
+    ai: "AIModelInterface",
+    studies: List[Dict[str, Any]],
+    coordinate: Union[List[float], Tuple[float, float, float]],
+    summary_type: str = "summary",
+    model: str = "gemini-2.0-flash",
+    atlas_labels: Optional[Dict[str, str]] = None,
+    prompt_template: Optional[str] = None,
+    max_tokens: int = 1000,
+) -> str:
+    """Asynchronously generate a text summary for a coordinate."""
+
+    prompt = generate_llm_prompt(
+        studies,
+        coordinate,
+        prompt_type=summary_type,
+        prompt_template=prompt_template,
+    )
+
+    if atlas_labels:
+        parts = prompt.split("STUDIES REPORTING ACTIVATION AT MNI COORDINATE")
+        atlas_info = "\nATLAS LABELS FOR THIS COORDINATE:\n"
+        for atlas_name, label in atlas_labels.items():
+            atlas_info += f"- {atlas_name}: {label}\n"
+        if len(parts) >= 2:
+            intro = parts[0]
+            rest = "STUDIES REPORTING ACTIVATION AT MNI COORDINATE" + parts[1]
+            prompt = intro + atlas_info + "\n" + rest
+        else:
+            prompt = atlas_info + prompt
+
+    return await ai.generate_text_async(model=model, prompt=prompt, max_tokens=max_tokens)
+
+
+def stream_summary(
+    ai: "AIModelInterface",
+    studies: List[Dict[str, Any]],
+    coordinate: Union[List[float], Tuple[float, float, float]],
+    summary_type: str = "summary",
+    model: str = "gemini-2.0-flash",
+    atlas_labels: Optional[Dict[str, str]] = None,
+    prompt_template: Optional[str] = None,
+    max_tokens: int = 1000,
+) -> Iterator[str]:
+    """Stream a text summary for a coordinate in chunks."""
+
+    prompt = generate_llm_prompt(
+        studies,
+        coordinate,
+        prompt_type=summary_type,
+        prompt_template=prompt_template,
+    )
+
+    if atlas_labels:
+        parts = prompt.split("STUDIES REPORTING ACTIVATION AT MNI COORDINATE")
+        atlas_info = "\nATLAS LABELS FOR THIS COORDINATE:\n"
+        for atlas_name, label in atlas_labels.items():
+            atlas_info += f"- {atlas_name}: {label}\n"
+        if len(parts) >= 2:
+            intro = parts[0]
+            rest = "STUDIES REPORTING ACTIVATION AT MNI COORDINATE" + parts[1]
+            prompt = intro + atlas_info + "\n" + rest
+        else:
+            prompt = atlas_info + prompt
+
+    return ai.stream_generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
+
+
 __all__ = [
     "LLM_PROMPT_TEMPLATES",
     "IMAGE_PROMPT_TEMPLATES",
     "generate_llm_prompt",
     "generate_region_image_prompt",
     "generate_summary",
+    "generate_summary_async",
+    "stream_summary",
 ]
 

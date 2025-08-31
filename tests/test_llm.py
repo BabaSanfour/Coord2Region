@@ -1,6 +1,7 @@
 """Unit tests for coord2region.llm."""
 
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from coord2region.llm import (
     IMAGE_PROMPT_TEMPLATES,
@@ -8,6 +9,8 @@ from coord2region.llm import (
     generate_llm_prompt,
     generate_region_image_prompt,
     generate_summary,
+    generate_summary_async,
+    stream_summary,
 )
 
 
@@ -175,4 +178,41 @@ def test_generate_summary_includes_atlas_labels(mock_prompt):
     prompt_used = ai.generate_text.call_args.kwargs["prompt"]
     assert "ATLAS LABELS FOR THIS COORDINATE" in prompt_used
     assert "Atlas: Label" in prompt_used
+
+
+@patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
+def test_generate_summary_async_calls_ai(mock_prompt):
+    ai = MagicMock()
+    ai.generate_text_async = AsyncMock(return_value="SUMMARY")
+    studies = _sample_studies()
+    coord = [1, 2, 3]
+
+    result = asyncio.run(generate_summary_async(ai, studies, coord))
+
+    mock_prompt.assert_called_once()
+    ai.generate_text_async.assert_awaited_once_with(
+        model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
+    )
+    assert result == "SUMMARY"
+
+
+@patch("coord2region.llm.generate_llm_prompt", return_value="PROMPT")
+def test_stream_summary_calls_ai(mock_prompt):
+    ai = MagicMock()
+
+    def _stream(**kwargs):
+        yield "A"
+        yield "B"
+
+    ai.stream_generate_text = MagicMock(side_effect=lambda **kwargs: _stream())
+    studies = _sample_studies()
+    coord = [1, 2, 3]
+
+    result = list(stream_summary(ai, studies, coord))
+
+    mock_prompt.assert_called_once()
+    ai.stream_generate_text.assert_called_once_with(
+        model="gemini-2.0-flash", prompt="PROMPT", max_tokens=1000
+    )
+    assert result == ["A", "B"]
 
