@@ -102,8 +102,12 @@ def test_generate_region_image_prompt_anatomical_with_atlas():
         "atlas_labels": {"Atlas": "Label"},
     }
     prompt = generate_region_image_prompt([1, 2, 3], region_info)
-    assert "anatomical illustration" in prompt
-    assert "Atlas: Label" in prompt
+    coord = "[1.00, 2.00, 3.00]"
+    atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
+    expected = IMAGE_PROMPT_TEMPLATES["anatomical"].format(
+        coordinate=coord, first_paragraph="Paragraph one.", atlas_context=atlas
+    )
+    assert prompt == expected
 
 
 def test_generate_region_image_prompt_functional_no_atlas():
@@ -112,8 +116,11 @@ def test_generate_region_image_prompt_functional_no_atlas():
     prompt = generate_region_image_prompt(
         [1, 2, 3], region_info, image_type="functional"
     )
-    assert "functional brain activation" in prompt
-    assert "According to brain atlases" not in prompt
+    coord = "[1.00, 2.00, 3.00]"
+    expected = IMAGE_PROMPT_TEMPLATES["functional"].format(
+        coordinate=coord, first_paragraph="Single paragraph", atlas_context=""
+    )
+    assert prompt == expected
 
 
 def test_generate_region_image_prompt_schematic_no_include():
@@ -125,8 +132,11 @@ def test_generate_region_image_prompt_schematic_no_include():
     prompt = generate_region_image_prompt(
         [1, 2, 3], region_info, image_type="schematic", include_atlas_labels=False
     )
-    assert "schematic diagram" in prompt
-    assert "Atlas: Label" not in prompt
+    coord = "[1.00, 2.00, 3.00]"
+    expected = IMAGE_PROMPT_TEMPLATES["schematic"].format(
+        coordinate=coord, first_paragraph="Para.", atlas_context=""
+    )
+    assert prompt == expected
 
 
 def test_generate_region_image_prompt_artistic():
@@ -138,14 +148,23 @@ def test_generate_region_image_prompt_artistic():
     prompt = generate_region_image_prompt(
         [1, 2, 3], region_info, image_type="artistic"
     )
-    assert "artistic visualization" in prompt
+    coord = "[1.00, 2.00, 3.00]"
+    atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
+    expected = IMAGE_PROMPT_TEMPLATES["artistic"].format(
+        coordinate=coord, first_paragraph="Summary.", atlas_context=atlas
+    )
+    assert prompt == expected
 
 
 def test_generate_region_image_prompt_unknown_type():
     """Unknown image types fall back to a generic prompt."""
     region_info = {"summary": "Just one paragraph"}
     prompt = generate_region_image_prompt([1, 2, 3], region_info, image_type="other")
-    assert "Create a clear visualization" in prompt
+    coord = "[1.00, 2.00, 3.00]"
+    expected = IMAGE_PROMPT_TEMPLATES["default"].format(
+        coordinate=coord, first_paragraph="Just one paragraph", atlas_context=""
+    )
+    assert prompt == expected
 
 
 def test_generate_region_image_prompt_custom_template():

@@ -203,61 +203,15 @@ def generate_region_image_prompt(
             first_paragraph=first_paragraph,
             atlas_context=atlas_context,
         )
-
-    # Construct prompts for supported image types.
-    if image_type == "anatomical":
-        prompt = (
-            "Create a detailed anatomical illustration of the brain region at "
-            f"MNI coordinate {coord_str}. Based on neuroimaging studies, this "
-            f"location corresponds to: {first_paragraph} {atlas_context}Show a "
-            "clear, labeled anatomical visualization with the specific "
-            "coordinate marked. Include surrounding brain structures for "
-            "context. Use a professional medical illustration style with "
-            "accurate colors and textures of brain tissue."
-        )
-
-    elif image_type == "functional":
-        prompt = (
-            "Create a functional brain activation visualization showing activity "
-            f"at MNI coordinate {coord_str}. This region corresponds to: "
-            f"{first_paragraph} {atlas_context}Show the activation as a heat "
-            "map or colored overlay on a standardized brain template. Use a "
-            "scientific visualization style similar to fMRI results in "
-            "neuroscience publications, with the activation at the specified "
-            "coordinate clearly highlighted."
-        )
-
-    elif image_type == "schematic":
-        prompt = (
-            "Create a schematic diagram of brain networks involving the region "
-            f"at MNI coordinate {coord_str}. This coordinate corresponds to: "
-            f"{first_paragraph} {atlas_context}Show this region as a node in "
-            "its relevant brain networks, with connections to other regions. "
-            "Use a simplified, clean diagram style with labeled regions and "
-            "connection lines indicating functional or structural connectivity. "
-            "Include a small reference brain to indicate the location."
-        )
-
-    elif image_type == "artistic":
-        prompt = (
-            "Create an artistic visualization of the brain region at MNI "
-            f"coordinate {coord_str}. This region is: {first_paragraph} "
-            f"{atlas_context}Create an artistic interpretation that conveys "
-            "the function of this region through metaphorical or abstract "
-            "elements, while still maintaining scientific accuracy in the "
-            "brain anatomy. Balance creativity with neuroscientific precision."
-        )
-
-    else:
-        prompt = (
-            "Create a clear visualization of the brain region at MNI coordinate "
-            f"{coord_str}. Based on neuroimaging studies, this region "
-            f"corresponds to: {first_paragraph} {atlas_context}Show this region "
-            "clearly marked on a standard brain template with proper anatomical "
-            "context."
-        )
-
-    return prompt
+    # Retrieve prompt template by image type or fall back to default.
+    template = IMAGE_PROMPT_TEMPLATES.get(
+        image_type, IMAGE_PROMPT_TEMPLATES["default"]
+    )
+    return template.format(
+        coordinate=coord_str,
+        first_paragraph=first_paragraph,
+        atlas_context=atlas_context,
+    )
 
 
 # ---------------------------------------------------------------------------
