@@ -27,4 +27,6 @@ sphinx-copybutton
 sphinxcontrib-mermaid
 sphinx-autoapi
 myst-parser
+torch
+tensorflow
 -e .
