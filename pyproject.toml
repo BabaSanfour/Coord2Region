@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
-license = { text = "BSD-3-Clause" }
+license = "BSD-3-Clause"
 
 dependencies = [
     "biopython",
@@ -65,6 +65,10 @@ coord2region = "coord2region.cli:main"
 
 [tool.setuptools_scm]
 write_to = "coord2region/_version.py"
+
+[tool.setuptools.packages.find]
+include = ["coord2region"]
+exclude = ["paper*", "docs*", "examples*", "tests*"]
 
 [tool.ruff]
 line-length = 88
