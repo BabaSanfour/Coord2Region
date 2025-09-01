@@ -51,8 +51,13 @@ Full usage instructions and API details are available in the [documentation](htt
 ## Links
 
 - [Documentation](https://coord2region.readthedocs.io/en/latest/)
-- [License](LICENSE)
-- [Contributing](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
+- [License][license]
+- [Contributing][contributing]
+- [Code of Conduct][code_of_conduct]
+- [Security Policy][security]
 - [Preprint](https://zenodo.org/records/15048848)
+
+[license]: LICENSE
+[contributing]: CONTRIBUTING.md
+[code_of_conduct]: CODE_OF_CONDUCT.md
+[security]: SECURITY.md

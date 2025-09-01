@@ -19,7 +19,7 @@ from datetime import date
 # sys.path.insert(0, os.path.abspath('.'))
 
 curdir = os.path.dirname(__file__)
-sys.path.append(os.path.abspath(os.path.join(curdir, "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(curdir, "..", "..")))
 
 import shutil
 
@@ -166,7 +166,8 @@ autoapi_options = [
     "show-inheritance",
     "show-module-summary",
 ]
-autoapi_ignore = ["*/__init__.py"]
+autoapi_ignore = ["coord2region/__init__.py"]
 autoapi_template_dir = "_templates/autoapi"
+autoapi_add_toctree_entry = True
 extensions += ['sphinx.ext.viewcode']  # see https://github.com/readthedocs/sphinx-autoapi/issues/422
 

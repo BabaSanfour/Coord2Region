@@ -5,25 +5,46 @@ under the hood. Ensure the environment has a valid OpenAI API key and the
 newer library installed before running.
 """
 
+import os
+
+import httpx
+from openai import AuthenticationError
+
 from coord2region.ai_model_interface import AIModelInterface
 from coord2region.llm import generate_summary
 
 
 def main() -> None:
-    # Supply API keys through environment variables or directly here. This
-    # example shows explicit constructor arguments for clarity. Replace the
-    # placeholders with real keys when running locally.
+    """Run the provider demo if credentials are available."""
+    key = os.getenv("OPENAI_API_KEY")
+    if not key:
+        print("OPENAI_API_KEY not set; skipping example")
+        return
+
     ai = AIModelInterface(
-        openai_api_key="sk-...",
-        gemini_api_key="...",
+        openai_api_key=key,
+        gemini_api_key=os.getenv("GEMINI_API_KEY"),
         enabled_providers=["openai", "gemini"],
     )
 
-    print("Available models:", ai.list_available_models())
+    # Authentication failures are caught so Sphinx-Gallery marks the example
+    # as skipped instead of failing.
+    try:
+        print("Available models:", ai.list_available_models())
 
-    # Generate text using a specific model. The interface will retry transient
-    # failures with exponential backoff.
-    response = ai.generate_text(model="gpt-4", prompt="Hello from Coord2Region!")
+        # Generate text using a specific model. The interface will retry
+        # transient failures with exponential backoff.
+        response = ai.generate_text(
+            model="gpt-4", prompt="Hello from Coord2Region!"
+        )
+    except AuthenticationError:
+        print("OpenAI authentication failed; skipping example")
+        return
+    except httpx.HTTPStatusError as err:
+        if err.response.status_code == 401:
+            print("OpenAI authentication failed (HTTP 401); skipping example")
+            return
+        raise
     print(response)
 
     # Generate a summary with caching. A second call with the same arguments

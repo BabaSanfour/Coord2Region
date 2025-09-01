@@ -67,7 +67,7 @@ coord2region = "coord2region.cli:main"
 write_to = "coord2region/_version.py"
 
 [tool.setuptools.packages.find]
-include = ["coord2region"]
+include = ["coord2region", "coord2region.*"]
 exclude = ["paper*", "docs*", "examples*", "tests*"]
 
 [tool.ruff]
