@@ -19,9 +19,7 @@ build:
 # Optionally set the version of Python and requirements required to build your docs
 python:
   install:
-    - requirements: requirements-dev.txt
-    # is important that "-e ." exist in requirements-dev.txt
-    # see https://github.com/readthedocs/readthedocs.org/issues/3986
-    # see https://github.com/readthedocs/readthedocs.org/issues/6243
-    #- method: pip
-    #  path: .
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

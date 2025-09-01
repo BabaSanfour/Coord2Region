@@ -2,8 +2,7 @@
 
 ## Development environment
 
-Install the package with its development extras (after the requirements files
-are removed):
+Install the package with its development extras:
 
 ```bash
 pip install .[dev]
@@ -38,10 +37,11 @@ pytest --cov
 
 ## Documentation
 
-Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style and build
-the documentation with [Sphinx](https://www.sphinx-doc.org):
+Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style. To build
+the documentation, install the docs extras and run Sphinx:
 
 ```bash
+pip install .[docs]
 make -C docs html
 ```
 

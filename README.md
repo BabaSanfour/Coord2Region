@@ -26,6 +26,13 @@ source .venv/bin/activate
 pip install coord2region
 ```
 
+To work on Coord2Region itself, install the optional dependencies:
+
+```bash
+pip install .[dev]    # linting and tests
+pip install .[docs]   # documentation build
+```
+
 Set environment variables like `OPENAI_API_KEY` or `GEMINI_API_KEY` to enable LLM-based features.
 
 ## Example
