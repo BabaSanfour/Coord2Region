@@ -39,7 +39,7 @@ atlas = AtlasMapper(
     vol=atlas_data,
     hdr=affine,
     labels=labels,
-    index=indices,
+    indexes=indices,
     system="mni"
 )
 
@@ -104,7 +104,7 @@ atlas_surface = AtlasMapper(
     vol=surface_vertices.tolist(),  # Volumetric data is replaced with a list of vertices
     hdr=None,  # No affine matrix for surface atlases
     labels={ "100": "Visual Cortex", "200": "Motor Cortex", "300": "Somatosensory Cortex" },
-    index=[100, 200, 300],
+    indexes=[100, 200, 300],
     system="fsaverage"
 )
 

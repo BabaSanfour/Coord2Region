@@ -13,6 +13,9 @@ are available.
 import logging
 import os
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from coord2region.pipeline import run_pipeline
 # The example coordinate ([30, -22, 50]) falls in the right precentral gyrus (primary motor cortex) in MNI space.
 # For more on MNI coordinates, see: https://en.wikipedia.org/wiki/Talairach_coordinates#MNI_template

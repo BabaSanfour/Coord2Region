@@ -1,4 +1,7 @@
-"""Conditionally enable local HuggingFace text and image models."""
+"""Conditionally enable local HuggingFace text and image models
+============================================================
+
+"""
 
 import sys
 

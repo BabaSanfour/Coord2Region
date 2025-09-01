@@ -24,7 +24,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Iterator, List, Optional, Union
 
-import openai
+from openai import AsyncOpenAI, OpenAI
 from google import genai
 import anthropic
 import requests
@@ -186,57 +186,54 @@ class OpenRouterProvider(ModelProvider):
             "deepseek-chat-v3-0324": "deepseek/deepseek-chat-v3-0324:free",
         }
         super().__init__(models)
-        openai.api_base = "https://openrouter.ai/api/v1"  # type: ignore[attr-defined]
-        openai.api_key = api_key  # type: ignore[attr-defined]
+        self.client = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
+        self.async_client = AsyncOpenAI(
+            api_key=api_key, base_url="https://openrouter.ai/api/v1"
+        )
 
     def generate_text(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> str:  # pragma: no cover
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            prompt_input = prompt
+        response = self.client.responses.create(
             model=self.models[model],
-            messages=messages,
-            max_tokens=max_tokens,
+            input=prompt_input,
+            max_output_tokens=max_tokens,
         )
-        return response["choices"][0]["message"]["content"]
+        return response.output[0].content[0].text
 
     async def generate_text_async(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> str:  # pragma: no cover - thin wrapper
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        if hasattr(openai.ChatCompletion, "acreate"):
-            chat_comp = openai.ChatCompletion  # type: ignore[attr-defined]
-            response = await chat_comp.acreate(
-                model=self.models[model],
-                messages=messages,
-                max_tokens=max_tokens,
-            )
-            return response["choices"][0]["message"]["content"]
-        return await super().generate_text_async(model, prompt, max_tokens)
+            prompt_input = prompt
+        response = await self.async_client.responses.create(
+            model=self.models[model],
+            input=prompt_input,
+            max_output_tokens=max_tokens,
+        )
+        return response.output[0].content[0].text
 
     def stream_generate_text(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> Iterator[str]:  # pragma: no cover - thin wrapper
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        stream = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            prompt_input = prompt
+        with self.client.responses.stream(
             model=self.models[model],
-            messages=messages,
-            max_tokens=max_tokens,
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk["choices"][0]["delta"].get("content")
-            if delta:
-                yield delta
+            input=prompt_input,
+            max_output_tokens=max_tokens,
+        ) as stream:
+            for event in stream:
+                if event.type == "response.output_text.delta":
+                    yield event.delta
 
 
 class OpenAIProvider(ModelProvider):
@@ -249,64 +246,60 @@ class OpenAIProvider(ModelProvider):
         }
         super().__init__(models)
         self._image_models = {"gpt-image-1"}
-        openai.api_key = api_key  # type: ignore[attr-defined]
+        self.client = OpenAI(api_key=api_key)
+        self.async_client = AsyncOpenAI(api_key=api_key)
 
     def generate_text(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> str:  # pragma: no cover
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        response = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            prompt_input = prompt
+        response = self.client.responses.create(
             model=self.models[model],
-            messages=messages,
-            max_tokens=max_tokens,
+            input=prompt_input,
+            max_output_tokens=max_tokens,
         )
-        return response["choices"][0]["message"]["content"]
+        return response.output[0].content[0].text
 
     async def generate_text_async(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> str:  # pragma: no cover - thin wrapper
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        if hasattr(openai.ChatCompletion, "acreate"):
-            chat_comp = openai.ChatCompletion  # type: ignore[attr-defined]
-            response = await chat_comp.acreate(
-                model=self.models[model],
-                messages=messages,
-                max_tokens=max_tokens,
-            )
-            return response["choices"][0]["message"]["content"]
-        return await super().generate_text_async(model, prompt, max_tokens)
+            prompt_input = prompt
+        response = await self.async_client.responses.create(
+            model=self.models[model],
+            input=prompt_input,
+            max_output_tokens=max_tokens,
+        )
+        return response.output[0].content[0].text
 
     def stream_generate_text(
         self, model: str, prompt: PromptType, max_tokens: int
     ) -> Iterator[str]:  # pragma: no cover - thin wrapper
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            prompt_input: PromptType = [{"role": "user", "content": prompt}]
         else:
-            messages = prompt
-        stream = openai.ChatCompletion.create(  # type: ignore[attr-defined]
+            prompt_input = prompt
+        with self.client.responses.stream(
             model=self.models[model],
-            messages=messages,
-            max_tokens=max_tokens,
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk["choices"][0]["delta"].get("content")
-            if delta:
-                yield delta
+            input=prompt_input,
+            max_output_tokens=max_tokens,
+        ) as stream:
+            for event in stream:
+                if event.type == "response.output_text.delta":
+                    yield event.delta
 
     def generate_image(self, model: str, prompt: str) -> bytes:
         if model not in self._image_models:
             raise ValueError(f"Model '{model}' is not an image model")
-        resp = openai.Image.create(  # type: ignore[attr-defined]
+        resp = self.client.images.generate(
             model=self.models[model], prompt=prompt, response_format="b64_json"
         )
-        data = resp["data"][0]["b64_json"]
+        data = resp.data[0].b64_json
         return base64.b64decode(data)
 
 
@@ -561,6 +554,10 @@ class AIModelInterface:
         for model in provider_obj.models:
             self._providers[model] = provider_obj
 
+    def supports(self, model: str) -> bool:
+        """Return ``True`` if the model is registered with any provider."""
+        return model in self._providers
+
     def supports_batching(self, model: str) -> bool:
         """Return whether the provider for ``model`` supports batching."""
         provider = self._providers.get(model)
@@ -696,4 +693,5 @@ class AIModelInterface:
 __all__ = [
     "AIModelInterface",
     "ModelProvider",
+    "PromptType",
 ]

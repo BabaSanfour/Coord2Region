@@ -1,9 +1,7 @@
-import sys
 import types
 
 import pytest
 from unittest.mock import MagicMock, patch
-import openai
 import asyncio
 
 from coord2region.ai_model_interface import AIModelInterface  # noqa: E402
@@ -25,10 +23,11 @@ def test_generate_text_gemini_success():
 
 @pytest.mark.unit
 def test_generate_text_deepseek_success():
-    with patch(
-        "openai.ChatCompletion.create",
-        return_value={"choices": [{"message": {"content": "hi"}}]},
-    ):
+    mock_client = MagicMock()
+    mock_client.responses.create.return_value = types.SimpleNamespace(
+        output=[types.SimpleNamespace(content=[types.SimpleNamespace(text="hi")])]
+    )
+    with patch("coord2region.ai_model_interface.OpenAI", return_value=mock_client):
         ai = AIModelInterface(openrouter_api_key="key")
         result = ai.generate_text("deepseek-r1", "hello")
     assert result == "hi"
@@ -43,7 +42,6 @@ def test_generate_text_invalid_model():
 
 @pytest.mark.unit
 def test_generate_text_missing_keys():
-    openai.api_key = None
     ai = AIModelInterface()
     with pytest.raises(ValueError):
         ai.generate_text("gemini-2.0-flash", "test")
@@ -53,7 +51,9 @@ def test_generate_text_missing_keys():
 
 @pytest.mark.unit
 def test_generate_text_runtime_error():
-    with patch("openai.ChatCompletion.create", side_effect=Exception("boom")):
+    mock_client = MagicMock()
+    mock_client.responses.create.side_effect = Exception("boom")
+    with patch("coord2region.ai_model_interface.OpenAI", return_value=mock_client):
         ai = AIModelInterface(openrouter_api_key="key")
         with pytest.raises(RuntimeError):
             ai.generate_text("deepseek-r1", "oops")
@@ -79,6 +79,23 @@ def test_generate_text_retries_transient_failure():
     result = ai.generate_text("m", "hi")
     assert result == "ok"
     assert provider.calls == 2
+
+
+@pytest.mark.unit
+def test_supports_method():
+    class DummyProvider(ModelProvider):
+        def __init__(self):
+            super().__init__({"m": "m"})
+
+        def generate_text(self, model: str, prompt, max_tokens: int) -> str:
+            return "ok"
+
+    ai = AIModelInterface()
+    provider = DummyProvider()
+    ai.register_provider(provider)
+
+    assert ai.supports("m") is True
+    assert ai.supports("unknown") is False
 
 
 @pytest.mark.unit

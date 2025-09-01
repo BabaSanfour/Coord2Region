@@ -13,7 +13,8 @@ from coord2region.coord2region import MultiAtlasMapper
 from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
 # %%
 # Step 1: Generate 10 random MNI coordinates
-# -----------------------------------------
+# ------------------------------------------
+#
 np.random.seed(42)
 mni_coordinates = np.random.randint(-60, 60, size=(10, 3))  # Generate 10 random (x, y, z) points
 mni_list = mni_coordinates.tolist()
@@ -25,7 +26,8 @@ print(f"Saved toy coordinates to {csv_filename}")
 # df = pd.read_csv("coordinates.csv"); instead of generating random coordinates
 # %%
 # Step 2: Fetch and load multiple atlases
-# -----------------------------------------
+# ---------------------------------------
+#
 af = AtlasFetcher()
 atlases = {
     "harvard-oxford": {},
@@ -35,11 +37,13 @@ atlases = {
 }
 # %%
 # Step 3: Create MultiAtlasMapper
-# -----------------------------------------
+# -------------------------------
+#
 multi_mapper = MultiAtlasMapper(data_dir=af.data_dir, atlases=atlases)
 # %%
 # Step 4: Map each coordinate to regions in all four atlases
 # ----------------------------------------------------------
+#
 results = []
 for coord in mni_list:
     regions = multi_mapper.batch_mni_to_region_names([coord])
@@ -54,7 +58,8 @@ df_mapped.to_csv(mapped_csv_filename, index=False)
 print(f"Saved mapped coordinates to {mapped_csv_filename}")
 # %%
 # Step 5: Prepare NiMARE dataset (only NIDM-Pain for speed)
-# --------------------------------------------------------
+# ---------------------------------------------------------
+#
 dataset_dir = af.data_dir
 # Neurosynth and NeuroQuery take a long time to download; for this example we
 # only include the NIDM-Pain dataset.
@@ -63,6 +68,7 @@ datasets = {"Combined": dataset}
 # %%
 # Step 6: Query studies for each coordinate and save to JSON
 # ----------------------------------------------------------
+#
 output_dir = "studies_per_coordinate"
 os.makedirs(output_dir, exist_ok=True)
 for coord in mni_list:
@@ -73,6 +79,7 @@ for coord in mni_list:
     print(f"Saved studies for coordinate {coord} to {coord_filename}")
 # %%
 # Summary:
+#
 # - We generated 10 random MNI coordinates and saved them to `toy_coordinates.csv`.
 # - We mapped each coordinate to 4 brain atlases and saved the results to `mapped_coordinates.csv`.
 # - We prepared a deduplicated NIDM-Pain dataset and queried studies for each

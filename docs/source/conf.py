@@ -106,6 +106,7 @@ autodoc_default_options = {
     "inherited-members": True,
     "show-inheritance": True,
     "exclude-members": "logger",
+    "noindex": True,
 }
 
 examples_dir = os.path.abspath(os.path.join(curdir, '..', '..', 'examples'))
@@ -138,7 +139,8 @@ html_theme = 'pydata_sphinx_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 #html_static_path = ['_static'] #already done in the setup(app) section
-html_extra_path = ['_copyover']
+# No additional paths are needed for the built HTML output.
+html_extra_path = []
 
 
 ###################################################################################################
@@ -158,5 +160,13 @@ extensions += ['autoapi.extension']
 
 autoapi_type = 'python'
 autoapi_dirs = ["../../coord2region"]
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "show-inheritance",
+    "show-module-summary",
+]
+autoapi_ignore = ["*/__init__.py"]
+autoapi_template_dir = "_templates/autoapi"
 extensions += ['sphinx.ext.viewcode']  # see https://github.com/readthedocs/sphinx-autoapi/issues/422
 

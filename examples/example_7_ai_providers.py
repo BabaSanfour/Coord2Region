@@ -1,4 +1,9 @@
-"""Demonstrate provider selection, retries, and caching."""
+"""Demonstrate provider selection, retries, and caching.
+
+This example now relies on the updated ``openai`` client (``openai>=1``)
+under the hood. Ensure the environment has a valid OpenAI API key and the
+newer library installed before running.
+"""
 
 from coord2region.ai_model_interface import AIModelInterface
 from coord2region.llm import generate_summary

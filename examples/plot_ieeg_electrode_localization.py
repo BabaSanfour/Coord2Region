@@ -24,15 +24,17 @@ except Exception:
     print("ECoG dataset not available; skipping electrode mapping.")
 
 if data_path is not None:
-    contacts = pd.read_table(
-        data_path / "sub-pt1" / "ieeg" / "sub-pt1_electrodes.tsv",
-    )
-    coords = contacts[["x", "y", "z"]].values
+    electrode_file = data_path / "sub-pt1" / "ieeg" / "sub-pt1_electrodes.tsv"
+    if electrode_file.is_file():
+        contacts = pd.read_table(electrode_file)
+        coords = contacts[["x", "y", "z"]].values
 
-    # %%
-    # Map contacts to atlas regions
-    fetcher = AtlasFetcher()
-    atlas = fetcher.fetch_atlas("aal")
-    mapper = AtlasMapper("aal", atlas["vol"], atlas["hdr"], atlas["labels"])
-    labels = [mapper.mni_to_region_name(c) for c in coords]
-    print(list(zip(contacts["name"], labels))[:5])
+        # %%
+        # Map contacts to atlas regions
+        fetcher = AtlasFetcher()
+        atlas = fetcher.fetch_atlas("aal")
+        mapper = AtlasMapper("aal", atlas["vol"], atlas["hdr"], atlas["labels"])
+        labels = [mapper.mni_to_region_name(c) for c in coords]
+        print(list(zip(contacts["name"], labels))[:5])
+    else:
+        print("Electrode file not found; skipping electrode mapping.")
