@@ -23,6 +23,12 @@ Coord2Region requires `nilearn` version 0.11 or newer.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Tutorials
+
+   tutorials
+
+.. toctree::
+   :maxdepth: 1
    :caption: Examples
 
    auto_examples/index
