@@ -32,7 +32,8 @@ def resolve_data_dir(base: Optional[str] = None) -> Path:
     try:
         expanded = Path(base).expanduser()
         expanded.resolve()
-    except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover - platform dependent
+    except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover
+        # platform dependent
         raise ValueError(f"Invalid path: {base}") from exc
 
     if expanded.is_absolute():
