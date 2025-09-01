@@ -1,4 +1,11 @@
-"""Utility functions for the Coord2Region package."""
+"""Utilities for Coord2Region: file I/O, image generation, and data-directory helpers.
+
+Main utility categories:
+- label fetching and output packing
+- file saving to CSV, PDF, or batch folders
+- data directory resolution
+- MNI152 image generation and watermarking
+"""
 
 from .utils import fetch_labels, pack_vol_output, pack_surf_output
 from .paths import resolve_data_dir
