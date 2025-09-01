@@ -19,7 +19,7 @@ from datetime import date
 # sys.path.insert(0, os.path.abspath('.'))
 
 curdir = os.path.dirname(__file__)
-sys.path.append(os.path.abspath(os.path.join(curdir, "..", "coord2region")))
+sys.path.append(os.path.abspath(os.path.join(curdir, "..", "..")))
 
 import shutil
 

@@ -10,12 +10,12 @@ authors = [
 ]
 description = "Find region name for a given MNI coordinate in a selected atlas"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
-license = { text = "MIT" }
+license = { text = "BSD-3-Clause" }
 
 dependencies = [
     "biopython",
@@ -57,8 +57,8 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pypa/Coord2Region"
-Issues = "https://github.com/pypa/Coord2Region/issues"
+Homepage = "https://github.com/BabaSanfour/Coord2Region"
+Issues = "https://github.com/BabaSanfour/Coord2Region/issues"
 
 [project.scripts]
 coord2region = "coord2region.cli:main"
@@ -68,7 +68,7 @@ write_to = "coord2region/_version.py"
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 exclude = ["docs", "examples", "tests"]
 
 [tool.ruff.lint]
