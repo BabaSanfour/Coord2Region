@@ -165,3 +165,32 @@ def test_generate_image_invalid_model():
     ai = AIModelInterface()
     with pytest.raises(ValueError):
         ai.generate_image("none", "prompt")
+
+
+@pytest.mark.unit
+def test_register_provider_disabled():
+    class Dummy(ModelProvider):
+        def __init__(self):
+            super().__init__({"m": "m"})
+
+        def generate_text(self, model: str, prompt, max_tokens: int) -> str:
+            return "ok"
+
+    ai = AIModelInterface()
+    ai.register_provider(Dummy(), enabled=False)
+    with pytest.raises(ValueError):
+        ai.generate_text("m", "hi")
+
+
+@pytest.mark.unit
+def test_init_skips_failed_provider(monkeypatch):
+    class BrokenProvider(ModelProvider):
+        def __init__(self, api_key: str):
+            raise RuntimeError("boom")
+
+        def generate_text(self, model: str, prompt, max_tokens: int) -> str:  # pragma: no cover - not used
+            return ""  # pragma: no cover
+
+    monkeypatch.setitem(AIModelInterface._PROVIDER_CLASSES, "gemini", BrokenProvider)
+    ai = AIModelInterface(gemini_api_key="k")
+    assert ai._providers == {}

@@ -252,6 +252,22 @@ def test_prepare_datasets_fetches_when_missing(mock_exists, mock_load, mock_dedu
 
 
 @pytest.mark.unit
+@patch("coord2region.coord2study.fetch_datasets")
+@patch("coord2region.coord2study.deduplicate_datasets")
+@patch("coord2region.coord2study.load_deduplicated_dataset", return_value=None)
+@patch("coord2region.coord2study.os.path.exists", return_value=True)
+def test_prepare_datasets_cache_load_fails(mock_exists, mock_load, mock_dedup, mock_fetch, tmp_path):  # noqa: E501
+    """If cached dataset is unreadable it should be rebuilt."""
+    mock_fetch.return_value = {"A": MagicMock()}
+    mock_dedup.return_value = "DS"
+
+    result = prepare_datasets(str(tmp_path))
+    assert result == "DS"
+    mock_fetch.assert_called_once()
+    mock_dedup.assert_called_once()
+
+
+@pytest.mark.unit
 def test_search_studies_select_sources_and_dedup():
     """search_studies filters datasets and removes duplicates."""
     ds1 = MagicMock()

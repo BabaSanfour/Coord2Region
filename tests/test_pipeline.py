@@ -191,6 +191,38 @@ def test_pipeline_ai_watermark(mock_generate, tmp_path):
 
 
 @pytest.mark.unit
+def test_pipeline_both_backends(tmp_path):
+    buf = BytesIO()
+    Image.new("RGB", (10, 10), color="white").save(buf, format="PNG")
+    ai_bytes = buf.getvalue()
+    buf.seek(0)
+    nilearn_bytes = buf.getvalue()
+
+    with patch(
+        "coord2region.pipeline.generate_region_image", return_value=ai_bytes
+    ) as mock_ai, patch(
+        "coord2region.pipeline.generate_mni152_image", return_value=nilearn_bytes
+    ) as mock_nl, patch("coord2region.pipeline.AIModelInterface"):
+        res = run_pipeline(
+            inputs=[[0, 0, 0]],
+            input_type="coords",
+            outputs=["images"],
+            image_backend="both",
+            brain_insights_kwargs={
+                "use_atlases": False,
+                "use_cached_dataset": False,
+                "data_dir": str(tmp_path),
+                "gemini_api_key": "k",
+            },
+        )
+
+    imgs = res[0].images
+    assert set(imgs.keys()) == {"ai", "nilearn"}
+    mock_ai.assert_called_once()
+    mock_nl.assert_called_once()
+
+
+@pytest.mark.unit
 def test_export_results_invalid_format(tmp_path):
     with pytest.raises(ValueError):
         _export_results([PipelineResult()], "xml", str(tmp_path / "out"))

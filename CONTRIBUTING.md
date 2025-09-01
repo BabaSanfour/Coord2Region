@@ -29,7 +29,8 @@ pre-commit run --all-files
 
 ## Testing and coverage
 
-Run the unit test suite with coverage and ensure at least 80% total coverage:
+Run the unit test suite with coverage. The project aims for at least 80%
+coverage, which is enforced by Codecov:
 
 ```bash
 pytest --cov
