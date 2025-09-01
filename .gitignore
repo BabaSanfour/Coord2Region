@@ -24,6 +24,7 @@ coverage.xml
 .pytest_cache/
 .venv_coord2region
 
+nimare_data/
 
 study_data/
 examples/studies*/

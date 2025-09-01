@@ -8,9 +8,17 @@ packing volumetric atlas outputs.
 import os
 import logging
 import pickle
-from typing import Optional, Union, List
+import csv
+import json
+import shutil
+from dataclasses import asdict, is_dataclass
+from typing import Optional, Union, List, Any, Sequence
+
+from fpdf import FPDF
+
 import mne
 from .utils import fetch_labels, pack_vol_output
+from .paths import resolve_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +29,9 @@ class AtlasFileHandler:
     Parameters
     ----------
     data_dir : str or None, optional
-        Directory for downloaded atlas files. Defaults to ``~/coord2region``.
+        Base directory for downloaded atlas files. Defaults to
+        ``~/coord2region``. Relative paths are interpreted relative to the
+        user's home directory.
     subjects_dir : str or None, optional
         FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is inferred from
         :func:`mne.get_config`.
@@ -29,7 +39,13 @@ class AtlasFileHandler:
     Attributes
     ----------
     data_dir : str
-        Directory where atlas files are stored.
+        Base directory where atlas files and other outputs are stored.
+    cached_data_dir : str
+        Directory for cached datasets.
+    generated_images_dir : str
+        Directory for generated images.
+    results_dir : str
+        Directory for exported results.
     subjects_dir : str or None
         Path to the FreeSurfer subjects directory.
     nilearn_data : str
@@ -48,8 +64,9 @@ class AtlasFileHandler:
         """Initialize the file handler.
 
         data_dir : str or None, optional
-            Directory for storing downloaded atlas files. Defaults to
-            ``~/coord2region``.
+            Base directory for storing downloaded atlas files. Defaults to
+            ``~/coord2region``. Relative paths are interpreted relative to the
+            user's home directory.
         subjects_dir : str or None, optional
             Path to the FreeSurfer ``SUBJECTS_DIR``. If ``None``, the value is
             looked up via :func:`mne.get_config`.
@@ -63,13 +80,8 @@ class AtlasFileHandler:
         --------
         >>> AtlasFileHandler()  # doctest: +SKIP
         """
-        home_dir = os.path.expanduser("~")
-        if data_dir is None:
-            self.data_dir = os.path.join(home_dir, "coord2region")
-        elif os.path.isabs(data_dir):
-            self.data_dir = data_dir
-        else:
-            self.data_dir = os.path.join(home_dir, data_dir)
+        base_dir = resolve_data_dir(data_dir)
+        self.data_dir = str(base_dir)
 
         try:
             os.makedirs(self.data_dir, exist_ok=True)
@@ -79,7 +91,19 @@ class AtlasFileHandler:
         if not os.access(self.data_dir, os.W_OK):
             raise ValueError(f"Data directory {self.data_dir} is not writable")
 
-        self.nilearn_data = os.path.join(home_dir, "nilearn_data")
+        self.cached_data_dir = os.path.join(self.data_dir, "cached_data")
+        self.generated_images_dir = os.path.join(self.data_dir, "generated_images")
+        self.results_dir = os.path.join(self.data_dir, "results")
+        self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
+
+        for path in (
+            self.cached_data_dir,
+            self.generated_images_dir,
+            self.results_dir,
+            self.nilearn_data,
+        ):
+            os.makedirs(path, exist_ok=True)
+
         if subjects_dir is not None:
             self.subjects_dir = subjects_dir
         else:
@@ -303,7 +327,7 @@ class AtlasFileHandler:
             base_name = file_name
             for ext in [".tar.gz", ".tgz", ".tar"]:
                 if base_name.endswith(ext):
-                    base_name = base_name[:-len(ext)]
+                    base_name = base_name[: -len(ext)]
                     break
             extract_dir = os.path.join(self.data_dir, base_name)
             with tarfile.open(local_path, "r:*") as tar_ref:
@@ -318,3 +342,94 @@ class AtlasFileHandler:
                 decompressed_path = decompressed_file
 
         return decompressed_path
+
+
+def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
+    """Convert dataclass or mapping results to plain dictionaries."""
+    dicts: List[dict] = []
+    for res in results:
+        if is_dataclass(res):
+            dicts.append(asdict(res))
+        elif isinstance(res, dict):
+            dicts.append(res)
+        else:
+            dicts.append(dict(res))  # type: ignore[arg-type]
+    return dicts
+
+
+def save_as_pdf(results: Sequence[Any], path: str) -> None:
+    """Save pipeline results to a PDF file or directory."""
+    dict_results = _results_to_dicts(results)
+
+    if len(dict_results) > 1 or os.path.isdir(path):
+        os.makedirs(path, exist_ok=True)
+
+    for idx, res in enumerate(dict_results, start=1):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        coord = res.get("coordinate")
+        if coord is not None:
+            pdf.multi_cell(0, 10, f"Coordinate: {coord}")
+        summary = res.get("summary")
+        if summary:
+            pdf.multi_cell(0, 10, summary)
+        img = res.get("image")
+        if img:
+            try:  # pragma: no cover - depends on PIL
+                pdf.image(img, w=100)
+            except Exception:
+                pass
+        fname = (
+            os.path.join(path, f"result_{idx}.pdf")
+            if os.path.isdir(path) or len(dict_results) > 1
+            else path
+        )
+        pdf.output(fname)
+
+
+def save_as_csv(results: Sequence[Any], path: str) -> None:
+    """Save pipeline results to a CSV file."""
+    dict_results = _results_to_dicts(results)
+
+    fieldnames = [
+        "coordinate",
+        "region_labels",
+        "summary",
+        "studies",
+        "image",
+        "images",
+    ]
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", newline="", encoding="utf8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in dict_results:
+            flat = {
+                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                for k, v in row.items()
+            }
+            writer.writerow({k: flat.get(k) for k in fieldnames})
+
+
+def save_batch_folder(results: Sequence[Any], path: str) -> None:
+    """Save results as a directory with individual JSON files and images."""
+    dict_results = _results_to_dicts(results)
+    os.makedirs(path, exist_ok=True)
+    for idx, res in enumerate(dict_results, start=1):
+        out_dir = os.path.join(path, f"result_{idx}")
+        os.makedirs(out_dir, exist_ok=True)
+        with open(os.path.join(out_dir, "result.json"), "w", encoding="utf8") as f:
+            json.dump(res, f, indent=2)
+        img = res.get("image")
+        if img and os.path.exists(img):
+            try:
+                shutil.copy(img, os.path.join(out_dir, os.path.basename(img)))
+            except Exception:
+                pass
+        for extra in res.get("images", {}).values():
+            if extra and os.path.exists(extra):
+                try:
+                    shutil.copy(extra, os.path.join(out_dir, os.path.basename(extra)))
+                except Exception:
+                    pass

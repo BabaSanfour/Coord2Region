@@ -1,13 +1,24 @@
-nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn
-nibabel
+biopython
 mne
-flake8
-flake8-docstrings
-pydocstyle
-pytest-cov
+nibabel
+nilearn>=0.12
 nimare>=0.4.0
-bio
+numpy
+pandas
 scipy
+requests
+pyyaml
+openpyxl
+Pillow
+fpdf
+openai
+google-genai
+anthropic
+transformers
+diffusers
+pre-commit
+ruff
+pytest-cov
 sphinx>=4.0.0
 insegel
 furo
@@ -16,4 +27,5 @@ sphinx-copybutton
 sphinxcontrib-mermaid
 sphinx-autoapi
 myst-parser
+torch>=2.0.0
 -e .

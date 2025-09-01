@@ -10,7 +10,7 @@ import numpy as np
 import nilearn.datasets
 import mne
 from nibabel.nifti1 import Nifti1Image
-from .file_handler import AtlasFileHandler
+from .utils.file_handler import AtlasFileHandler
 from .utils import pack_vol_output, pack_surf_output
 
 logger = logging.getLogger(__name__)
@@ -89,6 +89,7 @@ class AtlasFetcher:
             fetch_atlas_pauli_2017,
             fetch_atlas_basc_multiscale_2015,
         )
+
         self._atlas_fetchers_nilearn = {
             "aal": {"fetcher": fetch_atlas_aal, "default_kwargs": {"version": "3v2"}},
             "brodmann": {
@@ -134,6 +135,7 @@ class AtlasFetcher:
             fetch_coords_power_2011,
             fetch_coords_seitzman_2018,
         )
+
         self._coords_fetchers_nilearn = {
             "dosenbach": {"fetcher": fetch_coords_dosenbach_2010, "default_kwargs": {}},
             "power": {"fetcher": fetch_coords_power_2011, "default_kwargs": {}},

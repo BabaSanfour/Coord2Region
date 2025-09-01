@@ -1,14 +1,18 @@
-bio
-coverage
+biopython
 mne
 nibabel
-nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn
+nilearn>=0.12
 nimare>=0.4.0
 numpy
 pandas
 scipy
 requests
-setuptools
-urllib3
-wheel
-wrapt
+pyyaml
+openpyxl
+Pillow
+fpdf
+openai
+google-genai
+anthropic
+transformers
+diffusers

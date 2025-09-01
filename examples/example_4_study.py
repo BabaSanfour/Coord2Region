@@ -8,21 +8,21 @@ specific MNI coordinates.
 # 1. Import Required Libraries
 # We start by importing the necessary libraries.
 
-import os
-from coord2region.coord2study import fetch_datasets, get_studies_for_coordinate
+from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
+from coord2region.paths import get_data_directory
 
 # %%
-# 2. Fetch the NIDM-Pain Dataset
-# 
-# We use `fetch_datasets` to download the **NIDM-Pain dataset**, which contains **neuroimaging meta-analysis studies**.
+# 2. Prepare the NIDM-Pain Dataset
+#
+# We use `prepare_datasets` to load a cached deduplicated dataset or
+# download and create one if necessary. For speed, we only include the
+# NIDM-Pain dataset in this example.
 
-home_dir = os.path.expanduser("~")
-data_dir = os.path.join(home_dir, 'coord2region') # Use package directory for data storage
-os.makedirs(data_dir, exist_ok=True)
+data_dir = get_data_directory()
+dataset = prepare_datasets(data_dir=data_dir, sources=["nidm_pain"])
+datasets = {"Combined": dataset}
 
-datasets = fetch_datasets(data_dir=data_dir, neurosynth=False, neuroquery=False)  # Only use NIDM-Pain
-
-print(f"Loaded datasets: {list(datasets.keys())}")
+print(f"Loaded dataset with {len(dataset.ids)} studies")
 
 # %%
 # 3. Query Studies for an MNI Coordinate
@@ -57,7 +57,7 @@ for study in study_results[:3]:  # Limit to first 3 studies
 # 5. Summary
 #
 # In this tutorial, we:
-# - Loaded the **NIDM-Pain** dataset using `fetch_datasets`
+# - Prepared the **NIDM-Pain** dataset using `prepare_datasets`
 # - Queried **studies reporting activation** at a given MNI coordinate
 # - Extracted **study titles and abstracts** from the results
 #

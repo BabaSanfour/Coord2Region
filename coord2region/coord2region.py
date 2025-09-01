@@ -91,6 +91,8 @@ _TRANSFORMS = {
     ("mni", "tal"): _mni_to_tal,
     ("tal", "mni"): _tal_to_mni,
 }
+
+
 def _get_numeric_hemi(hemi: Union[str, int]) -> int:
     """Convert hemisphere string to numeric code (0 or 1)."""
     if isinstance(hemi, int):
@@ -163,7 +165,6 @@ class AtlasMapper:
         subjects_dir: Optional[str] = None,
         system: str = "mni",
     ) -> None:
-
         self.name = name
         self.labels = labels
         self.indexes = indexes
@@ -347,14 +348,18 @@ class AtlasMapper:
             return (
                 "L"
                 if lower.startswith(("lh"))
-                else "R" if lower.startswith(("rh")) else None
+                else "R"
+                if lower.startswith(("rh"))
+                else None
             )
 
         lower = region_name.lower()
         return (
             "L"
             if lower.endswith(("_lh", "-lh"))
-            else "R" if lower.endswith(("_rh", "-rh")) else None
+            else "R"
+            if lower.endswith(("_rh", "-rh"))
+            else None
         )
 
     # -------------------------------------------------------------------------
@@ -431,14 +436,14 @@ class AtlasMapper:
         # Otherwise search for the voxel with minimal distance in MNI space
         self._build_voxel_kdtree()
         if self._voxel_kdtree is None or self._voxel_indices is None:
-                raise RuntimeError(
-                    f"Failed to construct voxel KD-tree for atlas '{self.name}'. "
-                    "This may indicate memory issues or invalid volume data."
-                )
+            raise RuntimeError(
+                f"Failed to construct voxel KD-tree for atlas '{self.name}'. "
+                "This may indicate memory issues or invalid volume data."
+            )
         _, idx = self._voxel_kdtree.query(pos_arr)
         nearest = self._voxel_indices[idx]
         return tuple(int(v) for v in nearest)
-    
+
     def mni_to_vertex(
         self,
         mni_coord: Union[List[float], np.ndarray],
@@ -495,7 +500,7 @@ class AtlasMapper:
 
         closest_vertex = vertices[int(np.argmin(dists))]
         return int(closest_vertex)
-            
+
     def convert_to_source(
         self,
         target: Union[List[float], np.ndarray],
@@ -548,7 +553,7 @@ class AtlasMapper:
         if src_arr.shape[0] == 1:
             return coords[0]
         return coords
-    
+
     def vertex_to_mni(
         self, vertices: Union[List[int], np.ndarray], hemi: Union[List[int], int]
     ) -> np.ndarray:
@@ -575,11 +580,12 @@ class AtlasMapper:
             )
         if (~lh_mask).any():
             coords.append(
-                mne.vertex_to_mni(vertices[~lh_mask], 1, self.subject, self.subjects_dir)
+                mne.vertex_to_mni(
+                    vertices[~lh_mask], 1, self.subject, self.subjects_dir
+                )
             )
         return np.vstack(coords) if coords else np.empty((0, 3))
 
-    
     def convert_to_mni(
         self,
         source: Union[List[int], np.ndarray],
@@ -594,6 +600,7 @@ class AtlasMapper:
             return self.vertex_to_mni(source, hemi)
         if self.atlas_type == "coords":
             return np.asarray(source, dtype=float)
+
     # -------------------------------------------------------------------------
     # MNI <--> region
     # -------------------------------------------------------------------------
@@ -647,15 +654,23 @@ class AtlasMapper:
             exact_matches: List[int] = []
             for v in verts:
                 v_int = int(v)
-                hemi_v = next((h for h in hemis if v_int in np.asarray(self.vol[h])), None)
+                hemi_v = next(
+                    (h for h in hemis if v_int in np.asarray(self.vol[h])), None
+                )
                 if hemi_v is not None:
-                    v_mni = mne.vertex_to_mni([v_int], hemi_v, self.subject, self.subjects_dir)[0]
+                    v_mni = mne.vertex_to_mni(
+                        [v_int], hemi_v, self.subject, self.subjects_dir
+                    )[0]
                     if np.allclose(v_mni, coord):
                         exact_matches.append(v_int)
                 elif self.vertex_to_region and v_int in self.vertex_to_region:
                     exact_matches.append(v_int)
             if exact_matches:
-                result = np.array(exact_matches) if len(exact_matches) > 1 else int(exact_matches[0])
+                result = (
+                    np.array(exact_matches)
+                    if len(exact_matches) > 1
+                    else int(exact_matches[0])
+                )
             else:
                 result, dist = self._nearest_region_index(coord, hemi)
         elif self.atlas_type == "coords":
@@ -710,7 +725,7 @@ class AtlasMapper:
                 continue
             centroids[int(idx)] = coords.mean(axis=0)
         self._centroids_cache = centroids
-        
+
     def _nearest_region_index(
         self,
         mni_coord: Union[List[float], np.ndarray],
@@ -766,9 +781,11 @@ class AtlasMapper:
     # -------------------------------------------------------------------------
     # region index/name <--> all voxel coords
     # -------------------------------------------------------------------------
-    
+
     def region_index_to_mni(
-        self, region_idx: Union[int, str, List[int], np.ndarray], hemi: Optional[int] = None
+        self,
+        region_idx: Union[int, str, List[int], np.ndarray],
+        hemi: Optional[int] = None,
     ) -> np.ndarray:
         """
         Return MNI coordinates for voxels or vertices in ``region_idx``.
@@ -820,7 +837,7 @@ class AtlasMapper:
         return self.region_index_to_mni(
             region_idx, _get_numeric_hemi(self.infer_hemisphere(region_name))
         )
-    
+
     def region_centroid(self, region: Union[int, str]) -> np.ndarray:
         """Return the centroid MNI coordinate for a region or vertex index."""
         if isinstance(region, str):
@@ -930,7 +947,10 @@ class AtlasMapper:
     def save(self, filename: str) -> None:
         """Serialize this ``AtlasMapper`` to ``filename`` using pickle."""
         data = {
-            "metadata": {"class": self.__class__.__name__, "version": self._SERIAL_VERSION},
+            "metadata": {
+                "class": self.__class__.__name__,
+                "version": self._SERIAL_VERSION,
+            },
             "state": self._get_state(),
         }
         with open(filename, "wb") as f:
@@ -964,6 +984,7 @@ class AtlasMapper:
             raise ValueError("Incompatible AtlasMapper version")
         state = data.get("state", {})
         return cls(**state)
+
 
 class BatchAtlasMapper:
     """Provide batch (vectorized) conversions for a single atlas mapper.
@@ -1028,9 +1049,7 @@ class BatchAtlasMapper:
         """Return region index for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
         return [
-            self.mapper.mni_to_region_index(
-                pos, max_distance=max_distance, hemi=hemi
-            )
+            self.mapper.mni_to_region_index(pos, max_distance=max_distance, hemi=hemi)
             for pos in positions_arr
         ]
 
@@ -1043,9 +1062,7 @@ class BatchAtlasMapper:
         """Return region name for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
         return [
-            self.mapper.mni_to_region_name(
-                pos, max_distance=max_distance, hemi=hemi
-            )
+            self.mapper.mni_to_region_name(pos, max_distance=max_distance, hemi=hemi)
             for pos in positions_arr
         ]
 
@@ -1159,7 +1176,10 @@ class MultiAtlasMapper:
             name: mapper.mapper._get_state() for name, mapper in self.mappers.items()
         }
         data = {
-            "metadata": {"class": self.__class__.__name__, "version": self._SERIAL_VERSION},
+            "metadata": {
+                "class": self.__class__.__name__,
+                "version": self._SERIAL_VERSION,
+            },
             "state": {"mappers": mapper_states},
         }
         with open(filename, "wb") as f:

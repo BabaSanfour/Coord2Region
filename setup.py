@@ -7,13 +7,16 @@ from pathlib import Path
 # Try retrieving the version dynamically
 try:
     version = (
-        subprocess.check_output(["git", "describe", "--abbrev=0", "--tags"], stderr=subprocess.DEVNULL)
+        subprocess.check_output(
+            ["git", "describe", "--abbrev=0", "--tags"], stderr=subprocess.DEVNULL
+        )
         .strip()
         .decode("utf-8")
     )
 except subprocess.CalledProcessError:
     try:
         from importlib.metadata import version as get_version
+
         version = get_version("coord2region")
     except Exception:
         version = "0.0.1"  # Default fallback version
@@ -38,7 +41,25 @@ setuptools.setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        'nilearn @ git+https://github.com/BabaSanfour/nilearn.git@main#egg=nilearn'
+        "biopython",
+        "mne",
+        "nibabel",
+        "nilearn>=0.11",
+        "nimare>=0.4.0",
+        "numpy",
+        "pandas",
+        "scipy",
+        "requests",
+        "pyyaml",
+        "openpyxl",
+        "Pillow",
+        "fpdf",
+        "anthropic",
+        "diffusers",
+        "google-genai",
+        "openai",
+        "transformers",
     ],
     include_package_data=True,
+    entry_points={"console_scripts": ["coord2region=coord2region.cli:main"]},
 )
