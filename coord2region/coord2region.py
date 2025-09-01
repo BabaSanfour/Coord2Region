@@ -5,13 +5,19 @@ MNI coordinates, voxel indices, and anatomical region labels. It enables
 lookups and transformations across multiple brain atlases.
 """
 
-import numpy as np
-import mne
+import logging
 import pickle
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import mne
+import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
+
 from .fetching import AtlasFetcher
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:

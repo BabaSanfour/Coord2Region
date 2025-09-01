@@ -10,8 +10,8 @@ multiple providers. Notably, the ``openai_api_key`` and
 ``ANTHROPIC_API_KEY`` environment variables) enable OpenAI and
 Anthropic models respectively.
 
-This module requires the ``openai``, ``google-genai``, ``anthropic``,
-``requests``, ``transformers`` and ``diffusers`` packages.
+This module requires the ``openai`` (version >=1.0), ``google-genai``,
+``anthropic``, ``requests``, ``transformers`` and ``diffusers`` packages.
 """
 
 from __future__ import annotations
@@ -555,7 +555,7 @@ class AIModelInterface:
             self._providers[model] = provider_obj
 
     def supports(self, model: str) -> bool:
-        """Return ``True`` if the model is registered with any provider."""
+        """Return whether ``model`` is registered with any provider."""
         return model in self._providers
 
     def supports_batching(self, model: str) -> bool:

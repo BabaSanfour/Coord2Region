@@ -1,4 +1,5 @@
-"""Demonstrate dataset caching with :func:`prepare_datasets`.
+"""Demonstrate dataset caching with :func:`prepare_datasets`
+==========================================================
 
 Running this script twice shows that the second invocation loads the
 previously merged dataset from disk instead of downloading it again.

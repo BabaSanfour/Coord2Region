@@ -1,4 +1,6 @@
-"""Generate images using OpenAI or Anthropic depending on available keys."""
+"""Generate images using OpenAI or Anthropic depending on available keys
+======================================================================
+"""
 
 import os
 

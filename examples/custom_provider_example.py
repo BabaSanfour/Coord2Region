@@ -1,4 +1,5 @@
-"""Minimal example demonstrating a custom LLM provider.
+"""Minimal example demonstrating a custom LLM provider
+=====================================================
 
 The provider simply echoes the supplied prompt and is registered
 with :class:`coord2region.ai_model_interface.AIModelInterface`.

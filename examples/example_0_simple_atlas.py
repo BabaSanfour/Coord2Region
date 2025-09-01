@@ -1,4 +1,5 @@
-"""Demonstrate basic usage of ``AtlasMapper`` with a synthetic atlas.
+"""Demonstrate basic usage of ``AtlasMapper`` with a synthetic atlas
+===================================================================
 
 This example converts between coordinate systems and queries brain regions.
 """

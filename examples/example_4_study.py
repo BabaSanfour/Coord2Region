@@ -1,4 +1,5 @@
-"""Query neuroimaging meta-analysis datasets using ``coord2study``.
+"""Query neuroimaging meta-analysis datasets using ``coord2study``
+================================================================
 
 Demonstrates fetching NiMARE datasets and finding studies related to
 specific MNI coordinates.

@@ -1,4 +1,5 @@
-"""Batch processing with ``BatchAtlasMapper``.
+"""Batch processing with ``BatchAtlasMapper``
+==========================================
 
 Demonstrates converting multiple coordinates, voxel indices, and region names
 using the Harvard-Oxford atlas.

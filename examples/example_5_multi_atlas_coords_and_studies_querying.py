@@ -1,4 +1,5 @@
-"""End-to-end pipeline for multi-atlas coordinate querying.
+"""End-to-end pipeline for multi-atlas coordinate querying
+========================================================
 
 Generates random MNI coordinates, retrieves regions from several atlases,
 and queries related studies, saving results to disk.

@@ -1,4 +1,6 @@
-"""Generate a nilearn-based brain image for a coordinate."""
+"""Generate a nilearn-based brain image for a coordinate
+======================================================
+"""
 
 from coord2region.pipeline import run_pipeline
 

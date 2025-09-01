@@ -1,4 +1,5 @@
-"""Mixed output pipeline example.
+"""Mixed output pipeline example
+==============================
 
 This script demonstrates how to generate a text summary and an illustrative
 image for a coordinate while saving all results to a PDF file. The dataset is

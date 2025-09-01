@@ -120,6 +120,10 @@ sphinx_gallery_conf = {
     "run_stale_examples": True,
 }
 
+if os.environ.get("READTHEDOCS") == "True":
+    sphinx_gallery_conf["plot_gallery"] = False
+    sphinx_gallery_conf["run_stale_examples"] = False
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path

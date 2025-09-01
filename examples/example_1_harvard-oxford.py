@@ -1,4 +1,5 @@
-"""Fetch the Harvard-Oxford atlas and explore it with ``AtlasMapper``.
+"""Fetch the Harvard-Oxford atlas and explore it with ``AtlasMapper``
+=====================================================================
 
 The example downloads the atlas using ``AtlasFetcher`` and shows how to
 convert between region names, indices, and MNI coordinates.

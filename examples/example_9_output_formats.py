@@ -1,4 +1,5 @@
-"""Demonstrate exporting pipeline results to various formats.
+"""Demonstrate exporting pipeline results to various formats
+==========================================================
 
 This example queries atlas labels for a single coordinate and saves the output
 as CSV, PDF, and a directory of JSON files.

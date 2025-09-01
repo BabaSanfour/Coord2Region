@@ -1,4 +1,5 @@
-"""Activate providers based on available API keys.
+"""Activate providers based on available API keys
+===============================================
 
 This example shows how to conditionally use OpenAI or Anthropic depending on
 which credentials are configured.

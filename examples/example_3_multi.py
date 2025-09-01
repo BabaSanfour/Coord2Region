@@ -1,4 +1,5 @@
-"""Use ``MultiAtlasMapper`` to query multiple atlases simultaneously.
+"""Use ``MultiAtlasMapper`` to query multiple atlases simultaneously
+==================================================================
 
 The example fetches several atlases, converts coordinates to regions, and
 retrieves region coordinates across parcellations.
