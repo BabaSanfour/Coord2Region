@@ -39,3 +39,9 @@ Coord2Region requires `nilearn` version 0.11 or newer.
 
    developer_guide
 
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Roadmap
+
+   roadmap
