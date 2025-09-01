@@ -81,3 +81,10 @@ def test_save_error(tmp_path):
     handler = AtlasFileHandler(data_dir=str(tmp_path))
     with pytest.raises(Exception):
         handler.save(lambda x: x, "bad.pkl")
+
+
+@pytest.mark.unit
+def test_fetch_from_local_missing(tmp_path):
+    handler = AtlasFileHandler(data_dir=str(tmp_path))
+    with pytest.raises(FileNotFoundError):
+        handler.fetch_from_local("atlas.nii.gz", str(tmp_path), [])

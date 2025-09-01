@@ -2,6 +2,7 @@
 
 import pytest
 import os
+import logging
 from unittest.mock import patch, MagicMock
 
 from coord2region.coord2study import (
@@ -12,6 +13,7 @@ from coord2region.coord2study import (
     remove_duplicate_studies,
     prepare_datasets,
     deduplicate_datasets,
+    _fetch_crossref_metadata,
     load_deduplicated_dataset,
 )
 
@@ -341,3 +343,29 @@ def test_get_studies_for_coordinate_dedup():
     assert res[0]["id"].split("-")[0] == "123456"
 
 
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.requests.get")
+def test_fetch_crossref_metadata_html(mock_get):
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"message": {"items": [{"title": ["T"], "abstract": "<p>A</p>"}]}}
+    mock_resp.raise_for_status.return_value = None
+    mock_get.return_value = mock_resp
+    meta = _fetch_crossref_metadata("123")
+    assert meta == {"title": "T", "abstract": "A"}
+
+
+@pytest.mark.unit
+def test_fetch_datasets_unknown_source(tmp_path, caplog):
+    caplog.set_level(logging.WARNING)
+    dsets = fetch_datasets(str(tmp_path), sources=["unknown"])
+    assert dsets == {}
+    assert any("Unknown dataset source" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.Dataset.load", side_effect=Exception("boom"))
+@patch("coord2region.coord2study.os.path.exists", return_value=True)
+def test_load_deduplicated_dataset_error(mock_exists, mock_load):
+    assert load_deduplicated_dataset("/tmp/x.pkl.gz") is None

@@ -211,3 +211,27 @@ def test_export_results_directory(tmp_path):
     out_dir = tmp_path / "batch"
     _export_results([PipelineResult(summary="B")], "directory", str(out_dir))
     assert (out_dir / "result_1" / "result.json").exists()
+
+
+@pytest.mark.unit
+def test_run_pipeline_invalid_input_type():
+    with pytest.raises(ValueError):
+        run_pipeline([1], "invalid", [], brain_insights_kwargs={"use_atlases": False})
+
+
+@pytest.mark.unit
+def test_run_pipeline_invalid_output():
+    with pytest.raises(ValueError):
+        run_pipeline([[0, 0, 0]], "coords", ["bad"], brain_insights_kwargs={"use_atlases": False})
+
+
+@pytest.mark.unit
+def test_run_pipeline_missing_output_path():
+    with pytest.raises(ValueError):
+        run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json", brain_insights_kwargs={"use_atlases": False})
+
+
+@pytest.mark.unit
+def test_run_pipeline_invalid_image_backend():
+    with pytest.raises(ValueError):
+        run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong", brain_insights_kwargs={"use_atlases": False})

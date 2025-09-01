@@ -1,9 +1,10 @@
 from io import BytesIO
 from unittest.mock import patch
+import pytest
 
 import numpy as np
 import nibabel as nib
-from PIL import Image
+from PIL import Image, ImageFont
 
 from coord2region.utils.image_utils import add_watermark, generate_mni152_image
 
@@ -40,3 +41,14 @@ def test_add_watermark_overlays_text():
     arr = np.array(watermarked)
     bottom = arr[int(arr.shape[0] * 0.8) :, :, :]
     assert np.any(bottom > 0)
+
+@pytest.mark.unit
+def test_add_watermark_font_fallback():
+    base = Image.new("RGB", (100, 50), color="black")
+    buf = BytesIO(); base.save(buf, format="PNG")
+    orig_font = ImageFont.load_default()
+    with patch("coord2region.utils.image_utils.ImageFont.truetype", side_effect=[OSError(), orig_font]) as mock_tt:
+        watermarked_bytes = add_watermark(buf.getvalue(), text="WM")
+    arr = np.array(Image.open(BytesIO(watermarked_bytes)))
+    assert np.any(arr[int(arr.shape[0]*0.8):] > 0)
+    assert mock_tt.call_count >= 1

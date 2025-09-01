@@ -1,6 +1,7 @@
 """Unit tests for coord2region.llm."""
 
 import asyncio
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from coord2region.llm import (
@@ -316,3 +317,34 @@ def test_generate_batch_summaries_with_batching(mock_prompt):
 
     assert result == ["S1", "S2"]
     ai.generate_text.assert_called_once()
+
+
+@pytest.mark.unit
+def test_generate_llm_prompt_handles_bad_coord():
+    prompt = generate_llm_prompt(_sample_studies(), ["a", "b", "c"])
+    assert "['a', 'b', 'c']" in prompt
+
+
+@pytest.mark.unit
+@patch("coord2region.llm.generate_region_image_prompt", return_value="PROMPT")
+@patch("coord2region.llm.add_watermark")
+def test_generate_region_image_no_watermark(mock_wm, mock_prompt):
+    ai = MagicMock()
+    ai.generate_image.return_value = b"IMG"
+    res = generate_region_image(ai, [1,2,3], {"summary":""}, watermark=False)
+    mock_prompt.assert_called_once()
+    mock_wm.assert_not_called()
+    assert res == b"IMG"
+
+
+@pytest.mark.unit
+def test_stream_summary_cache():
+    stream_summary._cache.clear()
+    ai = MagicMock()
+    ai.stream_generate_text.side_effect = [iter(["A", "B"])]
+    studies = _sample_studies()
+    coord = [1,2,3]
+    first = list(stream_summary(ai, studies, coord, cache_size=2))
+    second = list(stream_summary(ai, studies, coord, cache_size=2))
+    assert first == second == ["A", "B"]
+    ai.stream_generate_text.assert_called_once()
