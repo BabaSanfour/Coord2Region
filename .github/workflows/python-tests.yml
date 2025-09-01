@@ -40,11 +40,18 @@ jobs:
     #     cd docs
     #     make clean
     #     make html
+    # - name: Upload coverage to Codecov
+    #   if: success()
+    #   uses: codecov/codecov-action@v4
+    #   with:
+    #     token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload coverage to Codecov
       if: success()
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        use_oidc: true
+        files: coverage.xml           # or omit; Codecov can auto-discover
+        fail_ci_if_error: true
     # - name : Test with web-validator
     #   run: |
     #     /bin/bash tests/test_web_validator.sh
