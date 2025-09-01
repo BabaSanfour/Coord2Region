@@ -64,7 +64,7 @@ Issues = "https://github.com/pypa/Coord2Region/issues"
 coord2region = "coord2region.cli:main"
 
 [tool.setuptools_scm]
-write_to = "Coord2Region/_version.py"
+write_to = "coord2region/_version.py"
 
 [tool.ruff]
 line-length = 88

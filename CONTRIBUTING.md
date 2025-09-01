@@ -45,15 +45,28 @@ pip install .[docs]
 make -C docs html
 ```
 
-## Versioning and releases
+## Versioning
 
-This project follows [Semantic Versioning](https://semver.org). Tag releases
-using annotated Git tags:
+This project follows [Semantic Versioning](https://semver.org). The
+[setuptools_scm](https://github.com/pypa/setuptools_scm) plugin derives the
+package version from Git tags, so no version is stored in the repository. To
+update the version, create an annotated tag such as `vX.Y.Z`.
 
-```bash
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-```
+## How to release
+
+1. Ensure checks pass:
+
+   ```bash
+   pre-commit run --all-files
+   pytest --cov
+   ```
+
+2. Tag the release:
+
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
 
 ## Code of Conduct and security
 
