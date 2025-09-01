@@ -8,8 +8,8 @@ specific MNI coordinates.
 # 1. Import Required Libraries
 # We start by importing the necessary libraries.
 
-import os
 from coord2region.coord2study import prepare_datasets, get_studies_for_coordinate
+from coord2region.paths import get_data_directory
 
 # %%
 # 2. Prepare the NIDM-Pain Dataset
@@ -18,10 +18,7 @@ from coord2region.coord2study import prepare_datasets, get_studies_for_coordinat
 # download and create one if necessary. For speed, we only include the
 # NIDM-Pain dataset in this example.
 
-home_dir = os.path.expanduser("~")
-data_dir = os.path.join(home_dir, 'coord2region')  # Use package directory for data storage
-os.makedirs(data_dir, exist_ok=True)
-
+data_dir = get_data_directory()
 dataset = prepare_datasets(data_dir=data_dir, sources=["nidm_pain"])
 datasets = {"Combined": dataset}
 
