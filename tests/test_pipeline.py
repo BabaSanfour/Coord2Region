@@ -1,6 +1,8 @@
 import csv
 import json
 import os
+import pickle
+from dataclasses import asdict
 from io import BytesIO
 from unittest.mock import AsyncMock, patch
 
@@ -223,6 +225,37 @@ def test_pipeline_both_backends(tmp_path):
 
 
 @pytest.mark.unit
+def test_pipeline_async_both_backends(tmp_path):
+    buf = BytesIO()
+    Image.new("RGB", (1, 1), color="white").save(buf, format="PNG")
+    img_bytes = buf.getvalue()
+
+    with patch(
+        "coord2region.pipeline.generate_region_image", return_value=img_bytes
+    ), patch(
+        "coord2region.pipeline.generate_mni152_image", return_value=img_bytes
+    ), patch("coord2region.pipeline.AIModelInterface"):
+        res = run_pipeline(
+            inputs=[[0, 0, 0]],
+            input_type="coords",
+            outputs=["images"],
+            image_backend="both",
+            async_mode=True,
+            brain_insights_kwargs={
+                "use_atlases": False,
+                "use_cached_dataset": False,
+                "data_dir": str(tmp_path),
+                "gemini_api_key": "k",
+            },
+        )
+
+    imgs = res[0].images
+    assert set(imgs.keys()) == {"ai", "nilearn"}
+    for path in imgs.values():
+        assert path and os.path.exists(path)
+
+
+@pytest.mark.unit
 def test_export_results_invalid_format(tmp_path):
     with pytest.raises(ValueError):
         _export_results([PipelineResult()], "xml", str(tmp_path / "out"))
@@ -236,6 +269,17 @@ def test_export_results_csv(tmp_path):
     with open(csv_path, newline="", encoding="utf8") as f:
         rows = list(csv.DictReader(f))
     assert rows[0]["summary"] == "A"
+
+
+@pytest.mark.unit
+def test_export_results_pickle(tmp_path):
+    pkl_path = tmp_path / "res.pkl"
+    res = PipelineResult(summary="A")
+    _export_results([res], "pickle", str(pkl_path))
+    assert pkl_path.exists()
+    with open(pkl_path, "rb") as f:
+        data = pickle.load(f)
+    assert data == [asdict(res)]
 
 
 @pytest.mark.unit
@@ -267,3 +311,67 @@ def test_run_pipeline_missing_output_path():
 def test_run_pipeline_invalid_image_backend():
     with pytest.raises(ValueError):
         run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong", brain_insights_kwargs={"use_atlases": False})
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.AtlasFetcher")
+@patch("coord2region.pipeline.AIModelInterface")
+@patch("coord2region.pipeline.prepare_datasets", return_value={})
+def test_run_pipeline_register_provider(_mock_prepare, mock_ai, _mock_fetcher):
+    run_pipeline(
+        inputs=[],
+        input_type="coords",
+        outputs=[],
+        brain_insights_kwargs={"providers": {"echo": {}}, "use_atlases": False},
+    )
+    mock_ai.assert_called_once_with()
+    mock_ai.return_value.register_provider.assert_called_once_with("echo", **{})
+
+
+@pytest.mark.unit
+def test_run_pipeline_none_coord(tmp_path):
+    results = run_pipeline(
+        inputs=[None],
+        input_type="coords",
+        outputs=["region_labels"],
+        brain_insights_kwargs={
+            "use_atlases": False,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+        },
+    )
+    assert len(results) == 1
+    res = results[0]
+    assert res.coordinate is None
+    assert res.region_labels == {}
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.AtlasFetcher.fetch_atlas")
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_multiatlas_error(mock_multi, mock_fetch, tmp_path):
+    class RaisingMultiAtlas:
+        def __init__(self, mappers):
+            pass
+
+        def mni_to_region_names(self, coord):
+            raise RuntimeError("boom")
+
+    mock_multi.side_effect = lambda mappers: RaisingMultiAtlas(mappers)
+    mock_fetch.return_value = {
+        "vol": np.zeros((2, 2, 2)),
+        "hdr": np.eye(4),
+        "labels": {"0": "A"},
+    }
+    results = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["region_labels"],
+        brain_insights_kwargs={
+            "use_atlases": True,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+            "atlas_names": ["dummy"],
+        },
+    )
+    assert results[0].region_labels == {}
