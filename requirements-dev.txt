@@ -21,7 +21,7 @@ ruff
 pytest-cov
 sphinx>=4.0.0
 insegel
-furo
+pydata-sphinx-theme
 sphinx_gallery
 sphinx-copybutton
 sphinxcontrib-mermaid

@@ -23,27 +23,38 @@ sys.path.append(os.path.abspath(os.path.join(curdir, "..", "coord2region")))
 
 import shutil
 
+
 def copy_readme():
     """Copy README.md from the root directory to docs/source/."""
     source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../README.md"))
     destination = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
-    
+
     if os.path.exists(source):
         shutil.copyfile(source, destination)
         print(f"Copied {source} -> {destination}")
 
+
 def cleanup_readme(app, exception):
     """Delete README.md in docs/source/ after the build."""
     destination = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
-    
+
     if os.path.exists(destination):
         os.remove(destination)
         print(f"Deleted {destination} after build.")
 
-# Register the cleanup function to run at the end
+
+def autodoc_skip_member(app, what, name, obj, skip, options):
+    """Skip private members and internal loggers."""
+    if name.startswith("_") or name in {"logger", "get_logger"}:
+        return True
+    return skip
+
+
 def setup(app):
     """Register build events for documentation setup."""
     app.connect("build-finished", cleanup_readme)
+    app.connect("autodoc-skip-member", autodoc_skip_member)
+
 
 copy_readme()
 
@@ -94,20 +105,18 @@ autodoc_default_options = {
     "members": True,
     "inherited-members": True,
     "show-inheritance": True,
+    "exclude-members": "logger",
 }
 
+examples_dir = os.path.abspath(os.path.join(curdir, '..', '..', 'examples'))
 sphinx_gallery_conf = {
     "doc_module": "coord2region",
-    "reference_url": {
-        "coord2region": None,
-    },
-    "examples_dirs": "../../examples",
+    "reference_url": {"coord2region": None},
+    "examples_dirs": examples_dir,
     "gallery_dirs": "auto_examples",
     "filename_pattern": "^((?!sgskip).)*$",
     "backreferences_dir": "generated",
-    'run_stale_examples': True, #Force (or not) re running examples,
-    #"default_thumb_file": "_static/default_thumbnail.png",  # Set a global default thumbnail
-
+    "run_stale_examples": True,
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -123,7 +132,7 @@ templates_path = ['_templates']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'furo'
+html_theme = 'pydata_sphinx_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -149,5 +158,5 @@ extensions += ['autoapi.extension']
 
 autoapi_type = 'python'
 autoapi_dirs = ["../../coord2region"]
+extensions += ['sphinx.ext.viewcode']  # see https://github.com/readthedocs/sphinx-autoapi/issues/422
 
-extensions += ['sphinx.ext.viewcode'] #see https://github.com/readthedocs/sphinx-autoapi/issues/422
