@@ -50,6 +50,7 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         use_oidc: true
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.xml           # or omit; Codecov can auto-discover
         fail_ci_if_error: true
     # - name : Test with web-validator
