@@ -18,7 +18,7 @@
 
 ## Installation
 
-Requires Python 3.8 or later. We recommend installing in a virtual environment:
+Requires Python 3.10 or later. We recommend installing in a virtual environment:
 
 ```bash
 python -m venv .venv
