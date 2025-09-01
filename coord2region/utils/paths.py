@@ -1,9 +1,8 @@
 """Path helpers for coord2region.
 
-This module centralises logic for resolving the base data directory used by
-coord2region. The :func:`resolve_data_dir` function expands a user supplied
-path or falls back to ``~/coord2region`` when ``None``. Relative paths are
-interpreted relative to the user's home directory.
+Centralizing data-directory resolution ensures consistent configuration
+management and allows flexible storage locations that adapt to different
+environments.
 """
 
 from __future__ import annotations
