@@ -29,7 +29,12 @@ def resolve_data_dir(base: Optional[str] = None) -> Path:
     if base is None:
         return Path.home() / "coord2region"
 
-    p = Path(base).expanduser()
-    if p.is_absolute():
-        return p
-    return Path.home() / p
+    try:
+        expanded = Path(base).expanduser()
+        expanded.resolve()
+    except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover - platform dependent
+        raise ValueError(f"Invalid path: {base}") from exc
+
+    if expanded.is_absolute():
+        return expanded.resolve()
+    return (Path.home() / expanded).resolve()
