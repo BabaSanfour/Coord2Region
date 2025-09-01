@@ -14,8 +14,7 @@ handled through :mod:`coord2region.llm`.  Earlier versions delegated to a
 leaner public API.
 
 The function also supports exporting the produced results to a variety of
-formats. Only standard library modules are used by default; PDF export relies
-on the optional ``fpdf`` package which is lightweight and pure Python.
+formats.
 """
 
 from __future__ import annotations
