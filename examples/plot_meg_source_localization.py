@@ -29,7 +29,7 @@ example will then discover the dataset and use ``<data_path>/subjects`` as the
 -------------------------------------
 Surface atlases store region membership as sets of vertex IDs (integers on the
 mesh), while peak locations are typically expressed in MNI coordinates
-(floating‑point positions). Therefore, comparing a peak MNI coordinate to a
+(floating-point positions). Therefore, comparing a peak MNI coordinate to a
 label's vertices will never match. Instead, check whether the peak vertex
 identifier (``peak_vertno``) is included in the region's vertex list, e.g.::
 \n+    peak_vertno in atlas['regions']['superiortemporal-lh']  # -> True
@@ -43,7 +43,6 @@ label to the provided MNI coordinate. The exact vertex membership lives under
 from pathlib import Path
 
 import mne
-mne.datasets.sample.data_path()
 from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import AtlasMapper
 import numpy as np

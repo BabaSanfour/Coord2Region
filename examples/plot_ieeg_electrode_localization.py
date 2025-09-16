@@ -5,6 +5,24 @@ iEEG electrode localization
 Load electrode coordinates from the MNE epilepsy ECoG dataset and assign each
 contact to an atlas region. The dataset is used only if it is already
 available locally.
+
+Data download
+-------------
+
+This example requires the MNE epilepsy ECoG dataset. The script avoids
+downloading automatically. To fetch the dataset beforehand, run in a Python
+session:
+
+.. code-block:: python
+
+    import mne
+    # Downloads the dataset to the default MNE data folder
+    mne.datasets.epilepsy_ecog.data_path()
+
+You can control the download location using the ``MNE_DATA`` environment
+variable or by passing ``path=...`` to ``data_path()``. The example will then
+discover the dataset and look for electrodes under the appropriate subject
+folder.
 """
 
 # %%
@@ -18,7 +36,7 @@ from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import AtlasMapper
 
 try:
-    data_path = Path(mne.datasets.epilepsy_ecog.data_path(download=True))
+    data_path = Path(mne.datasets.epilepsy_ecog.data_path(download=False))
 except Exception:
     data_path = None
     print("ECoG dataset not available; skipping electrode mapping.")
