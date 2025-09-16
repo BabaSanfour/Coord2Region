@@ -36,7 +36,7 @@ image while saving the results to a PDF file:
         outputs=["region_labels", "summaries", "images"],
         output_format="pdf",
         output_path="results.pdf",
-        brain_insights_kwargs={"use_cached_dataset": False},
+        config={"use_cached_dataset": False},
     )
 
     print(results[0].summary)

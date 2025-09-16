@@ -17,7 +17,7 @@ run_pipeline(
     outputs=["region_labels"],
     output_format="csv",
     output_path="results.csv",
-    brain_insights_kwargs={"use_cached_dataset": False},
+    config={"use_cached_dataset": False},
 )
 
 # Save results to PDF
@@ -27,7 +27,7 @@ run_pipeline(
     outputs=["region_labels"],
     output_format="pdf",
     output_path="results.pdf",
-    brain_insights_kwargs={"use_cached_dataset": False},
+    config={"use_cached_dataset": False},
 )
 
 # Save results to a directory with JSON and image copies
@@ -37,5 +37,5 @@ run_pipeline(
     outputs=["region_labels"],
     output_format="directory",
     output_path="results_dir",
-    brain_insights_kwargs={"use_cached_dataset": False},
+    config={"use_cached_dataset": False},
 )

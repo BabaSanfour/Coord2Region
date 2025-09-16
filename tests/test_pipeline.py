@@ -31,7 +31,7 @@ def test_run_pipeline_coords(
         outputs=["raw_studies", "summaries", "images"],
         output_format="json",
         output_path=str(out_file),
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "data_dir": str(tmp_path),
             "gemini_api_key": "key",
@@ -56,7 +56,7 @@ def test_run_pipeline_studies(mock_ai, mock_summary):
         inputs=[study],
         input_type="studies",
         outputs=["summaries", "raw_studies"],
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "use_cached_dataset": False,
             "gemini_api_key": "key",
@@ -87,7 +87,7 @@ def test_run_pipeline_async(mock_ai, mock_prepare, mock_get):
             inputs=[[0, 0, 0], [1, 1, 1]],
             input_type="coords",
             outputs=["summaries"],
-            brain_insights_kwargs={
+            config={
                 "use_atlases": False,
                 "gemini_api_key": "key",
             },
@@ -109,7 +109,7 @@ def test_run_pipeline_batch_coords(mock_ai, mock_prepare, mock_get, mock_summary
         inputs=[[0, 0, 0], [1, 1, 1]],
         input_type="coords",
         outputs=["summaries", "raw_studies"],
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "gemini_api_key": "key",
         },
@@ -134,7 +134,7 @@ def test_run_pipeline_export_pdf(
         outputs=["summaries"],
         output_format="pdf",
         output_path=str(out_file),
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "gemini_api_key": "key",
         },
@@ -155,7 +155,7 @@ def test_pipeline_nilearn_backend(mock_gen, tmp_path):
         input_type="coords",
         outputs=["images"],
         image_backend="nilearn",
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
@@ -177,7 +177,7 @@ def test_pipeline_ai_watermark(mock_generate, tmp_path):
         input_type="coords",
         outputs=["images"],
         image_backend="ai",
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
@@ -210,7 +210,7 @@ def test_pipeline_both_backends(tmp_path):
             input_type="coords",
             outputs=["images"],
             image_backend="both",
-            brain_insights_kwargs={
+            config={
                 "use_atlases": False,
                 "use_cached_dataset": False,
                 "data_dir": str(tmp_path),
@@ -241,7 +241,7 @@ def test_pipeline_async_both_backends(tmp_path):
             outputs=["images"],
             image_backend="both",
             async_mode=True,
-            brain_insights_kwargs={
+            config={
                 "use_atlases": False,
                 "use_cached_dataset": False,
                 "data_dir": str(tmp_path),
@@ -292,25 +292,25 @@ def test_export_results_directory(tmp_path):
 @pytest.mark.unit
 def test_run_pipeline_invalid_input_type():
     with pytest.raises(ValueError):
-        run_pipeline([1], "invalid", [], brain_insights_kwargs={"use_atlases": False})
+        run_pipeline([1], "invalid", [], config={"use_atlases": False})
 
 
 @pytest.mark.unit
 def test_run_pipeline_invalid_output():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["bad"], brain_insights_kwargs={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["bad"], config={"use_atlases": False})
 
 
 @pytest.mark.unit
 def test_run_pipeline_missing_output_path():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json", brain_insights_kwargs={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json", config={"use_atlases": False})
 
 
 @pytest.mark.unit
 def test_run_pipeline_invalid_image_backend():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong", brain_insights_kwargs={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong", config={"use_atlases": False})
 
 
 @pytest.mark.unit
@@ -322,7 +322,7 @@ def test_run_pipeline_register_provider(_mock_prepare, mock_ai, _mock_fetcher):
         inputs=[],
         input_type="coords",
         outputs=[],
-        brain_insights_kwargs={"providers": {"echo": {}}, "use_atlases": False},
+        config={"providers": {"echo": {}}, "use_atlases": False},
     )
     mock_ai.assert_called_once_with()
     mock_ai.return_value.register_provider.assert_called_once_with("echo", **{})
@@ -334,7 +334,7 @@ def test_run_pipeline_none_coord(tmp_path):
         inputs=[None],
         input_type="coords",
         outputs=["region_labels"],
-        brain_insights_kwargs={
+        config={
             "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
@@ -367,7 +367,7 @@ def test_run_pipeline_multiatlas_error(mock_multi, mock_fetch, tmp_path):
         inputs=[[0, 0, 0]],
         input_type="coords",
         outputs=["region_labels"],
-        brain_insights_kwargs={
+        config={
             "use_atlases": True,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),

@@ -9,9 +9,7 @@ summaries, generated images and the raw study metadata.
 The implementation builds directly on the lower-level modules in the package.
 Atlas lookups are performed via :mod:`coord2region.coord2region`, studies are
 retrieved using :mod:`coord2region.coord2study`, and text or image generation is
-handled through :mod:`coord2region.llm`.  Earlier versions delegated to a
-``BrainInsights`` wrapper, but the relevant logic now lives in this module for a
-leaner public API.
+handled through :mod:`coord2region.llm`.
 
 The function also supports exporting the produced results to a variety of
 formats.
@@ -112,7 +110,7 @@ def run_pipeline(
     output_path: Optional[str] = None,
     image_backend: str = "ai",
     *,
-    brain_insights_kwargs: Optional[Dict[str, Any]] = None,
+    config: Optional[Dict[str, Any]] = None,
     async_mode: bool = False,
     progress_callback: Optional[Callable[[int, int, PipelineResult], None]] = None,
 ) -> List[PipelineResult]:
@@ -136,9 +134,8 @@ def run_pipeline(
     image_backend : {"ai", "nilearn", "both"}, optional
         Backend used to generate images when ``"images"`` is requested.
         Defaults to ``"ai"``.
-    brain_insights_kwargs : dict, optional
-        Additional configuration for datasets, atlases and model providers. The
-        name is kept for backward compatibility with earlier API versions. To
+    config : dict, optional
+        Additional configuration for datasets, atlases and model providers. To
         enable or disable AI providers, supply a ``providers`` dictionary mapping
         provider names to keyword arguments understood by
         :meth:`AIModelInterface.register_provider`.
@@ -180,12 +177,12 @@ def run_pipeline(
                 output_format,
                 output_path,
                 image_backend=image_backend,
-                brain_insights_kwargs=brain_insights_kwargs,
+                config=config,
                 progress_callback=progress_callback,
             )
         )
 
-    kwargs = brain_insights_kwargs or {}
+    kwargs = config or {}
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = base_dir / "cached_data"
@@ -374,11 +371,11 @@ async def _run_pipeline_async(
     output_path: Optional[str],
     image_backend: str,
     *,
-    brain_insights_kwargs: Optional[Dict[str, Any]],
+    config: Optional[Dict[str, Any]],
     progress_callback: Optional[Callable[[int, int, PipelineResult], None]],
 ) -> List[PipelineResult]:
     """Asynchronous implementation backing :func:`run_pipeline`."""
-    kwargs = brain_insights_kwargs or {}
+    kwargs = config or {}
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = base_dir / "cached_data"

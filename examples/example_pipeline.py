@@ -31,7 +31,7 @@ try:
         output_format="pdf",
         output_path="example_pipeline.pdf",
         # Reuse the cached dataset to avoid repeated downloads or processing
-        brain_insights_kwargs={"use_cached_dataset": True},
+        config={"use_cached_dataset": True},
     )
 
     logger.info("Summary:\n%s", results[0].summary)

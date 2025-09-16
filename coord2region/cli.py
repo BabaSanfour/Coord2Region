@@ -75,7 +75,7 @@ def run_from_config(path: str) -> None:
         cfg.get("outputs", []),
         cfg.get("output_format"),
         cfg.get("output_path"),
-        brain_insights_kwargs=cfg.get("brain_insights_kwargs"),
+        config=cfg.get("config"),
     )
     _print_results(res)
 
@@ -156,7 +156,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ["summaries"],
                 args.output_format,
                 args.output_path,
-                brain_insights_kwargs=kwargs,
+                config=kwargs,
             )
             _print_results(res)
     elif args.command == "coords-to-atlas":
@@ -173,7 +173,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ["region_labels"],
                 args.output_format,
                 args.output_path,
-                brain_insights_kwargs=kwargs,
+                config=kwargs,
             )
             _print_results(res)
     elif args.command == "coords-to-image":
@@ -190,7 +190,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ["images"],
                 args.output_format,
                 args.output_path,
-                brain_insights_kwargs=kwargs,
+                config=kwargs,
             )
             _print_results(res)
     elif args.command == "region-to-coords":
@@ -202,7 +202,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 [],
                 args.output_format,
                 args.output_path,
-                brain_insights_kwargs=kwargs,
+                config=kwargs,
             )
             _print_results(res)
 
