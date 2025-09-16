@@ -50,21 +50,48 @@ the watermark, call :func:`coord2region.llm.generate_region_image` with
 Command-line interface
 ----------------------
 
-The ``coord2region`` command exposes common pipeline workflows:
+The ``coord2region`` command exposes common pipeline workflows. Coordinates can
+be provided in multiple forms: as a single string (``30,-22,50`` or ``"30 -22 50"``)
+or as three separate numbers (``30 -22 50``). You can also pass a CSV/XLSX file
+via ``--coords-file``.
 
 .. code-block:: bash
 
-    # Generate a text summary for a coordinate
+    # Generate a text summary for a coordinate (all styles equivalent)
     coord2region coords-to-summary 30,-22,50
+    coord2region coords-to-summary "30 -22 50"
+    coord2region coords-to-summary 30 -22 50
 
-    # Map a coordinate to atlas labels
-    coord2region coords-to-atlas 30,-22,50
+    # Map a coordinate to specific atlas labels
+    coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
 
-    # Produce an image for a coordinate
-    coord2region coords-to-image 30,-22,50
+    # Use multiple atlases (repeat --atlas or comma-separate)
+    coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford --atlas juelich
+    coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford,juelich,aal
+
+    # Produce an image for a coordinate with chosen backend
+    coord2region coords-to-image 30 -22 50 --image-backend nilearn
+    coord2region coords-to-image 30 -22 50 --image-backend both
+
+    # Load many coordinates from a file
+    coord2region coords-to-atlas --coords-file path/to/coords.csv --output-format csv --output-path results.csv
 
     # Convert a region name to an example coordinate
     coord2region region-to-coords "Amygdala"
+
+Common options:
+
+- ``--atlas``: Select atlas name(s). Repeat the flag or pass a comma-separated list.
+  Defaults to ``harvard-oxford,juelich,aal``.
+- ``--coords-file``: Load coordinates from CSV/XLSX (first three columns are used).
+- ``--output-format`` and ``--output-path``: Export results as JSON, pickle,
+  CSV, PDF or a directory of files.
+- ``--data-dir``: Base directory for caches, generated images and results.
+- ``--image-backend`` (``coords-to-image``): Choose between ``ai``, ``nilearn``
+  or ``both``.
+- Provider keys (if using AI summaries/images): ``--gemini-api-key``,
+  ``--openrouter-api-key``, ``--openai-api-key``, ``--anthropic-api-key``,
+  ``--huggingface-api-key``.
 
 Configuration files
 -------------------

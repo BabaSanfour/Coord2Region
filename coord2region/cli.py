@@ -1,4 +1,11 @@
-"""Command-line interface for Coord2Region."""
+"""Command-line interface for Coord2Region.
+
+Enhancements:
+- Accept coordinate triples as separate numbers (e.g. ``30 -22 50``).
+- Add ``--atlas`` option (repeatable / comma-separated) to choose atlas names.
+- Add ``--image-backend`` option for image generation.
+- Add common options like ``--data-dir`` and ``--email-for-abstracts``.
+"""
 
 import argparse
 import json
@@ -20,6 +27,28 @@ def _parse_coord(text: str) -> List[float]:
         return [float(p) for p in parts]
     except ValueError as exc:  # pragma: no cover - user input
         raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def _parse_coords_tokens(tokens: List[str]) -> List[List[float]]:
+    """Parse a list of CLI tokens into a list of coordinate triples.
+
+    Supports both styles:
+    - Separate numbers: ``30 -22 50 10 0 0``
+    - Grouped strings: ``"30,-22,50" "10 0 0"``
+    """
+    if not tokens:
+        return []
+
+    # Try numeric grouping first: len(tokens) % 3 == 0 and all castable to float
+    if len(tokens) % 3 == 0:
+        try:
+            vals = [float(t) for t in tokens]
+            return [vals[i : i + 3] for i in range(0, len(vals), 3)]
+        except ValueError:
+            pass  # Fall back to per-token parsing
+
+    # Fall back to parsing each token as "x,y,z" or "x y z"
+    return [_parse_coord(tok) for tok in tokens]
 
 
 def _load_coords_file(path: str) -> List[List[float]]:
@@ -55,8 +84,29 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
         kwargs["gemini_api_key"] = args.gemini_api_key
     if getattr(args, "openrouter_api_key", None):
         kwargs["openrouter_api_key"] = args.openrouter_api_key
+    if getattr(args, "openai_api_key", None):
+        kwargs["openai_api_key"] = args.openai_api_key
+    if getattr(args, "anthropic_api_key", None):
+        kwargs["anthropic_api_key"] = args.anthropic_api_key
+    if getattr(args, "huggingface_api_key", None):
+        kwargs["huggingface_api_key"] = args.huggingface_api_key
     if getattr(args, "image_model", None):
         kwargs["image_model"] = args.image_model
+    if getattr(args, "data_dir", None):
+        kwargs["data_dir"] = args.data_dir
+    if getattr(args, "email_for_abstracts", None):
+        kwargs["email_for_abstracts"] = args.email_for_abstracts
+    # Atlas selection
+    atlas_names = getattr(args, "atlas_names", None)
+    if atlas_names:
+        names: List[str] = []
+        for item in atlas_names:
+            parts = [p.strip() for p in str(item).split(",")]
+            names.extend([p for p in parts if p])
+        if names:
+            kwargs["atlas_names"] = names
+    if getattr(args, "use_atlases", None) is not None:
+        kwargs["use_atlases"] = bool(args.use_atlases)
     return kwargs
 
 
@@ -87,14 +137,45 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     def add_common(p: argparse.ArgumentParser) -> None:
-        p.add_argument("--gemini-api-key")
-        p.add_argument("--openrouter-api-key")
+        # Provider/API configuration
+        p.add_argument("--gemini-api-key", help="API key for Google Gemini provider")
+        p.add_argument("--openrouter-api-key", help="API key for OpenRouter provider")
+        p.add_argument("--openai-api-key", help="API key for OpenAI provider")
+        p.add_argument("--anthropic-api-key", help="API key for Anthropic provider")
+        p.add_argument(
+            "--huggingface-api-key", help="API key for Hugging Face provider"
+        )
+
+        # IO & batching
         p.add_argument(
             "--output-format",
             choices=["json", "pickle", "csv", "pdf", "directory"],
+            help="Export results to the chosen format",
         )
-        p.add_argument("--output-path")
-        p.add_argument("--batch-size", type=int, default=0)
+        p.add_argument("--output-path", help="Target file or directory for outputs")
+        p.add_argument("--batch-size", type=int, default=0, help="Batch size")
+        p.add_argument("--data-dir", help="Base data directory for caches/results")
+
+        # Datasets & atlas options
+        p.add_argument(
+            "--email-for-abstracts",
+            help="Contact email used when querying study abstracts",
+        )
+        p.add_argument(
+            "--atlas",
+            dest="atlas_names",
+            action="append",
+            help=(
+                "Atlas name(s) to use (repeat --atlas or use comma-separated list). "
+                "Defaults: harvard-oxford,juelich,aal"
+            ),
+        )
+        p.add_argument(
+            "--no-atlases",
+            dest="use_atlases",
+            action="store_false",
+            help="Disable atlas lookups",
+        )
 
     p_sum = subparsers.add_parser(
         "coords-to-summary", help="Generate summaries for coordinates"
@@ -116,6 +197,12 @@ def create_parser() -> argparse.ArgumentParser:
     p_img.add_argument("coords", nargs="*", help="Coordinates as x y z or x,y,z")
     p_img.add_argument("--coords-file", help="CSV/XLSX file with coordinates")
     p_img.add_argument("--image-model", default="stabilityai/stable-diffusion-2")
+    p_img.add_argument(
+        "--image-backend",
+        choices=["ai", "nilearn", "both"],
+        default="ai",
+        help="Image generation backend",
+    )
     add_common(p_img)
 
     p_rtc = subparsers.add_parser(
@@ -146,7 +233,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         coords: List[List[float]] = []
         if args.coords_file:
             coords.extend(_load_coords_file(args.coords_file))
-        coords.extend([_parse_coord(c) for c in args.coords])
+        coords.extend(_parse_coords_tokens(args.coords))
         if not coords:
             parser.error("No coordinates provided")
         for batch in _batch(coords, args.batch_size):
@@ -163,7 +250,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         coords = []
         if args.coords_file:
             coords.extend(_load_coords_file(args.coords_file))
-        coords.extend([_parse_coord(c) for c in args.coords])
+        coords.extend(_parse_coords_tokens(args.coords))
         if not coords:
             parser.error("No coordinates provided")
         for batch in _batch(coords, args.batch_size):
@@ -180,7 +267,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         coords = []
         if args.coords_file:
             coords.extend(_load_coords_file(args.coords_file))
-        coords.extend([_parse_coord(c) for c in args.coords])
+        coords.extend(_parse_coords_tokens(args.coords))
         if not coords:
             parser.error("No coordinates provided")
         for batch in _batch(coords, args.batch_size):
@@ -190,6 +277,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 ["images"],
                 args.output_format,
                 args.output_path,
+                image_backend=getattr(args, "image_backend", "ai"),
                 config=kwargs,
             )
             _print_results(res)
