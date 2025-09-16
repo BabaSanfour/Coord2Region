@@ -22,7 +22,7 @@ dependencies = [
     "mne",
     "nibabel",
     "nilearn>=0.12",
-    "nimare>=0.4.0",
+    "nimare==0.4.0", # pinning to avoid dependency conflicts
     "numpy",
     "pandas",
     "scipy",
