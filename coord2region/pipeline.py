@@ -29,8 +29,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 from .utils.file_handler import save_as_csv, save_as_pdf, save_batch_folder
 
 from .coord2study import get_studies_for_coordinate, prepare_datasets
-from .coord2region import AtlasMapper, MultiAtlasMapper
-from .fetching import AtlasFetcher
+from .coord2region import MultiAtlasMapper
 from .llm import (
     generate_mni152_image,
     generate_region_image,
@@ -235,23 +234,8 @@ def run_pipeline(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            fetcher = AtlasFetcher(data_dir=str(base_dir))
-            mappers = []
-            for name in atlas_names:
-                try:
-                    atlas = fetcher.fetch_atlas(name)
-                    mappers.append(
-                        AtlasMapper(
-                            name=name,
-                            vol=atlas["vol"],
-                            hdr=atlas["hdr"],
-                            labels=atlas["labels"],
-                        )
-                    )
-                except Exception:
-                    continue
-            if mappers:
-                multi_atlas = MultiAtlasMapper(mappers)
+            atlas_dict = {name: {} for name in atlas_names}
+            multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
         except Exception:
             multi_atlas = None
 
@@ -303,7 +287,12 @@ def run_pipeline(
 
         if "region_labels" in outputs and multi_atlas:
             try:
-                res.region_labels = multi_atlas.mni_to_region_names(coord)
+                batch = multi_atlas.batch_mni_to_region_names([coord])
+                # Extract first match per atlas
+                res.region_labels = {
+                    atlas: (names[0] if names else "Unknown")
+                    for atlas, names in batch.items()
+                }
             except Exception:
                 res.region_labels = {}
 
@@ -432,23 +421,8 @@ async def _run_pipeline_async(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            fetcher = AtlasFetcher(data_dir=str(base_dir))
-            mappers: List[AtlasMapper] = []
-            for name in atlas_names:
-                try:
-                    atlas = fetcher.fetch_atlas(name)
-                    mappers.append(
-                        AtlasMapper(
-                            name=name,
-                            vol=atlas["vol"],
-                            hdr=atlas["hdr"],
-                            labels=atlas["labels"],
-                        )
-                    )
-                except Exception:
-                    continue
-            if mappers:
-                multi_atlas = MultiAtlasMapper(mappers)
+            atlas_dict = {name: {} for name in atlas_names}
+            multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
         except Exception:
             multi_atlas = None
 
@@ -493,9 +467,13 @@ async def _run_pipeline_async(
 
         if "region_labels" in outputs and multi_atlas:
             try:
-                res.region_labels = await asyncio.to_thread(
-                    multi_atlas.mni_to_region_names, coord
+                batch = await asyncio.to_thread(
+                    multi_atlas.batch_mni_to_region_names, [coord]
                 )
+                res.region_labels = {
+                    atlas: (names[0] if names else "Unknown")
+                    for atlas, names in batch.items()
+                }
             except Exception:
                 res.region_labels = {}
 

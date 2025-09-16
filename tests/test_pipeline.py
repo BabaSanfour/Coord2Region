@@ -347,22 +347,16 @@ def test_run_pipeline_none_coord(tmp_path):
 
 
 @pytest.mark.unit
-@patch("coord2region.pipeline.AtlasFetcher.fetch_atlas")
 @patch("coord2region.pipeline.MultiAtlasMapper")
-def test_run_pipeline_multiatlas_error(mock_multi, mock_fetch, tmp_path):
+def test_run_pipeline_multiatlas_error(mock_multi, tmp_path):
     class RaisingMultiAtlas:
-        def __init__(self, mappers):
+        def __init__(self, *_args, **_kwargs):
             pass
 
-        def mni_to_region_names(self, coord):
+        def batch_mni_to_region_names(self, coords):
             raise RuntimeError("boom")
 
-    mock_multi.side_effect = lambda mappers: RaisingMultiAtlas(mappers)
-    mock_fetch.return_value = {
-        "vol": np.zeros((2, 2, 2)),
-        "hdr": np.eye(4),
-        "labels": {"0": "A"},
-    }
+    mock_multi.side_effect = lambda *a, **k: RaisingMultiAtlas()
     results = run_pipeline(
         inputs=[[0, 0, 0]],
         input_type="coords",
