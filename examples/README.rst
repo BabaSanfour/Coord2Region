@@ -49,3 +49,40 @@ Complete workflows that integrate multiple components. Each example checks for t
    plot_meg_source_localization
    plot_ieeg_electrode_localization
    example_pipeline
+
+Data download
+-------------
+
+Some examples require datasets to be present locally.
+
+- MEG example (MNE "sample" dataset):
+
+  .. code-block:: python
+
+      import mne
+      mne.datasets.sample.data_path()  # downloads to the default MNE data folder
+
+- iEEG example (MNE epilepsy ECoG dataset):
+
+  .. code-block:: python
+
+      import mne
+      mne.datasets.epilepsy_ecog.data_path()
+
+You can control the download location via the ``MNE_DATA`` environment variable
+or by passing ``path=...`` to ``data_path()``. Examples will look for the
+subjects directory (when needed) under ``<data_path>/subjects``.
+
+Coord2Study datasets (NiMARE)
+-----------------------------
+
+Examples that query studies (e.g., coordinate → study lookup) rely on
+NiMARE-compatible datasets such as Neurosynth or NeuroQuery. Use the helper
+below to fetch datasets to a cache directory before running examples:
+
+.. code-block:: python
+
+    from coord2region.coord2study import fetch_datasets
+    fetch_datasets(data_dir="~/.coord2region_examples", sources=["neurosynth"])  # or ["neuroquery"]
+
+The first run downloads and converts datasets; subsequent runs reuse the cache.

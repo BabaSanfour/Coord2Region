@@ -37,8 +37,10 @@ def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
         Dictionary containing ``title`` and ``abstract`` keys when available.
     """
     try:
+        # Crossref does not support a 'pmid' filter; many records expose PubMed
+        # IDs via 'alternative-id'. Use that when possible.
         headers = {"User-Agent": "coord2region (mailto:example@example.com)"}
-        url = f"https://api.crossref.org/works?filter=pmid:{pmid}"
+        url = f"https://api.crossref.org/works?filter=alternative-id:{pmid}"
         resp = requests.get(url, headers=headers, timeout=5)
         resp.raise_for_status()
         data = resp.json().get("message", {}).get("items", [])
@@ -52,6 +54,12 @@ def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
             # Remove simple XML/HTML tags
             abstract = re.sub("<[^>]+>", "", abstract).strip()
         return {"title": title, "abstract": abstract}
+    except requests.HTTPError as exc:  # pragma: no cover - network errors
+        # Downgrade common "bad request/not found" cases to info to reduce noise
+        status = getattr(exc.response, "status_code", None)
+        level = logger.info if status in (400, 404) else logger.warning
+        level(f"Failed to fetch CrossRef metadata for PMID {pmid}: {exc}")
+        return {}
     except Exception as exc:  # pragma: no cover - network errors
         logger.warning(f"Failed to fetch CrossRef metadata for PMID {pmid}: {exc}")
         return {}
