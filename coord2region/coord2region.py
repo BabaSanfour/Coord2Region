@@ -727,6 +727,10 @@ class AtlasMapper:
             if idx == 0:
                 continue
             coords = self.region_index_to_mni(int(idx))
+            # Ensure 2D shape even for singleton regions (1x3). Without this,
+            # mean(axis=0) on a 1D array can yield a scalar and later stacking
+            # of centroids would fail (shape mismatch), as seen in iEEG case.
+            coords = np.atleast_2d(coords)
             if coords.size == 0:
                 continue
             centroids[int(idx)] = coords.mean(axis=0)
@@ -850,6 +854,9 @@ class AtlasMapper:
             coords = self.region_name_to_mni(region)
         else:
             coords = self.region_index_to_mni(region)
+        # Some regions can contain exactly one voxel/vertex; keep (1, 3)
+        # to make mean/distances robust and consistent with batch cases.
+        coords = np.atleast_2d(coords)
         if coords.size == 0:
             return np.empty((0,))
         return coords.mean(axis=0)
@@ -872,6 +879,8 @@ class AtlasMapper:
             coords = self.region_name_to_mni(region)
         else:
             coords = self.region_index_to_mni(region)
+        # Guard against 1D arrays so pairwise distances work reliably.
+        coords = np.atleast_2d(coords)
         if coords.size == 0:
             return float("inf")
         coord = np.asarray(mni_coord, dtype=float)

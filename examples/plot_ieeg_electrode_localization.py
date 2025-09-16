@@ -18,13 +18,13 @@ from coord2region.fetching import AtlasFetcher
 from coord2region.coord2region import AtlasMapper
 
 try:
-    data_path = Path(mne.datasets.epilepsy_ecog.data_path(download=False))
+    data_path = Path(mne.datasets.epilepsy_ecog.data_path(download=True))
 except Exception:
     data_path = None
     print("ECoG dataset not available; skipping electrode mapping.")
 
 if data_path is not None:
-    electrode_file = data_path / "sub-pt1" / "ieeg" / "sub-pt1_electrodes.tsv"
+    electrode_file = data_path / "sub-pt1" / "ses-presurgery" /"ieeg" / "sub-pt1_ses-presurgery_space-fsaverage_electrodes.tsv"
     if electrode_file.is_file():
         contacts = pd.read_table(electrode_file)
         coords = contacts[["x", "y", "z"]].values
