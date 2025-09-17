@@ -76,7 +76,7 @@ region_queries = ["Frontal Pole", "Insular Cortex", "Superior Frontal Gyrus"]
 mni_results = batch_mapper.batch_region_name_to_mni(region_queries)
 
 for region, coords in zip(region_queries, mni_results):
-    print(f"Region '{region}' has {coords[0]} MNI coordinates.") # Display the first coordinate
+    print(f"Region '{region}' MNI coordinates: {coords}") # Display the first coordinate
 
 # %%
 # Step 7: Convert Multiple MNI Coordinates to Voxel Indices

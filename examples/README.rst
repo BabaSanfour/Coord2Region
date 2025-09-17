@@ -36,6 +36,9 @@ Demonstrations of individual modules.
    example_10_image_providers
    example_11_local_huggingface
    example_12_nilearn_backend
+   example_13_aparc
+   example_14_batch_aparc
+   example_15_multi_aparc
 
 End-to-end workflows
 --------------------

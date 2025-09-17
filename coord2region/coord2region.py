@@ -1120,6 +1120,8 @@ class MultiAtlasMapper:
             hdr = atlas_data["hdr"]
             labels = atlas_data.get("labels")
             indexes = atlas_data.get("indexes")
+            subject = kwargs.get("subject", "fsaverage")
+            subjects_dir = kwargs.get("subjects_dir")
 
             # Handle coordinate atlases represented as DataFrames or lists
             if isinstance(vol, pd.DataFrame):
@@ -1148,6 +1150,9 @@ class MultiAtlasMapper:
                 hdr=hdr,
                 labels=labels,
                 indexes=indexes,
+                regions=atlas_data.get("regions"),
+                subject=subject,
+                subjects_dir=subjects_dir,
                 system="mni",  # or read from atlas_data if you store that
             )
             batch_mapper = BatchAtlasMapper(single_mapper)
