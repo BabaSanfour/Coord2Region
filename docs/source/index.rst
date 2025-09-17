@@ -56,6 +56,7 @@ Explore More
    :caption: User Guide
 
    pipeline
+   atlases
 
 .. toctree::
    :maxdepth: 1
