@@ -34,5 +34,4 @@ docs/_build/
 make.bat
 docs/source/generated
 docs/source/auto_examples
-
-
+coord2region/_version.py

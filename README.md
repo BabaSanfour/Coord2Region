@@ -29,9 +29,11 @@ pip install coord2region
 To work on Coord2Region itself, install the optional dependencies:
 
 ```bash
-pip install .[dev]    # linting and tests
-pip install .[docs]   # documentation build
+pip install '.[dev]'    # linting and tests
+pip install '.[docs]'   # documentation build
 ```
+
+On shells like zsh, keep the extras spec in quotes to avoid glob expansion errors.
 
 Set environment variables like `OPENAI_API_KEY` or `GEMINI_API_KEY` to enable LLM-based features.
 

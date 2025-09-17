@@ -5,8 +5,10 @@
 Install the package with its development extras:
 
 ```bash
-pip install .[dev]
+pip install '.[dev]'
 ```
+
+On shells like zsh, quoting the extras spec avoids glob expansion errors.
 
 ## Pre-commit, linting, and formatting
 
@@ -41,7 +43,7 @@ Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style. To build
 the documentation, install the docs extras and run Sphinx:
 
 ```bash
-pip install .[docs]
+pip install '.[docs]'
 make -C docs html
 ```
 
