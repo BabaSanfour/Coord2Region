@@ -7,6 +7,7 @@ lookups and transformations across multiple brain atlases.
 
 import logging
 import pickle
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mne
@@ -345,8 +346,29 @@ class AtlasMapper:
         region_name = (
             region if isinstance(region, str) else self._lookup_region_name(region)
         )
+
+        if isinstance(region, str):
+            # If a string is actually an index, resolve it to the label first.
+            resolved_name = self._lookup_region_name(region)
+            if resolved_name != "Unknown":
+                region_name = resolved_name
+
         if region_name in (None, "Unknown"):
             return None
+
+        # Ensure the region actually belongs to the current atlas.
+        if isinstance(region_name, str):
+            idx = self._lookup_region_index(region_name)
+            missing = isinstance(idx, str) and idx == "Unknown"
+            if isinstance(idx, np.ndarray) and idx.size == 0:
+                missing = True
+            if missing:
+                warnings.warn(
+                    f"Region '{region_name}' is not part of the '{self.name}' atlas.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return None
 
         if self.name.lower() == "schaefer":
             parts = region_name.split("_", 1)

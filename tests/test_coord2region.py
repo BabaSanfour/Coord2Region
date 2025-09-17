@@ -98,6 +98,14 @@ def test_infer_hemisphere(volumetric_mapper, fresh_atlas_data):
         assert result == expected, f"Error in infer_hemisphere for {atlas_name}: expected {expected}, got {result}"
 
 
+@pytest.mark.parametrize("fresh_atlas_data", ["harvard-oxford"], indirect=True)
+def test_infer_hemisphere_warns_for_unknown_region(volumetric_mapper):
+    region = "Lat_Fis-post-rh"
+    assert volumetric_mapper.region_index_from_name(region) == "Unknown"
+    with pytest.warns(UserWarning, match="not part of the 'harvard-oxford' atlas"):
+        assert volumetric_mapper.infer_hemisphere(region) is None
+
+
 @pytest.mark.parametrize("fresh_atlas_data", ["schaefer"], indirect=True)
 def test_schaefer_numeric_index_infer_hemisphere(volumetric_mapper):
     region_L, expected_L = PROPERTIES["schaefer"]["infer_hemisphere"][0]

@@ -89,10 +89,14 @@ print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
 # As you have seen the **Frontal Pole** does not belong to any **hemisphere**. This is because 
 # some atlases do not provide hemisphere information for regions.
 # Let's try another region that has hemisphere information.
-region_name = "Lat_Fis-post-rh"  # Example
-hemisphere = atlas_mapper.infer_hemisphere(region_name)
+region_name = "Lat_Fis-post-rh"  # This label belongs to the Destrieux atlas
+region_index = atlas_mapper.region_index_from_name(region_name)
 
-print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
+if region_index == "Unknown":
+    print(f"Region '{region_name}' is not part of the {atlas_name} atlas.")
+else:
+    hemisphere = atlas_mapper.infer_hemisphere(region_name)
+    print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
 
 # %%
 # 11. Summary
