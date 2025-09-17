@@ -38,6 +38,7 @@ from .llm import (
 )
 from .ai_model_interface import AIModelInterface
 from .utils import resolve_data_dir
+from .fetching import AtlasFetcher  # noqa: F401 - used by tests via patching
 
 
 @dataclass
@@ -298,7 +299,7 @@ def run_pipeline(
 
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
-                res.studies = get_studies_for_coordinate(coord, dataset, email=email)
+                res.studies = get_studies_for_coordinate(dataset, coord, email=email)
             except Exception:
                 res.studies = []
 
@@ -480,7 +481,7 @@ async def _run_pipeline_async(
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
                 res.studies = await asyncio.to_thread(
-                    get_studies_for_coordinate, coord, dataset, email
+                    get_studies_for_coordinate, dataset, coord, 0, email
                 )
             except Exception:
                 res.studies = []

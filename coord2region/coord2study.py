@@ -362,12 +362,14 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
         except Exception as e:
             logger.warning(f"Failed to fetch abstract for PMID {pmid}: {e}")
 
-    # Fallback to CrossRef when information is missing
-    if not study_entry.get("title") or "abstract" not in study_entry:
+    # Fallback to CrossRef to fill only missing fields
+    needs_title = "title" not in study_entry or not study_entry.get("title")
+    needs_abstract = "abstract" not in study_entry
+    if needs_title or needs_abstract:
         crossref_data = _fetch_crossref_metadata(pmid)
-        if crossref_data.get("title"):
+        if needs_title and crossref_data.get("title"):
             study_entry["title"] = crossref_data["title"]
-        if crossref_data.get("abstract") and "abstract" not in study_entry:
+        if needs_abstract and crossref_data.get("abstract"):
             study_entry["abstract"] = crossref_data["abstract"]
 
     return study_entry
