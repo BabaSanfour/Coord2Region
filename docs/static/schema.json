@@ -71,6 +71,7 @@
         }
       ],
       "default": null,
+      "description": "Input coordinates provided inline as triples (List[Tuple[float, float, float]]) or compatible sequences.",
       "title": "Coordinates"
     },
     "coords_file": {
@@ -83,6 +84,7 @@
         }
       ],
       "default": null,
+      "description": "Local filesystem path to tabular coordinates (e.g. CSV/TSV/XLSX). Remote URLs are not supported.",
       "title": "Coords File"
     },
     "data_dir": {

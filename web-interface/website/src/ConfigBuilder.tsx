@@ -550,7 +550,7 @@ const ConfigBuilder = () => {
               onChange={(event) => setCoordsFile(event.target.value)}
               placeholder="/path/to/coordinates.tsv"
             />
-            <p className="helper">Provide a path or remote URL accessible to the CLI.</p>
+            <p className="helper">Provide a local path to a CSV/TSV/XLSX file.</p>
           </div>
         )}
       </div>

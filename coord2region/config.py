@@ -27,8 +27,21 @@ class Coord2RegionConfig(BaseModel):
 
     input_type: Literal["coords", "region_names", "studies"] = "coords"
     inputs: Optional[List[Any]] = None
-    coordinates: Optional[List[CoordinateTriple]] = None
-    coordinates_file: Optional[str] = Field(default=None, alias="coords_file")
+    coordinates: Optional[List[CoordinateTriple]] = Field(
+        default=None,
+        description=(
+            "Input coordinates provided inline as triples "
+            "(List[Tuple[float, float, float]]) or compatible sequences."
+        ),
+    )
+    coordinates_file: Optional[str] = Field(
+        default=None,
+        alias="coords_file",
+        description=(
+            "Local filesystem path to tabular coordinates (e.g. CSV/TSV/XLSX). "
+            "Remote URLs are not supported."
+        ),
+    )
     region_names: Optional[List[str]] = None
     studies: Optional[List[Any]] = None
     legacy_config: Optional[Dict[str, Any]] = Field(default=None, alias="config")
