@@ -118,8 +118,8 @@ def test_collect_kwargs_with_atlas_names():
 def test_main_config_invokes_run(mock_run, tmp_path):
     cfg = tmp_path / "cfg.yml"
     cfg.write_text("inputs: []\n")
-    main(["--config", str(cfg)])
-    mock_run.assert_called_once_with(str(cfg))
+    main(["run", "--config", str(cfg)])
+    mock_run.assert_called_once_with(str(cfg), dry_run=False)
 
 
 @pytest.mark.unit
@@ -221,4 +221,32 @@ config:
     run_from_config(str(cfg))
     args, kwargs = mock_run.call_args
     assert args == ([[1, 2, 3]], "coords", ["summaries"], "json", "out.json")
-    assert kwargs == {"config": {"atlas_names": ["aal"]}}
+    assert kwargs == {
+        "config": {"atlas_names": ["aal"]},
+        "image_backend": "ai",
+    }
+
+
+@pytest.mark.unit
+def test_run_from_config_dry_run_outputs_commands(tmp_path, capsys):
+    cfg = tmp_path / "cfg.yml"
+    cfg.write_text(
+        """
+inputs:
+  - [1, 2, 3]
+  - [4, 5, 6]
+input_type: coords
+outputs: [region_labels, summaries]
+config:
+  atlas_names: [aal, juelich]
+  data_dir: /tmp/data
+""",
+        encoding="utf8",
+    )
+
+    run_from_config(str(cfg), dry_run=True)
+    out = capsys.readouterr().out.strip().splitlines()
+    assert out == [
+        "coord2region coords-to-atlas 1 2 3 4 5 6 --data-dir /tmp/data --atlas aal --atlas juelich",
+        "coord2region coords-to-summary 1 2 3 4 5 6 --data-dir /tmp/data --atlas aal --atlas juelich",
+    ]

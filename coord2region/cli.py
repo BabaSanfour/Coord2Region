@@ -9,6 +9,7 @@ Enhancements:
 
 import argparse
 import json
+import shlex
 from dataclasses import asdict
 from typing import Iterable, List, Sequence
 
@@ -115,10 +116,139 @@ def _print_results(results):
     print(json.dumps([asdict(r) for r in results], indent=2))
 
 
-def run_from_config(path: str) -> None:
+def _format_cli_tokens(tokens: Sequence[str]) -> str:
+    """Join CLI tokens into a shell-friendly command string."""
+    return " ".join(shlex.quote(t) for t in tokens)
+
+
+def _common_config_flags(cfg: dict) -> List[str]:
+    """Translate shared configuration values to CLI flags."""
+    flags: List[str] = []
+    mapping = {
+        "gemini_api_key": "--gemini-api-key",
+        "openrouter_api_key": "--openrouter-api-key",
+        "openai_api_key": "--openai-api-key",
+        "anthropic_api_key": "--anthropic-api-key",
+        "huggingface_api_key": "--huggingface-api-key",
+        "data_dir": "--data-dir",
+        "email_for_abstracts": "--email-for-abstracts",
+    }
+    for key, flag in mapping.items():
+        value = cfg.get(key)
+        if value:
+            flags.extend([flag, str(value)])
+
+    atlas_names = cfg.get("atlas_names") or []
+    for name in atlas_names:
+        flags.extend(["--atlas", str(name)])
+
+    if cfg.get("use_atlases") is False:
+        flags.append("--no-atlases")
+
+    batch_size = cfg.get("batch_size")
+    if batch_size:
+        flags.extend(["--batch-size", str(batch_size)])
+
+    return flags
+
+
+def _inputs_to_tokens(input_type: str, inputs: Sequence) -> List[str]:
+    if input_type == "coords":
+        tokens: List[str] = []
+        for item in inputs:
+            if isinstance(item, (list, tuple)):
+                tokens.extend(str(v) for v in item)
+            else:
+                tokens.append(str(item))
+        return tokens
+
+    if input_type == "region_names":
+        return [str(item) for item in inputs]
+
+    raise ValueError(f"Dry-run not supported for input_type '{input_type}'")
+
+
+def _commands_from_config(cfg: dict) -> List[str]:
+    input_type = str(cfg.get("input_type", "coords")).lower()
+    inputs = cfg.get("inputs", [])
+    outputs = cfg.get("outputs", []) or []
+    if not isinstance(outputs, list):
+        raise ValueError("Config 'outputs' must be a list when using dry-run")
+
+    config_section = cfg.get("config") or {}
+    shared_flags = _common_config_flags(config_section)
+
+    commands: List[str] = []
+    base_tokens = ["coord2region"]
+
+    if input_type == "region_names":
+        tokens = base_tokens + ["region-to-coords"]
+        tokens.extend(_inputs_to_tokens(input_type, inputs))
+        tokens.extend(shared_flags)
+        commands.append(_format_cli_tokens(tokens))
+        return commands
+
+    if input_type != "coords":
+        raise ValueError(f"Dry-run not supported for input_type '{input_type}'")
+
+    coord_tokens = _inputs_to_tokens("coords", inputs)
+    output_map = {
+        "region_labels": "coords-to-atlas",
+        "summaries": "coords-to-summary",
+        "images": "coords-to-image",
+    }
+
+    selected_outputs = []
+    for output in outputs:
+        key = str(output).lower()
+        if key in output_map:
+            selected_outputs.append((key, output_map[key]))
+        elif key == "raw_studies":
+            raise ValueError("Dry-run does not currently support 'raw_studies' output")
+        else:
+            raise ValueError(f"Unknown output '{output}' in config")
+
+    if not selected_outputs:
+        raise ValueError("No supported outputs found for dry-run")
+
+    include_export_flags = len(selected_outputs) == 1
+    export_flags: List[str] = []
+    if include_export_flags:
+        if cfg.get("output_format"):
+            export_flags.extend(["--output-format", str(cfg["output_format"])])
+        if cfg.get("output_path"):
+            export_flags.extend(["--output-path", str(cfg["output_path"])])
+
+    image_backend = cfg.get("image_backend")
+
+    for key, command in selected_outputs:
+        tokens = base_tokens + [command]
+        tokens.extend(coord_tokens)
+        tokens.extend(shared_flags)
+        if include_export_flags:
+            tokens.extend(export_flags)
+        if key == "images":
+            if image_backend:
+                tokens.extend(["--image-backend", str(image_backend)])
+            image_model = config_section.get("image_model")
+            if image_model:
+                tokens.extend(["--image-model", str(image_model)])
+        commands.append(_format_cli_tokens(tokens))
+
+    return commands
+
+
+def run_from_config(path: str, *, dry_run: bool = False) -> None:
     """Execute the pipeline using a YAML configuration file."""
     with open(path, "r", encoding="utf8") as f:
         cfg = yaml.safe_load(f) or {}
+
+    if dry_run:
+        commands = _commands_from_config(cfg)
+        for cmd in commands:
+            print(cmd)
+        return
+
     res = run_pipeline(
         cfg.get("inputs", []),
         cfg.get("input_type", "coords"),
@@ -126,6 +256,7 @@ def run_from_config(path: str) -> None:
         cfg.get("output_format"),
         cfg.get("output_path"),
         config=cfg.get("config"),
+        image_backend=cfg.get("image_backend", "ai"),
     )
     _print_results(res)
 
@@ -133,8 +264,17 @@ def run_from_config(path: str) -> None:
 def create_parser() -> argparse.ArgumentParser:
     """Create the top-level argument parser for the CLI."""
     parser = argparse.ArgumentParser(prog="coord2region")
-    parser.add_argument("--config", help="YAML configuration file")
     subparsers = parser.add_subparsers(dest="command")
+
+    p_run = subparsers.add_parser(
+        "run", help="Execute a pipeline described in a YAML config file"
+    )
+    p_run.add_argument("--config", required=True, help="YAML configuration file")
+    p_run.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print equivalent CLI commands without executing",
+    )
 
     def add_common(p: argparse.ArgumentParser) -> None:
         # Provider/API configuration
@@ -219,12 +359,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    if args.config:
-        run_from_config(args.config)
-        return
-
     if not args.command:
         parser.print_help()
+        return
+
+    if args.command == "run":
+        run_from_config(args.config, dry_run=getattr(args, "dry_run", False))
         return
 
     kwargs = _collect_kwargs(args)

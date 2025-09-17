@@ -44,7 +44,7 @@ from unittest.mock import patch
 from coord2region.cli import main
 from coord2region.pipeline import PipelineResult
 with patch("coord2region.cli.run_pipeline", return_value=[PipelineResult(coordinate=[0,0,0], summary="CFG", region_labels={{}}, studies=[], image=None)]):
-    main(["--config", r"{cfg}"])
+    main(["run", "--config", r"{cfg}"])
 """
     result = _run(code)
     assert result.returncode == 0
@@ -72,3 +72,25 @@ print(len(calls))
     lines = result.stdout.strip().splitlines()
     assert lines[-1] == "2"
 
+
+def test_run_from_config_cli_dry_run(tmp_path):
+    cfg = tmp_path / "cfg.yml"
+    cfg.write_text(
+        """
+inputs:
+  - [0,0,0]
+input_type: coords
+outputs: ["region_labels"]
+""",
+        encoding="utf8",
+    )
+    code = f"""
+from coord2region.cli import main
+main(["run", "--config", r"{cfg}", "--dry-run"])
+"""
+    result = _run(code)
+    assert result.returncode == 0
+    lines = [line for line in result.stdout.strip().splitlines() if line]
+    assert lines == [
+        "coord2region coords-to-atlas 0 0 0",
+    ]
