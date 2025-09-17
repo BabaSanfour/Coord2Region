@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  {% include head.html %}
+  <body class="theme">
+    <header class="hero">
+      <div class="hero__content container">
+        <h1>{{ page.hero_title | default: site.title }}</h1>
+        <p class="hero__tagline">{{ page.hero_tagline | default: site.description }}</p>
+        <div class="hero__cta">
+          <a class="btn btn-primary" href="#config-builder">Open Config Builder</a>
+          <a class="btn btn-secondary" href="https://github.com/neurostuff/coord2region" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+      </div>
+    </header>
+    <main class="content container">
+      {{ content }}
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p>Coord2Region Phase 2 is currently under construction. Follow updates on the repository.</p>
+        <p class="footnote">&copy; {{ site.time | date: '%Y' }} Coord2Region contributors.</p>
+      </div>
+    </footer>
+    <script type="module" src="{{ '/assets/js/bundle.js' | relative_url }}"></script>
+  </body>
+</html>
