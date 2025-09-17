@@ -16,6 +16,16 @@
 - AI-generated region images
 - Command-line and Python interfaces
 
+## Web interface
+
+The interactive configuration builder is published at
+https://babasanfour.github.io/Coord2Region/. A dedicated GitHub Actions workflow
+builds the schema, compiles the Vite bundle, runs the Playwright UI checks, and
+deploys the Jekyll site to GitHub Pages whenever `main` is updated. To preview
+the site locally, install the `web-interface/` dependencies and run `npm run dev`
+alongside `bundle exec jekyll serve --livereload` (see `web-interface/README.md`
+for the full walkthrough).
+
 ## Installation
 
 Requires Python 3.10 or later. We recommend installing in a virtual environment:

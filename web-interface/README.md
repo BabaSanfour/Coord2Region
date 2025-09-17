@@ -9,12 +9,14 @@ configs plus ready-to-run CLI commands.
 
 - Node.js 18 or newer (the Vite toolchain targets modern ESM features)
 - `npm` for dependency management (Yarn/PNPM will work, but the scripts assume npm)
+- Ruby 3.1+ with Bundler (required for Jekyll previews)
 
 Install all front-end dependencies from the `web-interface/` directory:
 
 ```bash
 cd web-interface
 npm install
+bundle install
 ```
 
 ## Local development
@@ -60,6 +62,29 @@ npm run test:ui
 
 Playwright downloads the required browser binaries on first run. If you need to
 refresh them manually, run `npx playwright install` inside `web-interface/`.
+
+## Deployment
+
+The site is published automatically to https://babasanfour.github.io/Coord2Region/
+whenever the `Website` GitHub Actions workflow runs on `main`. The job generates
+`docs/static/schema.json`, installs the web stack, runs the Playwright UI suite,
+builds the Jekyll site, and uploads the resulting `_site/` directory as the Pages
+artifact. Pull requests get the same build and test checks without deploying.
+
+## Full-site preview
+
+To preview the production site locally, keep both the Vite dev server and the
+Jekyll renderer running from `web-interface/`:
+
+1. Run `npm run build -- --watch` once to seed the compiled assets (or rerun
+   `npm run build` after each change if you skip watch mode).
+2. In one terminal, start the React builder dev server with `npm run dev`
+   (served at http://localhost:5173).
+3. In another terminal, serve the landing page with `bundle exec jekyll serve
+   --livereload` and open http://127.0.0.1:4000 to view the combined site.
+
+Jekyll consumes the files in `web-interface/assets`, so be sure to rerun the
+build step whenever you change the builder if watch mode is not running.
 
 ## Project layout
 
