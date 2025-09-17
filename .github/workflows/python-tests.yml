@@ -33,6 +33,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
+      - name: Ensure configuration schema is current
+        run: |
+          PYTHONPATH=. python scripts/generate_schema.py
+          git diff --exit-code docs/static/schema.json
+
       - name: Run pre-commit
         run: pre-commit run --all-files
 

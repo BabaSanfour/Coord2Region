@@ -37,6 +37,16 @@ coverage, which is enforced by Codecov:
 pytest --cov
 ```
 
+## Configuration schema
+
+The CLI parameters are defined via `Coord2RegionConfig`. If you modify that model or its validators, regenerate and commit the JSON schema:
+
+```bash
+make schema   # or: PYTHONPATH=. python scripts/generate_schema.py
+```
+
+The generated file (`docs/static/schema.json`) is covered by regression tests, and CI reruns the generator to ensure the committed file is up-to-date.
+
 ## Documentation
 
 Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style. To build
