@@ -462,20 +462,23 @@ def search_studies(
 
 
 def get_studies_for_coordinate(
-    datasets: Dict[str, Dataset],
+    datasets: Union[Dict[str, Dataset], Dataset],
     coord: Union[List[float], Tuple[float, float, float]],
     radius: float = 0,
     email: Optional[str] = None,
+    sources: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Find studies reporting an MNI coordinate across all datasets.
 
     This is a thin wrapper around :func:`search_studies` that searches every
-    dataset in ``datasets``.
+    dataset in ``datasets``. When a single deduplicated dataset is supplied, it
+    is treated as a combined source.
 
     Parameters
     ----------
-    datasets : Dict[str, Dataset]
-        NiMARE ``Dataset`` objects keyed by source name.
+    datasets : Union[Dict[str, Dataset], Dataset]
+        NiMARE ``Dataset`` objects keyed by source name, or a single
+        deduplicated ``Dataset`` instance.
     coord : Union[List[float], Tuple[float, float, float]]
         MNI coordinate ``[x, y, z]``.
     radius : float, default=0
@@ -483,5 +486,16 @@ def get_studies_for_coordinate(
         exact match.
     email : Optional[str], optional
         Email address for Entrez (if abstract fetching is enabled).
+    sources : Optional[List[str]], optional
+        Restrict the search to the specified dataset names when ``datasets`` is
+        a mapping.
     """
-    return search_studies(datasets, coord, radius=radius, email=email)
+    dataset_map: Dict[str, Dataset]
+    if isinstance(datasets, dict):
+        dataset_map = datasets
+    else:
+        dataset_map = {"Combined": datasets}
+
+    return search_studies(
+        dataset_map, coord, radius=radius, email=email, sources=sources
+    )

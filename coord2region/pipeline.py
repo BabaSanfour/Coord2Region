@@ -183,6 +183,16 @@ def run_pipeline(
         )
 
     kwargs = config or {}
+    study_radius = float(kwargs.get("study_radius", 0))
+    study_limit = kwargs.get("study_limit")
+    study_sources = kwargs.get("study_sources")
+    dataset_sources = kwargs.get("dataset_sources")
+    summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
+    summary_type = kwargs.get("summary_type", "summary")
+    summary_prompt_template = kwargs.get("summary_prompt_template")
+    summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
+    summary_cache_size = kwargs.get("summary_cache_size", 128)
+
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = base_dir / "cached_data"
@@ -209,7 +219,11 @@ def run_pipeline(
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
-    dataset = prepare_datasets(str(base_dir)) if use_cached_dataset else None
+    dataset = (
+        prepare_datasets(str(base_dir), sources=dataset_sources)
+        if use_cached_dataset
+        else None
+    )
     ai = None
     if provider_configs:
         ai = AIModelInterface()
@@ -270,7 +284,16 @@ def run_pipeline(
             if "raw_studies" in outputs:
                 res.studies = [item] if isinstance(item, dict) else list(item)
             if "summaries" in outputs and ai:
-                res.summary = generate_summary(ai, res.studies, coord or [0, 0, 0])
+                res.summary = generate_summary(
+                    ai,
+                    res.studies,
+                    coord or [0, 0, 0],
+                    summary_type=summary_type,
+                    model=summary_model,
+                    prompt_template=summary_prompt_template,
+                    max_tokens=summary_max_tokens,
+                    cache_size=summary_cache_size,
+                )
             results.append(res)
             if progress_callback:
                 progress_callback(len(results), len(inputs), res)
@@ -299,13 +322,29 @@ def run_pipeline(
 
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
-                res.studies = get_studies_for_coordinate(dataset, coord, email=email)
+                res.studies = get_studies_for_coordinate(
+                    dataset,
+                    coord,
+                    radius=study_radius,
+                    email=email,
+                    sources=study_sources,
+                )
             except Exception:
                 res.studies = []
+            if study_limit is not None and res.studies:
+                res.studies = res.studies[:study_limit]
 
         if "summaries" in outputs and ai:
             res.summary = generate_summary(
-                ai, res.studies, coord, atlas_labels=res.region_labels or None
+                ai,
+                res.studies,
+                coord,
+                summary_type=summary_type,
+                model=summary_model,
+                atlas_labels=res.region_labels or None,
+                prompt_template=summary_prompt_template,
+                max_tokens=summary_max_tokens,
+                cache_size=summary_cache_size,
             )
 
         if "images" in outputs:
@@ -366,6 +405,16 @@ async def _run_pipeline_async(
 ) -> List[PipelineResult]:
     """Asynchronous implementation backing :func:`run_pipeline`."""
     kwargs = config or {}
+    study_radius = float(kwargs.get("study_radius", 0))
+    study_limit = kwargs.get("study_limit")
+    study_sources = kwargs.get("study_sources")
+    dataset_sources = kwargs.get("dataset_sources")
+    summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
+    summary_type = kwargs.get("summary_type", "summary")
+    summary_prompt_template = kwargs.get("summary_prompt_template")
+    summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
+    summary_cache_size = kwargs.get("summary_cache_size", 128)
+
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
     cache_dir = base_dir / "cached_data"
@@ -393,7 +442,7 @@ async def _run_pipeline_async(
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = (
-        await asyncio.to_thread(prepare_datasets, str(base_dir))
+        await asyncio.to_thread(prepare_datasets, str(base_dir), dataset_sources)
         if use_cached_dataset
         else None
     )
@@ -459,7 +508,14 @@ async def _run_pipeline_async(
                 res.studies = [item] if isinstance(item, dict) else list(item)
             if "summaries" in outputs and ai:
                 res.summary = await generate_summary_async(
-                    ai, res.studies, coord or [0, 0, 0]
+                    ai,
+                    res.studies,
+                    coord or [0, 0, 0],
+                    summary_type=summary_type,
+                    model=summary_model,
+                    prompt_template=summary_prompt_template,
+                    max_tokens=summary_max_tokens,
+                    cache_size=summary_cache_size,
                 )
             return idx, res
 
@@ -481,14 +537,29 @@ async def _run_pipeline_async(
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
                 res.studies = await asyncio.to_thread(
-                    get_studies_for_coordinate, dataset, coord, 0, email
+                    get_studies_for_coordinate,
+                    dataset,
+                    coord,
+                    study_radius,
+                    email,
+                    study_sources,
                 )
             except Exception:
                 res.studies = []
+            if study_limit is not None and res.studies:
+                res.studies = res.studies[:study_limit]
 
         if "summaries" in outputs and ai:
             res.summary = await generate_summary_async(
-                ai, res.studies, coord, atlas_labels=res.region_labels or None
+                ai,
+                res.studies,
+                coord,
+                summary_type=summary_type,
+                model=summary_model,
+                atlas_labels=res.region_labels or None,
+                prompt_template=summary_prompt_template,
+                max_tokens=summary_max_tokens,
+                cache_size=summary_cache_size,
             )
 
         if "images" in outputs:

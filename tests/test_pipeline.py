@@ -69,6 +69,50 @@ def test_run_pipeline_studies(mock_ai, mock_summary):
 
 
 @pytest.mark.unit
+@patch("coord2region.pipeline.generate_summary", return_value="SUMMARY")
+@patch(
+    "coord2region.pipeline.get_studies_for_coordinate",
+    return_value=[{"id": "1"}, {"id": "2"}],
+)
+@patch("coord2region.pipeline.prepare_datasets", return_value={"Mock": object()})
+@patch("coord2region.pipeline.AIModelInterface")
+def test_pipeline_study_config_controls(
+    mock_ai, mock_prepare, mock_get, mock_summary
+):
+    mock_ai.return_value = object()
+
+    results = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["summaries", "raw_studies"],
+        config={
+            "use_atlases": False,
+            "gemini_api_key": "key",
+            "study_radius": 7.5,
+            "study_limit": 1,
+            "study_sources": ["Mock"],
+            "summary_model": "custom-model",
+            "summary_type": "detailed",
+            "summary_prompt_template": "Prompt",
+            "summary_max_tokens": 42,
+            "summary_cache_size": 2,
+        },
+    )
+
+    assert results[0].studies == [{"id": "1"}]
+    args, kwargs = mock_get.call_args
+    assert pytest.approx(kwargs["radius"]) == 7.5
+    assert kwargs["sources"] == ["Mock"]
+
+    _, summary_kwargs = mock_summary.call_args
+    assert summary_kwargs["model"] == "custom-model"
+    assert summary_kwargs["summary_type"] == "detailed"
+    assert summary_kwargs["prompt_template"] == "Prompt"
+    assert summary_kwargs["max_tokens"] == 42
+    assert summary_kwargs["cache_size"] == 2
+
+
+@pytest.mark.unit
 @patch(
     "coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}]
 )

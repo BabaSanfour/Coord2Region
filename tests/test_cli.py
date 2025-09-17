@@ -4,6 +4,10 @@ import sys
 from pathlib import Path
 import textwrap
 
+import pytest
+
+from coord2region.cli import run_from_config
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -36,6 +40,7 @@ inputs:
   - [0,0,0]
 input_type: coords
 outputs: ["summaries"]
+gemini_api_key: TEST
 """,
         encoding="utf8",
     )
@@ -50,6 +55,27 @@ with patch("coord2region.cli.run_pipeline", return_value=[PipelineResult(coordin
     assert result.returncode == 0
     out = json.loads(result.stdout)
     assert out[0]["summary"] == "CFG"
+
+
+def test_run_from_config_validation_error(tmp_path, capsys):
+    cfg = tmp_path / "cfg.yml"
+    cfg.write_text(
+        """
+inputs:
+  - [0,0,0]
+coordinates:
+  - [1,1,1]
+input_type: coords
+outputs: ["region_labels"]
+""",
+        encoding="utf8",
+    )
+
+    with pytest.raises(SystemExit):
+        run_from_config(str(cfg))
+
+    captured = capsys.readouterr()
+    assert "Specify coordinates either inline" in captured.err
 
 
 def test_cli_batch_processing():

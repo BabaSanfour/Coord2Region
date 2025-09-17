@@ -10,13 +10,16 @@ Enhancements:
 import argparse
 import json
 import shlex
+import sys
 from dataclasses import asdict
 from typing import Iterable, List, Sequence
+import numbers
 
 import pandas as pd
 import yaml
 
 from .pipeline import run_pipeline
+from .config import Coord2RegionConfig, ValidationError
 
 
 def _parse_coord(text: str) -> List[float]:
@@ -153,13 +156,23 @@ def _common_config_flags(cfg: dict) -> List[str]:
 
 
 def _inputs_to_tokens(input_type: str, inputs: Sequence) -> List[str]:
+    def _format_value(value) -> str:
+        if isinstance(value, numbers.Integral):
+            return str(int(value))
+        if isinstance(value, numbers.Real):
+            as_float = float(value)
+            if as_float.is_integer():
+                return str(int(as_float))
+            return str(as_float)
+        return str(value)
+
     if input_type == "coords":
         tokens: List[str] = []
         for item in inputs:
             if isinstance(item, (list, tuple)):
-                tokens.extend(str(v) for v in item)
+                tokens.extend(_format_value(v) for v in item)
             else:
-                tokens.append(str(item))
+                tokens.append(_format_value(item))
         return tokens
 
     if input_type == "region_names":
@@ -241,23 +254,27 @@ def _commands_from_config(cfg: dict) -> List[str]:
 def run_from_config(path: str, *, dry_run: bool = False) -> None:
     """Execute the pipeline using a YAML configuration file."""
     with open(path, "r", encoding="utf8") as f:
-        cfg = yaml.safe_load(f) or {}
+        raw_cfg = yaml.safe_load(f) or {}
+
+    try:
+        cfg = Coord2RegionConfig.model_validate(raw_cfg)
+    except ValidationError as exc:
+        for err in exc.errors():
+            loc = "->".join(str(p) for p in err.get("loc", ()))
+            msg = err.get("msg", "Invalid configuration value")
+            print(f"Config error at {loc or '<root>'}: {msg}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    inputs = cfg.collect_inputs(load_coords_file=_load_coords_file)
+    runtime = cfg.to_pipeline_runtime(inputs)
 
     if dry_run:
-        commands = _commands_from_config(cfg)
+        commands = _commands_from_config(runtime)
         for cmd in commands:
             print(cmd)
         return
 
-    res = run_pipeline(
-        cfg.get("inputs", []),
-        cfg.get("input_type", "coords"),
-        cfg.get("outputs", []),
-        cfg.get("output_format"),
-        cfg.get("output_path"),
-        config=cfg.get("config"),
-        image_backend=cfg.get("image_backend", "ai"),
-    )
+    res = run_pipeline(**runtime)
     _print_results(res)
 
 

@@ -1,0 +1,155 @@
+import pytest
+
+from coord2region.config import Coord2RegionConfig, ValidationError
+
+
+def test_config_inline_coordinates_valid():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[1, 2, 3]],
+            "outputs": ["summaries", "images"],
+            "gemini_api_key": "KEY",
+            "atlas_names": ["aal", "juelich"],
+            "max_atlases": 3,
+            "study_radius": 6,
+            "summary_model": "custom",
+            "summary_max_tokens": 256,
+            "summary_cache_size": 1,
+            "providers": {},
+        }
+    )
+
+    inputs = cfg.collect_inputs(load_coords_file=lambda _: [[9.0, 9.0, 9.0]])
+    assert inputs == [[1, 2, 3]]
+
+    runtime = cfg.to_pipeline_runtime(inputs)
+    assert runtime["input_type"] == "coords"
+    assert runtime["outputs"] == ["summaries", "images"]
+    assert runtime["config"]["gemini_api_key"] == "KEY"
+    assert runtime["config"]["study_radius"] == 6.0
+    assert runtime["config"]["summary_model"] == "custom"
+    assert runtime["config"]["summary_max_tokens"] == 256
+    assert runtime["config"]["summary_cache_size"] == 1
+
+
+def test_config_coordinates_file_loader_invoked(tmp_path):
+    path = tmp_path / "coords.csv"
+    path.write_text("0,0,0\n", encoding="utf8")
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates_file": str(path),
+            "outputs": ["region_labels"],
+        }
+    )
+
+    def loader(p: str):
+        assert p == str(path)
+        return [[4, 5, 6]]
+
+    inputs = cfg.collect_inputs(load_coords_file=loader)
+    assert inputs == [[4, 5, 6]]
+
+
+def test_config_missing_coordinates_raises():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "coords",
+                "outputs": ["region_labels"],
+            }
+        )
+
+
+def test_config_summary_without_credentials_allowed():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[0, 0, 0]],
+            "outputs": ["summaries"],
+        }
+    )
+    assert cfg.outputs == ["summaries"]
+
+
+def test_config_atlas_limit_enforced():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "coords",
+                "coordinates": [[0, 0, 0]],
+                "outputs": ["region_labels"],
+                "atlas_names": ["aal", "juelich"],
+                "max_atlases": 1,
+            }
+        )
+
+
+def test_config_region_inputs_from_legacy_field():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "region_names",
+            "inputs": ["Region A", "Region B"],
+            "outputs": ["region_labels"],
+        }
+    )
+    assert cfg.region_names == ["Region A", "Region B"]
+    inputs = cfg.collect_inputs(load_coords_file=lambda _: [])
+    assert inputs == ["Region A", "Region B"]
+
+
+def test_config_coordinates_from_string_inputs():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "inputs": ["1 2 3", "4,5,6"],
+            "outputs": ["region_labels"],
+        }
+    )
+    inputs = cfg.collect_inputs(load_coords_file=lambda _: [])
+    assert inputs == [[1, 2, 3], [4, 5, 6]]
+
+
+def test_config_study_sources_and_limit():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[0, 0, 0]],
+            "outputs": ["summaries"],
+            "gemini_api_key": "KEY",
+            "study_sources": ["Mock"],
+            "study_limit": 5,
+        }
+    )
+    runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
+    assert runtime["config"]["study_sources"] == ["Mock"]
+    assert runtime["config"]["study_limit"] == 5
+
+
+def test_config_legacy_block_passthrough():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "inputs": [[1, 2, 3]],
+            "outputs": ["region_labels"],
+            "config": {
+                "atlas_names": ["aal"],
+                "data_dir": "/tmp/data",
+            },
+        }
+    )
+    runtime = cfg.to_pipeline_runtime(cfg.collect_inputs(load_coords_file=lambda _: []))
+    assert runtime["config"]["atlas_names"] == ["aal"]
+    assert runtime["config"]["data_dir"] == "/tmp/data"
+
+
+def test_config_max_atlases_checks_legacy():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "inputs": [[0, 0, 0]],
+                "outputs": ["region_labels"],
+                "max_atlases": 1,
+                "config": {"atlas_names": ["aal", "juelich"]},
+            }
+        )

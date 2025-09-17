@@ -25,6 +25,7 @@ dependencies = [
     "nimare==0.4.0", # pinned to match nilearn 0.12.0
     "numpy",
     "pandas",
+    "pydantic>=2.6.0",
     "scipy",
     "requests",
     "pyyaml",

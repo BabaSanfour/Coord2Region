@@ -220,11 +220,14 @@ config:
     )
     run_from_config(str(cfg))
     args, kwargs = mock_run.call_args
-    assert args == ([[1, 2, 3]], "coords", ["summaries"], "json", "out.json")
-    assert kwargs == {
-        "config": {"atlas_names": ["aal"]},
-        "image_backend": "ai",
-    }
+    assert args == ()
+    assert kwargs["inputs"] == [[1, 2, 3]]
+    assert kwargs["input_type"] == "coords"
+    assert kwargs["outputs"] == ["summaries"]
+    assert kwargs["output_format"] == "json"
+    assert kwargs["output_path"] == "out.json"
+    assert kwargs["image_backend"] == "ai"
+    assert kwargs["config"]["atlas_names"] == ["aal"]
 
 
 @pytest.mark.unit
