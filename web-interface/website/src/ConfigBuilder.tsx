@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import Form, { IChangeEvent } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import {
@@ -32,14 +32,64 @@ type SchemaProperty = {
 
 const schema = schemaSource as RJSFSchema;
 
-const atlasSuggestions = [
-  'harvard-oxford',
-  'juelich',
-  'aal',
-  'schaefer',
-  'brainnetome',
-  'destrieux'
+type AtlasOptionGroup = {
+  id: string;
+  label: string;
+  options: string[];
+};
+
+const atlasGroups: AtlasOptionGroup[] = [
+  {
+    id: 'volumetric-nilearn',
+    label: 'Volumetric (nilearn)',
+    options: ['aal', 'basc', 'brodmann', 'destrieux', 'harvard-oxford', 'juelich', 'pauli', 'schaefer', 'talairach', 'yeo']
+  },
+  {
+    id: 'surface-mne',
+    label: 'Surface (mne)',
+    options: [
+      'aparc',
+      'aparc.a2005s',
+      'aparc.a2009s',
+      'aparc_sub',
+      'human-connectum project',
+      'oasis.chubs',
+      'pals_b12_lobes',
+      'pals_b12_orbitofrontal',
+      'pals_b12_visuotopic',
+      'yeo2011'
+    ]
+  },
+  {
+    id: 'coordinates-mne',
+    label: 'Coordinates (mne)',
+    options: ['dosenbach', 'power', 'seitzman']
+  }
 ];
+
+const knownAtlases = new Set<string>(atlasGroups.flatMap((group) => group.options));
+
+const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const atlasProperty = (() => {
+  const property = schema.properties?.atlas_names;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property);
+  if (Array.isArray((cloned as RJSFSchema).anyOf)) {
+    const arrayOption = (cloned as RJSFSchema).anyOf?.find((option) => option?.type === 'array');
+    if (arrayOption && typeof arrayOption === 'object') {
+      Object.assign(cloned, arrayOption);
+    }
+    delete (cloned as RJSFSchema).anyOf;
+  }
+  if (!(cloned as RJSFSchema).items) {
+    (cloned as RJSFSchema).items = { type: 'string' };
+  }
+  (cloned as RJSFSchema).type = 'array';
+  return cloned as RJSFSchema;
+})();
 
 const builderKeys: string[] = [
   'input_type',
@@ -97,6 +147,10 @@ const builderSchema: RJSFSchema = {
     : undefined,
   additionalProperties: false
 };
+
+if (builderSchema.properties?.atlas_names && atlasProperty) {
+  builderSchema.properties.atlas_names = atlasProperty;
+}
 
 const tooltipFromSchema = (key: string): string | undefined => {
   const property = (schema.properties ?? {})[key] as SchemaProperty | undefined;
@@ -179,13 +233,37 @@ const FieldTemplate = (props: FieldTemplateProps) => {
 
 const AtlasMultiSelect = (props: WidgetProps) => {
   const { id, value, disabled, readonly, onChange } = props;
-  const selected = Array.isArray(value) ? (value as string[]) : [];
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = Array.from(event.target.selectedOptions).map((option) => option.value);
-    onChange(options);
+  const rawValue = Array.isArray(value) ? (value as string[]) : [];
+  const selected = Array.from(new Set(rawValue)).sort((a, b) => a.localeCompare(b));
+  const isReadOnly = disabled || readonly;
+
+  const commitSelection = (nextValues: Iterable<string>) => {
+    const unique = Array.from(new Set(Array.from(nextValues))).sort((a, b) => a.localeCompare(b));
+    onChange(unique.length ? unique : []);
   };
 
-  const handleCustomAtlas = (event: React.FormEvent<HTMLFormElement>) => {
+  const toggleAtlas = (atlas: string) => {
+    const next = new Set(selected);
+    if (next.has(atlas)) {
+      next.delete(atlas);
+    } else {
+      next.add(atlas);
+    }
+    commitSelection(next);
+  };
+
+  const handleGroupToggle = (options: string[]) => {
+    const next = new Set(selected);
+    const hasMissing = options.some((option) => !next.has(option));
+    if (hasMissing) {
+      options.forEach((option) => next.add(option));
+    } else {
+      options.forEach((option) => next.delete(option));
+    }
+    commitSelection(next);
+  };
+
+  const handleCustomAtlas = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const input = form.elements.namedItem('customAtlas') as HTMLInputElement | null;
@@ -193,41 +271,88 @@ const AtlasMultiSelect = (props: WidgetProps) => {
       return;
     }
     const atlas = input.value.trim();
-    if (atlas && !selected.includes(atlas)) {
-      onChange([...selected, atlas]);
+    if (atlas) {
+      const next = new Set(selected);
+      next.add(atlas);
+      commitSelection(next);
     }
     input.value = '';
   };
 
-  const suggestions = Array.from(new Set([...atlasSuggestions, ...selected]));
+  const customAtlases = selected.filter((atlas) => !knownAtlases.has(atlas));
+  const baseGroups = atlasGroups.map((group) => ({
+    ...group,
+    options: Array.from(new Set(group.options))
+  }));
+  const groups = customAtlases.length > 0
+    ? [...baseGroups, { id: 'custom', label: 'Custom entries', options: customAtlases }]
+    : baseGroups;
 
   return (
-    <div className="atlas-widget">
-      <select
-        id={id}
-        className="atlas-widget__select"
-        multiple
-        disabled={disabled || readonly}
-        value={selected}
-        onChange={handleChange}
-      >
-        {suggestions.map((atlas) => (
-          <option key={atlas} value={atlas}>
-            {atlas}
-          </option>
-        ))}
-      </select>
+    <div className="atlas-widget" id={id}>
+      <div className="atlas-grid">
+        {groups.map((group) => {
+          const groupSelected = group.options.filter((option) => selected.includes(option));
+          const allSelected = group.options.length > 0 && groupSelected.length === group.options.length;
+          const legendId = `${id}-${group.id}`;
+          const selectAllLabel = allSelected
+            ? `Clear all (${group.options.length})`
+            : `Select all (${group.options.length})`;
+          return (
+            <div className="atlas-group" key={group.id}>
+              <div className="atlas-group__header">
+                <h5 id={legendId}>{group.label}</h5>
+                {group.options.length > 0 && (
+                  <div className="atlas-group__controls">
+                    <span className="atlas-group__count">{groupSelected.length}/{group.options.length}</span>
+                    <button
+                      type="button"
+                      className="atlas-group__action"
+                      onClick={() => handleGroupToggle(group.options)}
+                      disabled={isReadOnly}
+                    >
+                      {selectAllLabel}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <ul className="atlas-group__list" role="group" aria-labelledby={legendId}>
+                {group.options.length === 0 ? (
+                  <li className="atlas-group__item atlas-group__item--empty">Add a custom atlas to manage it here.</li>
+                ) : (
+                  group.options.map((option) => (
+                    <li className="atlas-group__item" key={`${group.id}-${option}`}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(option)}
+                          onChange={() => toggleAtlas(option)}
+                          disabled={isReadOnly}
+                        />
+                        <span>{option}</span>
+                      </label>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
       <form className="atlas-widget__form" onSubmit={handleCustomAtlas}>
         <input
           type="text"
           name="customAtlas"
           placeholder="Add atlas by name"
-          disabled={disabled || readonly}
+          disabled={isReadOnly}
         />
-        <button type="submit" disabled={disabled || readonly}>
+        <button type="submit" disabled={isReadOnly}>
           Add
         </button>
       </form>
+      <p className="atlas-summary">
+        Selected {selected.length} atlas{selected.length === 1 ? '' : 'es'}.
+      </p>
       {selected.length === 0 && <p className="atlas-widget__hint">Select one or more atlases to query.</p>}
     </div>
   );

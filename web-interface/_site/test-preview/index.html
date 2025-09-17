@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Coord2Region Config Builder</title>
+    <meta name="description" content="Landing page and interactive configuration builder for the Coord2Region project.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/styles.css">
+  </head>
+  <body class="theme">
+    <header class="hero">
+      <div class="hero__content container">
+        <h1>Coord2Region Coordinates → Insights</h1>
+        <p class="hero__tagline">Translate brain coordinate datasets into reproducible atlases, summary statistics, and CLI-ready configs with a guided assistant.</p>
+        <div class="hero__cta">
+          <a class="btn btn-primary" href="#config-builder">Open Config Builder</a>
+          <a class="btn btn-secondary" href="https://github.com/neurostuff/coord2region" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+      </div>
+    </header>
+    <main class="content container">
+<section class="section-card">
+  <div class="status-pill">Phase 2 · Under construction</div>
+  <h2>Meet Coord2Region</h2>
+  <p>Coord2Region streamlines the path from raw neuroimaging coordinates to actionable atlas-level insights. Phase 2 is focused on building a collaborative research companion that makes configuration, summarization, and data review effortless.</p>
+</section>
+
+<section class="section-card section-grid">
+  <div>
+    <h3>Phase 2 focus</h3>
+    <p>We are adding tooling for richer atlas selection, customizable summarization flows, and better dataset provenance tracking. The new web interface will guide you through the available options and generate a shareable configuration for the CLI.</p>
+  </div>
+  <div>
+    <h3>Try the prototype</h3>
+    <p>The interactive builder below is wired to the live JSON schema that powers the CLI. Fill in coordinates manually or upload a file, choose atlases to query, and instantly preview the YAML config you can run with <code>coord2region</code>.</p>
+  </div>
+</section>
+
+<section id="config-builder" class="section-card">
+  <div class="card-title">
+    <h2>Interactive Config Builder</h2>
+    <span>Powered by JSON Schema-driven forms</span>
+  </div>
+  <div class="config-builder-wrapper responsive-frame">
+    <div id="coord2region-root"></div>
+    <aside>
+      <h3>How it works</h3>
+      <ul>
+        <li>Toggle between manual coordinate entry and file uploads.</li>
+        <li>Select one or more atlases for reverse inference lookups.</li>
+        <li>Enable study review or summarization flows in one click.</li>
+        <li>Copy the generated YAML or CLI command for automation.</li>
+      </ul>
+      <p>Feedback welcome while we build out the full Phase 2 experience.</p>
+    </aside>
+  </div>
+</section>
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p>Coord2Region Phase 2 is currently under construction. Follow updates on the repository.</p>
+        <p class="footnote">&copy; 2025 Coord2Region contributors.</p>
+      </div>
+    </footer>
+    <script type="module" src="/assets/js/bundle.js"></script>
+  </body>
+</html>

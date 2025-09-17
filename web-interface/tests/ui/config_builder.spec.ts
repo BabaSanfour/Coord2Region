@@ -55,10 +55,33 @@ test.describe('Coord2Region Config Builder', () => {
     await expect(yamlOutput).toContainText('coordinates:');
     await expect(yamlOutput).toContainText('- 30');
 
-    const atlasSelect = page.locator('#root_atlas_names');
-    await atlasSelect.selectOption(['harvard-oxford', 'aal']);
+    const atlasField = page.locator('#root_atlas_names');
+
+    const checkboxFor = (name: string) =>
+      atlasField.locator('label', { hasText: name }).locator('input[type="checkbox"]');
+
+    const juelichCheckbox = checkboxFor('juelich');
+    await juelichCheckbox.waitFor();
+    if (await juelichCheckbox.isChecked()) {
+      await juelichCheckbox.uncheck();
+    }
+
+    const harvardCheckbox = checkboxFor('harvard-oxford');
+    if (!(await harvardCheckbox.isChecked())) {
+      await harvardCheckbox.check();
+    }
+
+    const aalCheckbox = checkboxFor('aal');
+    await aalCheckbox.check();
     await expect(yamlOutput).toContainText('harvard-oxford');
     await expect(yamlOutput).toContainText('aal');
+    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 2 atlases.');
+
+    const volumetricGroup = atlasField.locator('.atlas-group', { hasText: 'Volumetric (nilearn)' });
+    const selectAllVolumetric = volumetricGroup.getByRole('button', { name: /Select all/ });
+    await selectAllVolumetric.click();
+    await expect(selectAllVolumetric).toHaveText(/Clear all/);
+    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 10 atlases.');
     const studyCardButton = page.locator('.card', { hasText: 'Study review' }).locator('button');
     await studyCardButton.click();
     await expect(studyCardButton).toHaveClass(/toggle--active/);
