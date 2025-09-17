@@ -348,3 +348,49 @@ def test_stream_summary_cache():
     second = list(stream_summary(ai, studies, coord, cache_size=2))
     assert first == second == ["A", "B"]
     ai.stream_generate_text.assert_called_once()
+
+
+@pytest.mark.unit
+@patch(
+    "coord2region.llm.generate_llm_prompt",
+    side_effect=["P1", "P2", "P1", "P2"],
+)
+def test_generate_batch_summaries_cache(mock_prompt):
+    generate_batch_summaries._cache.clear()
+    ai = MagicMock()
+    ai.supports_batching.return_value = True
+    delimiter = "\n@@@\n"
+    ai.generate_text.return_value = f"S1{delimiter}S2"
+    pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
+
+    first = generate_batch_summaries(ai, pairs, cache_size=2)
+    ai.generate_text.assert_called_once()
+
+    ai.generate_text.reset_mock()
+    second = generate_batch_summaries(ai, pairs, cache_size=2)
+    ai.generate_text.assert_not_called()
+    assert first == second == ["S1", "S2"]
+
+
+@pytest.mark.unit
+@patch(
+    "coord2region.llm.generate_llm_prompt",
+    return_value="Intro\nSTUDIES REPORTING ACTIVATION AT MNI COORDINATE ...",
+)
+def test_generate_summary_async_includes_atlas_labels(mock_prompt):
+    generate_summary_async._cache.clear()
+    ai = MagicMock()
+    ai.generate_text_async = AsyncMock(return_value="SUMMARY")
+    asyncio.run(
+        generate_summary_async(
+            ai,
+            [],
+            [1, 2, 3],
+            atlas_labels={"Atlas": "Label"},
+            cache_size=0,
+        )
+    )
+
+    prompt_used = ai.generate_text_async.await_args.kwargs["prompt"]
+    assert "ATLAS LABELS FOR THIS COORDINATE" in prompt_used
+    assert "Atlas: Label" in prompt_used

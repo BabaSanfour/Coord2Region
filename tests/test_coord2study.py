@@ -385,3 +385,38 @@ def test_fetch_datasets_unknown_source(tmp_path, caplog):
 @patch("coord2region.coord2study.os.path.exists", return_value=True)
 def test_load_deduplicated_dataset_error(mock_exists, mock_load):
     assert load_deduplicated_dataset("/tmp/x.pkl.gz") is None
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study._fetch_crossref_metadata", return_value={})
+def test_extract_study_metadata_author_year_fallback(mock_crossref):
+    mock_dataset = MagicMock()
+
+    def meta(ids, field):
+        return {
+            "title": [None],
+            "authors": ["Smith et al."],
+            "year": [2012],
+        }.get(field, [None])
+
+    mock_dataset.get_metadata.side_effect = meta
+    entry = _extract_study_metadata(mock_dataset, "12345-1")
+    assert entry["title"] == "Smith et al. (2012)"
+    mock_crossref.assert_called_once_with("12345")
+
+
+@pytest.mark.unit
+@patch("coord2region.coord2study.requests.get")
+def test_fetch_crossref_metadata_no_items(mock_get):
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"message": {"items": []}}
+    mock_resp.raise_for_status.return_value = None
+    mock_get.return_value = mock_resp
+    assert _fetch_crossref_metadata("123") == {}
+
+
+@pytest.mark.unit
+def test_deduplicate_datasets_empty(caplog):
+    caplog.set_level(logging.WARNING)
+    assert deduplicate_datasets({}) is None
+    assert any("No datasets provided" in rec.message for rec in caplog.records)

@@ -4,6 +4,7 @@ import os
 import pickle
 from dataclasses import asdict
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
@@ -369,3 +370,94 @@ def test_run_pipeline_multiatlas_error(mock_multi, tmp_path):
         },
     )
     assert results[0].region_labels == {}
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_atlas_labels_success(mock_multi, tmp_path):
+    captured = {}
+
+    class DummyMulti:
+        def __init__(self, base_dir, atlases):
+            captured["base_dir"] = base_dir
+            captured["atlases"] = atlases
+
+        def batch_mni_to_region_names(self, coords):
+            captured["coords"] = coords
+            return {"custom": ["Region"]}
+
+    mock_multi.side_effect = lambda *args, **kwargs: DummyMulti(*args, **kwargs)
+
+    results = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["region_labels"],
+        config={
+            "use_atlases": True,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+            "atlas_names": ["custom"],
+        },
+    )
+
+    assert results[0].region_labels == {"custom": "Region"}
+    assert captured["atlases"] == {"custom": {}}
+    assert captured["coords"] == [[0, 0, 0]]
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_summary", return_value="SUMMARY")
+@patch("coord2region.pipeline.MultiAtlasMapper")
+@patch("coord2region.pipeline.AIModelInterface")
+def test_run_pipeline_region_names_to_coords(
+    mock_ai, mock_multi, mock_summary, tmp_path
+):
+    class DummyMulti:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def batch_region_name_to_mni(self, names):
+            assert names == ["Region"]
+            return {"custom": [np.array([1.0, 2.0, 3.0])]}
+
+        def batch_mni_to_region_names(self, coords):
+            assert coords == [[1.0, 2.0, 3.0]]
+            return {"custom": ["Resolved"]}
+
+    mock_multi.side_effect = lambda *a, **k: DummyMulti()
+
+    results = run_pipeline(
+        inputs=["Region"],
+        input_type="region_names",
+        outputs=["region_labels", "summaries"],
+        config={
+            "use_atlases": True,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+            "gemini_api_key": "key",
+        },
+    )
+
+    res = results[0]
+    assert res.coordinate == [1.0, 2.0, 3.0]
+    assert res.region_labels == {"custom": "Resolved"}
+    mock_summary.assert_called_once()
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.save_as_csv")
+def test_run_pipeline_relative_output_path(mock_save_csv, tmp_path):
+    run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=[],
+        output_format="csv",
+        output_path="nested/out.csv",
+        config={
+            "use_atlases": False,
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+        },
+    )
+    saved_path = Path(mock_save_csv.call_args[0][1])
+    assert saved_path.parent.parent.name == "results"
