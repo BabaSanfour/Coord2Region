@@ -49,6 +49,8 @@ if data_path is not None:
 
         # %%
         # Map contacts to atlas regions
+        # For each electrode contact (x, y, z in MNI), find the
+        # corresponding anatomical label in the chosen atlas.
         fetcher = AtlasFetcher()
         atlas = fetcher.fetch_atlas("aal")
         mapper = AtlasMapper("aal", atlas["vol"], atlas["hdr"], atlas["labels"])

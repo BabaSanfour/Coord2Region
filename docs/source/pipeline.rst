@@ -55,6 +55,12 @@ be provided in multiple forms: as a single string (``30,-22,50`` or ``"30 -22 50
 or as three separate numbers (``30 -22 50``). You can also pass a CSV/XLSX file
 via ``--coords-file``.
 
+.. note::
+   The examples below are shell commands. Run them in your terminal (bash/zsh/PowerShell),
+   not inside a Python session. For example, to summarize a coordinate:
+
+   ``coord2region coords-to-summary 30 -22 50``
+
 .. code-block:: bash
 
     # Generate a text summary for a coordinate (all styles equivalent)

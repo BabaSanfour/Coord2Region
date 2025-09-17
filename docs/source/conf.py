@@ -44,8 +44,26 @@ def cleanup_readme(app, exception):
 
 
 def autodoc_skip_member(app, what, name, obj, skip, options):
-    """Skip private members and internal loggers."""
+    """Skip private members and internal loggers (autodoc)."""
     if name.startswith("_") or name in {"logger", "get_logger"}:
+        return True
+    return skip
+
+
+def autoapi_skip_member(app, what, name, obj, skip, options):
+    """Skip irrelevant members in AutoAPI output.
+
+    - Hide private members
+    - Hide module/class attributes named ``logger`` or ``get_logger``
+    - Optionally let other decisions stand (``skip``)
+    """
+    try:
+        if name.startswith("_"):
+            return True
+    except Exception:
+        # ``name`` can be None for some autoapi objects
+        pass
+    if name in {"logger", "get_logger"}:
         return True
     return skip
 
@@ -54,6 +72,8 @@ def setup(app):
     """Register build events for documentation setup."""
     app.connect("build-finished", cleanup_readme)
     app.connect("autodoc-skip-member", autodoc_skip_member)
+    # Reduce noise in API docs: hide private members and loggers from AutoAPI
+    app.connect("autoapi-skip-member", autoapi_skip_member)
 
 
 copy_readme()
@@ -166,7 +186,8 @@ autoapi_type = 'python'
 autoapi_dirs = ["../../coord2region"]
 autoapi_options = [
     "members",
-    "undoc-members",
+    # Do not include undocumented members to keep API concise
+    # "undoc-members",
     "show-inheritance",
     "show-module-summary",
 ]
@@ -174,4 +195,3 @@ autoapi_ignore = ["coord2region/__init__.py"]
 autoapi_template_dir = "_templates/autoapi"
 autoapi_add_toctree_entry = True
 extensions += ['sphinx.ext.viewcode']  # see https://github.com/readthedocs/sphinx-autoapi/issues/422
-

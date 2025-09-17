@@ -34,6 +34,8 @@ print(f"Fetched AAL atlas with {len(labels)} labels")
 # - ``atlas["regions"]`` maps region name → array of vertex IDs
 #
 # We demonstrate how to get all vertices for a given region label.
+# Tip: volumetric atlases work in voxel/MNI spaces, while surface atlases
+# work in vertex space on a cortical mesh (per hemisphere).
 try:
     aparc = fetcher.fetch_atlas("aparc", prefer="mne", subject="fsaverage")
 

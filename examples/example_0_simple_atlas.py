@@ -1,7 +1,9 @@
-"""Demonstrate basic usage of ``AtlasMapper`` with a synthetic atlas
-===================================================================
+"""Basic usage of :class:`coord2region.coord2region.AtlasMapper`
+================================================================
 
 This example converts between coordinate systems and queries brain regions.
+See also the API docs for
+:class:`coord2region.coord2region.AtlasMapper`.
 """
 
 # %%
