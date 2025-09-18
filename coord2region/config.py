@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence
 import numbers
@@ -63,6 +64,7 @@ class Coord2RegionConfig(BaseModel):
     study_limit: Optional[conint(gt=0)] = None
 
     atlas_names: Optional[List[str]] = None
+    atlas_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     use_atlases: bool = True
     max_atlases: Optional[conint(gt=0)] = None
 
@@ -136,6 +138,20 @@ class Coord2RegionConfig(BaseModel):
             normalized[str(key)] = cfg
         return normalized
 
+    @field_validator("atlas_configs", mode="before")
+    @classmethod
+    def _normalize_atlas_configs(cls, value: Any) -> Dict[str, Dict[str, Any]]:
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise TypeError("atlas_configs must be a mapping of atlas names to options")
+        normalized: Dict[str, Dict[str, Any]] = {}
+        for key, cfg in value.items():
+            if not isinstance(cfg, dict):
+                raise TypeError("Each atlas configuration must be a dictionary")
+            normalized[str(key)] = dict(cfg)
+        return normalized
+
     def _legacy_list(self, key: str) -> Optional[List[str]]:
         if not self.legacy_config or key not in self.legacy_config:
             return None
@@ -157,6 +173,15 @@ class Coord2RegionConfig(BaseModel):
             and len(active_atlases) > self.max_atlases
         ):
             raise ValueError("Number of atlas names exceeds the configured max_atlases")
+
+        if active_atlases:
+            existing = dict(self.atlas_configs)
+            for name in active_atlases:
+                if name not in existing:
+                    derived = self._derive_atlas_config(name)
+                    if derived:
+                        existing[name] = derived
+            object.__setattr__(self, "atlas_configs", existing)
 
         self._validate_inputs_section()
         return self
@@ -240,6 +265,34 @@ class Coord2RegionConfig(BaseModel):
             return [Coord2RegionConfig._cast_numeric(part) for part in parts]
         except (TypeError, ValueError) as exc:
             raise ValueError("Coordinate values must be numeric") from exc
+
+    @staticmethod
+    def _looks_like_path(value: str) -> bool:
+        if not value:
+            return False
+        if value.startswith(("~", "./", "../")):
+            return True
+        if os.path.isabs(value):
+            return True
+        if os.sep in value:
+            return True
+        if os.altsep and os.altsep in value:
+            return True
+        if len(value) > 2 and value[1] == ":" and value[0].isalpha():
+            return True
+        return False
+
+    @staticmethod
+    def _derive_atlas_config(name: str) -> Optional[Dict[str, Any]]:
+        text = str(name).strip()
+        if not text:
+            return None
+        lower = text.lower()
+        if lower.startswith(("http://", "https://")):
+            return {"atlas_url": text}
+        if Coord2RegionConfig._looks_like_path(text):
+            return {"atlas_file": text}
+        return None
 
     @staticmethod
     def _cast_numeric(value: Any) -> float | int:
@@ -348,6 +401,9 @@ class Coord2RegionConfig(BaseModel):
                 if self.summary_cache_size is not None
                 else None
             )
+
+        if self.atlas_configs:
+            config["atlas_configs"] = dict(self.atlas_configs)
 
         return config
 

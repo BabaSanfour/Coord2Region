@@ -14,6 +14,14 @@
       "default": null,
       "title": "Anthropic Api Key"
     },
+    "atlas_configs": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Atlas Configs",
+      "type": "object"
+    },
     "atlas_names": {
       "anyOf": [
         {

@@ -77,11 +77,19 @@ test.describe('Coord2Region Config Builder', () => {
     await expect(yamlOutput).toContainText('aal');
     await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 2 atlases.');
 
+    const customAtlasInput = atlasField.locator('form.atlas-widget__form input[name="customAtlas"]');
+    await customAtlasInput.fill('https://example.com/custom.nii.gz');
+    await customAtlasInput.press('Enter');
+    await expect(yamlOutput).toContainText('https://example.com/custom.nii.gz');
+    await expect(yamlOutput).toContainText('atlas_configs:');
+    await expect(yamlOutput).toContainText('atlas_url: https://example.com/custom.nii.gz');
+    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 3 atlases.');
+
     const volumetricGroup = atlasField.locator('.atlas-group', { hasText: 'Volumetric (nilearn)' });
     const selectAllVolumetric = volumetricGroup.getByRole('button', { name: /Select all/ });
     await selectAllVolumetric.click();
     await expect(selectAllVolumetric).toHaveText(/Clear all/);
-    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 10 atlases.');
+    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 11 atlases.');
     const studyCardButton = page.locator('.card', { hasText: 'Study review' }).locator('button');
     await studyCardButton.click();
     await expect(studyCardButton).toHaveClass(/toggle--active/);

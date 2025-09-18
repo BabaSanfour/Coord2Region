@@ -6,6 +6,7 @@ brain atlases from various sources including Nilearn, MNE, and direct URLs.
 
 import os
 import logging
+from pathlib import Path
 import numpy as np
 import nilearn.datasets
 import mne
@@ -142,13 +143,16 @@ class AtlasFetcher:
             "seitzman": {"fetcher": fetch_coords_seitzman_2018, "default_kwargs": {}},
         }
 
+        hcp_fetcher = getattr(mne.datasets, "fetch_hcp_mmp_parcellation", None)
+        aparc_sub_fetcher = getattr(mne.datasets, "fetch_aparc_sub_parcellation", None)
+
         self._atlas_fetchers_mne = {
             "brodmann": {
                 "fetcher": None,
                 "default_kwargs": {"version": "PALS_B12_Brodmann"},
             },
             "human-connectum project": {
-                "fetcher": mne.datasets.fetch_hcp_mmp_parcellation,
+                "fetcher": hcp_fetcher,
                 "default_kwargs": {"version": "HCPMMP1_combined"},
             },
             "pals_b12_lobes": {
@@ -164,7 +168,7 @@ class AtlasFetcher:
                 "default_kwargs": {"version": "PALS_B12_Visuotopic"},
             },
             "aparc_sub": {
-                "fetcher": mne.datasets.fetch_aparc_sub_parcellation,
+                "fetcher": aparc_sub_fetcher,
                 "default_kwargs": {},
             },
             "aparc": {"fetcher": None, "default_kwargs": {}},
@@ -359,6 +363,8 @@ class AtlasFetcher:
         ... )['hdr'] is None  # doctest: +SKIP
         True
         """
+        if atlas_name == "human-connectum project":
+            _ensure_hcp_license()
         kwargs["subject"] = kwargs.get("subject", "fsaverage")
         this_kwargs = fetcher_mne["default_kwargs"].copy()
         this_kwargs.update(kwargs)
@@ -537,3 +543,23 @@ class AtlasFetcher:
             f"Unrecognized atlas name '{atlas_name}'. Available options:"
             f" {self.list_available_atlases()}"
         )
+
+
+HCP_LICENSE_ENV = "COORD2REGION_ACCEPT_HCPMMP"
+HCP_LICENSE_PATH = Path.home() / ".mne" / "hcpmmp-license.txt"
+
+
+def _ensure_hcp_license() -> None:
+    """Raise if the HCP-MMP license was not accepted."""
+    if os.getenv(HCP_LICENSE_ENV) == "1":
+        return
+    if HCP_LICENSE_PATH.exists() and HCP_LICENSE_PATH.stat().st_size > 0:
+        return
+    msg = (
+        "Using the 'human-connectum project' atlas requires accepting the HCP-MMP "
+        "license. Run:\n"
+        '    python -c "import mne; mne.datasets.fetch_hcp_mmp_parcellation('
+        'accept=True)"\n'
+        "or create the file '~/.mne/hcpmmp-license.txt' after reading the terms."
+    )
+    raise RuntimeError(msg)

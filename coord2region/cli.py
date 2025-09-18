@@ -9,10 +9,11 @@ Enhancements:
 
 import argparse
 import json
+import os
 import shlex
 import sys
 from dataclasses import asdict
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Sequence, Dict, Optional
 import numbers
 
 import pandas as pd
@@ -81,6 +82,25 @@ def _batch(seq: Sequence, size: int) -> Iterable[Sequence]:
             yield seq[i : i + size]
 
 
+def _atlas_source_from_value(value: str) -> Optional[Dict[str, str]]:
+    text = str(value).strip()
+    if not text:
+        return None
+    lower = text.lower()
+    if lower.startswith(("http://", "https://")):
+        return {"atlas_url": text}
+    if text.startswith(("~", "./", "../")):
+        return {"atlas_file": text}
+    expanded = os.path.expanduser(text)
+    if os.path.isabs(expanded):
+        return {"atlas_file": text}
+    if os.sep in text or (os.altsep and os.altsep in text):
+        return {"atlas_file": text}
+    if len(text) > 2 and text[1] == ":" and text[0].isalpha():
+        return {"atlas_file": text}
+    return None
+
+
 def _collect_kwargs(args: argparse.Namespace) -> dict:
     """Collect keyword arguments for :func:`run_pipeline` from parsed args."""
     kwargs = {}
@@ -104,11 +124,57 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
     atlas_names = getattr(args, "atlas_names", None)
     if atlas_names:
         names: List[str] = []
+        atlas_configs: Dict[str, Dict[str, str]] = {}
         for item in atlas_names:
             parts = [p.strip() for p in str(item).split(",")]
-            names.extend([p for p in parts if p])
+            for part in parts:
+                if not part:
+                    continue
+                names.append(part)
+                if part not in kwargs.get("atlas_configs", {}):
+                    source = _atlas_source_from_value(part)
+                    if source:
+                        atlas_configs.setdefault(part, {}).update(source)
         if names:
-            kwargs["atlas_names"] = names
+            kwargs["atlas_names"] = list(dict.fromkeys(names))
+        if atlas_configs:
+            kwargs["atlas_configs"] = atlas_configs
+    atlas_urls = getattr(args, "atlas_urls", None)
+    if atlas_urls:
+        configs = kwargs.setdefault("atlas_configs", {})
+        names = kwargs.setdefault("atlas_names", [])
+        for entry in atlas_urls:
+            if "=" not in entry:
+                raise argparse.ArgumentTypeError("--atlas-url expects NAME=URL entries")
+            name, url = entry.split("=", 1)
+            name = name.strip()
+            url = url.strip()
+            if not name or not url:
+                raise argparse.ArgumentTypeError("--atlas-url expects NAME=URL entries")
+            configs.setdefault(name, {})["atlas_url"] = url
+            if name not in names:
+                names.append(name)
+    atlas_files = getattr(args, "atlas_files", None)
+    if atlas_files:
+        configs = kwargs.setdefault("atlas_configs", {})
+        names = kwargs.setdefault("atlas_names", [])
+        for entry in atlas_files:
+            if "=" not in entry:
+                raise argparse.ArgumentTypeError(
+                    "--atlas-file expects NAME=PATH entries"
+                )
+            name, path = entry.split("=", 1)
+            name = name.strip()
+            path = path.strip()
+            if not name or not path:
+                raise argparse.ArgumentTypeError(
+                    "--atlas-file expects NAME=PATH entries"
+                )
+            configs.setdefault(name, {})["atlas_file"] = path
+            if name not in names:
+                names.append(name)
+    if "atlas_names" in kwargs:
+        kwargs["atlas_names"] = list(dict.fromkeys(kwargs["atlas_names"]))
     if getattr(args, "use_atlases", None) is not None:
         kwargs["use_atlases"] = bool(args.use_atlases)
     return kwargs
@@ -144,6 +210,17 @@ def _common_config_flags(cfg: dict) -> List[str]:
     atlas_names = cfg.get("atlas_names") or []
     for name in atlas_names:
         flags.extend(["--atlas", str(name)])
+
+    atlas_configs = cfg.get("atlas_configs") or {}
+    for name, options in atlas_configs.items():
+        if not isinstance(options, dict):
+            continue
+        atlas_url = options.get("atlas_url")
+        if atlas_url and atlas_url != name:
+            flags.extend(["--atlas-url", f"{name}={atlas_url}"])
+        atlas_file = options.get("atlas_file")
+        if atlas_file and atlas_file != name:
+            flags.extend(["--atlas-file", f"{name}={atlas_file}"])
 
     if cfg.get("use_atlases") is False:
         flags.append("--no-atlases")
@@ -326,6 +403,18 @@ def create_parser() -> argparse.ArgumentParser:
                 "Atlas name(s) to use (repeat --atlas or use comma-separated list). "
                 "Defaults: harvard-oxford,juelich,aal"
             ),
+        )
+        p.add_argument(
+            "--atlas-url",
+            dest="atlas_urls",
+            action="append",
+            help="Associate an atlas alias with a download URL (NAME=URL)",
+        )
+        p.add_argument(
+            "--atlas-file",
+            dest="atlas_files",
+            action="append",
+            help="Associate an atlas alias with a local file path (NAME=PATH)",
         )
         p.add_argument(
             "--no-atlases",

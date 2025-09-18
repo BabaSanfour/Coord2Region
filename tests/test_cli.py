@@ -1,10 +1,14 @@
 import json
 import subprocess
 import sys
+import types
 from pathlib import Path
 import textwrap
 
 import pytest
+
+sys.modules.setdefault('mne', types.ModuleType('mne'))
+sys.modules.setdefault('mne.datasets', types.ModuleType('mne.datasets'))
 
 from coord2region.cli import run_from_config
 
@@ -12,7 +16,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _run(code: str):
-    script = textwrap.dedent(code)
+    stub = textwrap.dedent(
+        """
+import sys
+import types
+sys.modules.setdefault('mne', types.ModuleType('mne'))
+sys.modules.setdefault('mne.datasets', types.ModuleType('mne.datasets'))
+"""
+    )
+    script = stub + textwrap.dedent(code)
     return subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, cwd=ROOT
     )
@@ -120,3 +132,50 @@ main(["run", "--config", r"{cfg}", "--dry-run"])
     assert lines == [
         "coord2region coords-to-atlas 0 0 0",
     ]
+
+
+def test_cli_custom_atlas_sources(tmp_path):
+    code = """
+import json
+from unittest.mock import patch
+from coord2region.cli import main
+from coord2region.pipeline import PipelineResult
+
+captured = {}
+
+def fake_run_pipeline(inputs, input_type, outputs, output_format, output_path, **kwargs):
+    captured['config'] = kwargs.get('config', {})
+    return [PipelineResult(coordinate=inputs[0], summary=None, region_labels={}, studies=[], image=None)]
+
+with patch("coord2region.cli.run_pipeline", side_effect=fake_run_pipeline):
+    main([
+        "coords-to-atlas",
+        "0,0,0",
+        "--atlas",
+        "https://example.com/custom.nii.gz",
+    ])
+
+print(json.dumps(captured['config'].get('atlas_names')))
+print(json.dumps(captured['config'].get('atlas_configs', {}).get('https://example.com/custom.nii.gz', {})))
+"""
+    result = _run(code)
+    assert result.returncode == 0
+    parsed = []
+    for raw in result.stdout.splitlines():
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            parsed.append(json.loads(raw))
+        except json.JSONDecodeError:
+            continue
+    assert parsed, "Expected JSON output from CLI stub"
+
+    atlas_names = next((item for item in parsed if isinstance(item, list)), [])
+    atlas_config = next(
+        (item for item in parsed if isinstance(item, dict) and "atlas_url" in item),
+        {}
+    )
+
+    assert "https://example.com/custom.nii.gz" in atlas_names
+    assert atlas_config.get("atlas_url") == "https://example.com/custom.nii.gz"

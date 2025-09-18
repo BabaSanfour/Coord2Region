@@ -32,6 +32,55 @@ type SchemaProperty = {
 
 const schema = schemaSource as RJSFSchema;
 
+const isHttpUrl = (value: string) => /^https?:\/\//i.test(value.trim());
+
+const looksLikePath = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.startsWith('~') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    return true;
+  }
+  if (/^[A-Za-z]:\\/.test(trimmed)) {
+    return true;
+  }
+  if (trimmed.includes('/') || trimmed.includes('\\')) {
+    return true;
+  }
+  return false;
+};
+
+const atlasConfigFromValue = (value: string): Record<string, string> | null => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (isHttpUrl(trimmed)) {
+    return { atlas_url: trimmed };
+  }
+  if (looksLikePath(trimmed)) {
+    return { atlas_file: trimmed };
+  }
+  return null;
+};
+
+const deriveAtlasConfigs = (names: unknown): Record<string, Record<string, string>> => {
+  if (!Array.isArray(names)) {
+    return {};
+  }
+  return names.reduce((acc, entry) => {
+    if (typeof entry !== 'string') {
+      return acc;
+    }
+    const config = atlasConfigFromValue(entry);
+    if (config) {
+      acc[entry] = config;
+    }
+    return acc;
+  }, {} as Record<string, Record<string, string>>);
+};
+
 type AtlasOptionGroup = {
   id: string;
   label: string;
@@ -280,10 +329,20 @@ const AtlasMultiSelect = (props: WidgetProps) => {
   };
 
   const customAtlases = selected.filter((atlas) => !knownAtlases.has(atlas));
-  const baseGroups = atlasGroups.map((group) => ({
-    ...group,
-    options: Array.from(new Set(group.options))
-  }));
+  // Build display groups with options unique across groups (first occurrence wins)
+  const baseGroups = (() => {
+    const used = new Set<string>();
+    return atlasGroups.map((group) => {
+      const unique = [] as string[];
+      for (const opt of Array.from(new Set(group.options))) {
+        if (!used.has(opt)) {
+          unique.push(opt);
+          used.add(opt);
+        }
+      }
+      return { ...group, options: unique };
+    });
+  })();
   const groups = customAtlases.length > 0
     ? [...baseGroups, { id: 'custom', label: 'Custom entries', options: customAtlases }]
     : baseGroups;
@@ -322,8 +381,9 @@ const AtlasMultiSelect = (props: WidgetProps) => {
                 ) : (
                   group.options.map((option) => (
                     <li className="atlas-group__item" key={`${group.id}-${option}`}>
-                      <label>
+                      <label htmlFor={`${id}-${group.id}-${option}`}>
                         <input
+                          id={`${id}-${group.id}-${option}`}
                           type="checkbox"
                           checked={selected.includes(option)}
                           onChange={() => toggleAtlas(option)}
@@ -343,7 +403,7 @@ const AtlasMultiSelect = (props: WidgetProps) => {
         <input
           type="text"
           name="customAtlas"
-          placeholder="Add atlas by name"
+          placeholder="Add atlas (name, URL, or local path)"
           disabled={isReadOnly}
         />
         <button type="submit" disabled={isReadOnly}>
@@ -566,6 +626,13 @@ const ConfigBuilder = () => {
       payload.summary_max_tokens = null;
       payload.summary_cache_size = null;
       payload.summary_prompt_template = null;
+    }
+
+    const atlasConfigs = deriveAtlasConfigs(formData.atlas_names);
+    if (Object.keys(atlasConfigs).length > 0) {
+      payload.atlas_configs = atlasConfigs;
+    } else {
+      delete payload.atlas_configs;
     }
 
     return (sanitizeValue(payload) as Record<string, unknown>) ?? {};

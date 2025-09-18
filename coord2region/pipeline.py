@@ -249,7 +249,10 @@ def run_pipeline(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            atlas_dict = {name: {} for name in atlas_names}
+            atlas_configs = kwargs.get("atlas_configs") or {}
+            atlas_dict = {
+                name: dict(atlas_configs.get(name, {})) for name in atlas_names
+            }
             multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
         except Exception:
             multi_atlas = None
@@ -471,7 +474,10 @@ async def _run_pipeline_async(
     multi_atlas: Optional[MultiAtlasMapper] = None
     if use_atlases:
         try:
-            atlas_dict = {name: {} for name in atlas_names}
+            atlas_configs = kwargs.get("atlas_configs") or {}
+            atlas_dict = {
+                name: dict(atlas_configs.get(name, {})) for name in atlas_names
+            }
             multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
         except Exception:
             multi_atlas = None

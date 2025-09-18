@@ -86,6 +86,26 @@ Jekyll renderer running from `web-interface/`:
 Jekyll consumes the files in `web-interface/assets`, so be sure to rerun the
 build step whenever you change the builder if watch mode is not running.
 
+### Custom atlas sources
+
+The atlas picker accepts canonical atlas names as well as direct URLs or local
+file paths (e.g. `/data/custom_atlas.nii.gz`). Entering a URL/path automatically
+adds the fetch information to the generated YAML via the `atlas_configs` block.
+
+When using the CLI directly you can supply the same values with repeated
+`--atlas` flags. For advanced cases where you want to keep a friendly alias,
+the CLI also provides helper flags:
+
+```bash
+coord2region coords-to-atlas 30 -22 50 \
+  --atlas-url custom=https://example.org/custom_atlas.nii.gz \
+  --atlas custom
+
+coord2region coords-to-atlas 30 -22 50 \
+  --atlas-file local=/path/to/custom_atlas.nii.gz \
+  --atlas local
+```
+
 ## Project layout
 
 - `_config.yml`, `_layouts/`, `_includes/` – Jekyll scaffold and landing page
