@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Form, { IChangeEvent } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import {
@@ -13,7 +13,9 @@ import clsx from 'clsx';
 import schemaSource from '../../../docs/static/schema.json';
 import './configBuilder.css';
 
-type CoordMode = 'coordinates' | 'file';
+type InputMode = 'coords' | 'region_names';
+
+type CoordEntryMode = 'paste' | 'file';
 
 type FormState = Record<string, unknown>;
 
@@ -120,6 +122,8 @@ const knownAtlases = new Set<string>(atlasGroups.flatMap((group) => group.option
 
 const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
+const datasetSourceOptions = ["neurosynth", "neuroquery", "nidm_pain"] as const;
+
 const atlasProperty = (() => {
   const property = schema.properties?.atlas_names;
   if (!property || typeof property !== 'object') {
@@ -140,13 +144,50 @@ const atlasProperty = (() => {
   return cloned as RJSFSchema;
 })();
 
+const datasetSourcesProperty = (() => {
+  const property = schema.properties?.dataset_sources;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  if (Array.isArray(cloned.anyOf)) {
+    const arrayOption = cloned.anyOf.find((option) => option?.type === 'array');
+    if (arrayOption && typeof arrayOption === 'object') {
+      Object.assign(cloned, arrayOption);
+    }
+    delete cloned.anyOf;
+  }
+  cloned.type = 'array';
+  cloned.items = {
+    type: 'string',
+    enum: [...datasetSourceOptions]
+  };
+  cloned.uniqueItems = true;
+  if (!Array.isArray(cloned.default)) {
+    cloned.default = [];
+  }
+  return cloned as RJSFSchema;
+})();
+
+const dataDirProperty = (() => {
+  const property = schema.properties?.data_dir;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
 const builderKeys: string[] = [
   'input_type',
   'data_dir',
   'dataset_sources',
   'atlas_names',
-  'use_atlases',
-  'max_atlases',
   'region_names',
   'outputs',
   'output_format',
@@ -199,6 +240,14 @@ const builderSchema: RJSFSchema = {
 
 if (builderSchema.properties?.atlas_names && atlasProperty) {
   builderSchema.properties.atlas_names = atlasProperty;
+}
+
+if (builderSchema.properties?.dataset_sources && datasetSourcesProperty) {
+  builderSchema.properties.dataset_sources = datasetSourcesProperty;
+}
+
+if (builderSchema.properties?.data_dir && dataDirProperty) {
+  builderSchema.properties.data_dir = dataDirProperty;
 }
 
 const tooltipFromSchema = (key: string): string | undefined => {
@@ -507,15 +556,7 @@ const sanitizeValue = (value: unknown): unknown => {
 };
 
 const ConfigBuilder = () => {
-  const [mode, setMode] = useState<CoordMode>('coordinates');
-  const [coordinateText, setCoordinateText] = useState('30, -22, 50');
-  const [coordsFile, setCoordsFile] = useState('');
-  const [enableStudy, setEnableStudy] = useState(false);
-  const [enableSummary, setEnableSummary] = useState(true);
-  const [yamlCopied, setYamlCopied] = useState<'idle' | 'copied' | 'error'>('idle');
-  const [cliCopied, setCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
-
-  const [formData, setFormData] = useState<FormState>(() => {
+  const initialState = useMemo(() => {
     const defaults = deriveDefaults(builderKeys);
     if (!defaults.outputs) {
       defaults.outputs = ['region_labels'];
@@ -523,20 +564,88 @@ const ConfigBuilder = () => {
     if (!defaults.atlas_names) {
       defaults.atlas_names = ['harvard-oxford', 'juelich'];
     }
-    defaults.input_type = 'coords';
-    return defaults;
-  });
+    const regionNamesArray = Array.isArray(defaults.region_names)
+      ? defaults.region_names.filter((name) => typeof name === 'string' && name.trim())
+      : [];
+    defaults.region_names = regionNamesArray;
+    defaults.dataset_sources = Array.isArray(defaults.dataset_sources)
+      ? defaults.dataset_sources
+      : [];
+    defaults.data_dir = typeof defaults.data_dir === 'string' ? defaults.data_dir : '';
+
+    const inferredInputType: InputMode = (() => {
+      if (typeof defaults.input_type === 'string') {
+        if ((defaults.input_type as string).toLowerCase() === 'region_names') {
+          return 'region_names';
+        }
+      }
+      if (regionNamesArray.length > 0) {
+        return 'region_names';
+      }
+      return 'coords';
+    })();
+
+    defaults.input_type = inferredInputType;
+
+    return {
+      defaults,
+      inputMode: inferredInputType,
+      regionNamesText: regionNamesArray.join('\n')
+    };
+  }, []);
+
+  const [inputMode, setInputMode] = useState<InputMode>(initialState.inputMode);
+  const [coordEntryMode, setCoordEntryMode] = useState<CoordEntryMode>('paste');
+  const [coordinateText, setCoordinateText] = useState('30, -22, 50');
+  const [coordsFile, setCoordsFile] = useState('');
+  const [regionNamesText, setRegionNamesText] = useState(initialState.regionNamesText);
+  const [enableStudy, setEnableStudy] = useState(false);
+  const [enableSummary, setEnableSummary] = useState(true);
+  const [yamlCopied, setYamlCopied] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [cliCopied, setCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
+
+  const [formData, setFormData] = useState<FormState>(() => initialState.defaults);
 
   const { coords, errors: coordErrors } = useMemo(
     () => parseCoordinateText(coordinateText),
     [coordinateText]
   );
 
+  useEffect(() => {
+    const names = Array.isArray(formData.region_names)
+      ? formData.region_names.filter((name) => typeof name === 'string' && name.trim())
+      : [];
+    const joined = names.join('\n');
+    if (joined !== regionNamesText) {
+      setRegionNamesText(joined);
+    }
+  }, [formData.region_names, regionNamesText]);
+
+  const regionNameList = useMemo(
+    () =>
+      regionNamesText
+        .split(/\r?\n+/)
+        .map((name) => name.trim())
+        .filter(Boolean),
+    [regionNamesText]
+  );
+
   const uiSchema: UiSchema = useMemo(
     () => ({
       'ui:order': builderKeys,
+      data_dir: {
+        'ui:widget': 'text',
+        'ui:emptyValue': null,
+        'ui:placeholder': '/path/to/data-directory'
+      },
+      dataset_sources: {
+        'ui:widget': 'checkboxes'
+      },
       atlas_names: {
         'ui:widget': 'atlasMultiSelect'
+      },
+      region_names: {
+        'ui:widget': 'hidden'
       },
       outputs: {
         'ui:widget': 'checkboxes'
@@ -557,17 +666,44 @@ const ConfigBuilder = () => {
     [enableStudy, enableSummary]
   );
 
-  const handleModeChange = (nextMode: CoordMode) => {
-    setMode(nextMode);
+  const handleInputModeChange = (nextMode: InputMode) => {
+    setInputMode(nextMode);
     setFormData((current) => ({
       ...current,
-      input_type: nextMode === 'coordinates' ? 'coords' : 'file'
+      input_type: nextMode
     }));
   };
 
-  const handleFormChange = useCallback((event: IChangeEvent<FormState>) => {
-    setFormData(event.formData as FormState);
-  }, []);
+  const handleCoordEntryModeChange = (nextMode: CoordEntryMode) => {
+    setCoordEntryMode(nextMode);
+  };
+
+  const handleRegionNamesInput = (value: string) => {
+    setRegionNamesText(value);
+    const names = value
+      .split(/\r?\n+/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+    setFormData((current) => ({
+      ...current,
+      region_names: names.length ? names : null
+    }));
+  };
+
+  const handleFormChange = useCallback(
+    (event: IChangeEvent<FormState>) => {
+      const next = event.formData as FormState;
+      let normalizedMode: InputMode = inputMode;
+      if (typeof next.input_type === 'string') {
+        normalizedMode = next.input_type === 'region_names' ? 'region_names' : 'coords';
+        if (normalizedMode !== inputMode) {
+          setInputMode(normalizedMode);
+        }
+      }
+      setFormData({ ...next, input_type: normalizedMode });
+    },
+    [inputMode]
+  );
 
   const toggleStudy = () => {
     setEnableStudy((prev) => {
@@ -608,10 +744,20 @@ const ConfigBuilder = () => {
 
   const configData = useMemo(() => {
     const payload: Record<string, unknown> = {
-      ...formData,
-      coordinates: mode === 'coordinates' ? (coords.length ? coords : null) : null,
-      coords_file: mode === 'file' ? (coordsFile || null) : null
+      ...formData
     };
+
+    if (inputMode === 'coords') {
+      payload.input_type = 'coords';
+      payload.coordinates = coordEntryMode === 'paste' ? (coords.length ? coords : null) : null;
+      payload.coords_file = coordEntryMode === 'file' ? (coordsFile || null) : null;
+      payload.region_names = null;
+    } else {
+      payload.input_type = 'region_names';
+      payload.coordinates = null;
+      payload.coords_file = null;
+      payload.region_names = regionNameList.length ? regionNameList : null;
+    }
 
     if (!enableStudy) {
       payload.studies = null;
@@ -636,7 +782,16 @@ const ConfigBuilder = () => {
     }
 
     return (sanitizeValue(payload) as Record<string, unknown>) ?? {};
-  }, [formData, mode, coords, coordsFile, enableStudy, enableSummary]);
+  }, [
+    formData,
+    inputMode,
+    coordEntryMode,
+    coords,
+    coordsFile,
+    regionNameList,
+    enableStudy,
+    enableSummary
+  ]);
 
   const yamlPreview = useMemo(() => {
     try {
@@ -685,64 +840,106 @@ const ConfigBuilder = () => {
   return (
     <section className="config-builder">
       <div className="config-section">
-        <h4>Choose how to provide coordinates</h4>
-        <div className="mode-toggle" role="radiogroup" aria-label="Coordinate input mode">
+        <h4>Input Type</h4>
+        <div className="mode-toggle" role="radiogroup" aria-label="Select input type">
           <button
             type="button"
-            className={clsx('toggle', mode === 'coordinates' && 'toggle--active')}
-            onClick={() => handleModeChange('coordinates')}
-            aria-checked={mode === 'coordinates'}
+            className={clsx('toggle', inputMode === 'coords' && 'toggle--active')}
+            onClick={() => handleInputModeChange('coords')}
+            aria-checked={inputMode === 'coords'}
             role="radio"
           >
-            Paste coordinates
+            Coordinates
           </button>
           <button
             type="button"
-            className={clsx('toggle', mode === 'file' && 'toggle--active')}
-            onClick={() => handleModeChange('file')}
-            aria-checked={mode === 'file'}
+            className={clsx('toggle', inputMode === 'region_names' && 'toggle--active')}
+            onClick={() => handleInputModeChange('region_names')}
+            aria-checked={inputMode === 'region_names'}
             role="radio"
           >
-            Use coordinate file
+            Region names
           </button>
         </div>
-        {mode === 'coordinates' ? (
-          <div className="card">
-            <label htmlFor="coord-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('coordinates')}>
-              {schema.properties?.coordinates && typeof schema.properties.coordinates === 'object'
-                ? (schema.properties.coordinates as SchemaProperty).title || 'Coordinates'
-                : 'Coordinates'}
-            </label>
-            <textarea
-              id="coord-textarea"
-              value={coordinateText}
-              onChange={(event) => setCoordinateText(event.target.value)}
-              placeholder="30, -22, 50"
-              rows={6}
-            />
-            {coordErrors.length > 0 ? (
-              <ul className="form-errors">
-                {coordErrors.map((message) => (
-                  <li key={message}>{message}</li>
-                ))}
-              </ul>
+
+        {inputMode === 'coords' ? (
+          <>
+            <div className="mode-toggle" role="radiogroup" aria-label="Coordinate input mode">
+              <button
+                type="button"
+                className={clsx('toggle', coordEntryMode === 'paste' && 'toggle--active')}
+                onClick={() => handleCoordEntryModeChange('paste')}
+                aria-checked={coordEntryMode === 'paste'}
+                role="radio"
+              >
+                Paste coordinates
+              </button>
+              <button
+                type="button"
+                className={clsx('toggle', coordEntryMode === 'file' && 'toggle--active')}
+                onClick={() => handleCoordEntryModeChange('file')}
+                aria-checked={coordEntryMode === 'file'}
+                role="radio"
+              >
+                Use coordinate file
+              </button>
+            </div>
+
+            {coordEntryMode === 'paste' ? (
+              <div className="card">
+                <label htmlFor="coord-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('coordinates')}>
+                  {schema.properties?.coordinates && typeof schema.properties.coordinates === 'object'
+                    ? (schema.properties.coordinates as SchemaProperty).title || 'Coordinates'
+                    : 'Coordinates'}
+                </label>
+                <textarea
+                  id="coord-textarea"
+                  value={coordinateText}
+                  onChange={(event) => setCoordinateText(event.target.value)}
+                  placeholder="30, -22, 50"
+                  rows={6}
+                />
+                {coordErrors.length > 0 ? (
+                  <ul className="form-errors">
+                    {coordErrors.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="helper">Parsed {coords.length} coordinate triplet{coords.length === 1 ? '' : 's'}.</p>
+                )}
+              </div>
             ) : (
-              <p className="helper">Parsed {coords.length} coordinate triplet{coords.length === 1 ? '' : 's'}.</p>
+              <div className="card">
+                <label htmlFor="coord-file" className="field-label tooltip" data-tooltip={tooltipFromSchema('coords_file')}>
+                  Coordinate file path
+                </label>
+                <input
+                  id="coord-file"
+                  type="text"
+                  value={coordsFile}
+                  onChange={(event) => setCoordsFile(event.target.value)}
+                  placeholder="/path/to/coordinates.tsv"
+                />
+                <p className="helper">Provide a local path to a CSV/TSV/XLSX file.</p>
+              </div>
             )}
-          </div>
+          </>
         ) : (
           <div className="card">
-            <label htmlFor="coord-file" className="field-label tooltip" data-tooltip={tooltipFromSchema('coords_file')}>
-              Coordinate file path
+            <label htmlFor="region-names-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('region_names')}>
+              Region names
             </label>
-            <input
-              id="coord-file"
-              type="text"
-              value={coordsFile}
-              onChange={(event) => setCoordsFile(event.target.value)}
-              placeholder="/path/to/coordinates.tsv"
+            <textarea
+              id="region-names-textarea"
+              value={regionNamesText}
+              onChange={(event) => handleRegionNamesInput(event.target.value)}
+              placeholder="Amygdala\nHippocampus"
+              rows={6}
             />
-            <p className="helper">Provide a local path to a CSV/TSV/XLSX file.</p>
+            <p className="helper">
+              Enter one region per line. Parsed {regionNameList.length} region name{regionNameList.length === 1 ? '' : 's'}.
+            </p>
           </div>
         )}
       </div>

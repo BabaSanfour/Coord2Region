@@ -21,10 +21,13 @@ from coord2region.pipeline import PipelineResult, _export_results, run_pipeline
     "coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}]
 )
 @patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
 def test_run_pipeline_coords(
-    mock_ai, mock_prepare, mock_get, mock_summary, mock_image, tmp_path
+    mock_ai, mock_multi, mock_prepare, mock_get, mock_summary, mock_image, tmp_path
 ):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     out_file = tmp_path / "results.json"
     results = run_pipeline(
         inputs=[[0, 0, 0]],
@@ -33,7 +36,6 @@ def test_run_pipeline_coords(
         output_format="json",
         output_path=str(out_file),
         config={
-            "use_atlases": False,
             "data_dir": str(tmp_path),
             "gemini_api_key": "key",
         },
@@ -50,15 +52,17 @@ def test_run_pipeline_coords(
 
 @pytest.mark.unit
 @patch("coord2region.pipeline.generate_summary", return_value="SUMMARY")
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
-def test_run_pipeline_studies(mock_ai, mock_summary):
+def test_run_pipeline_studies(mock_ai, mock_multi, mock_summary):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     study = {"id": "1"}
     results = run_pipeline(
         inputs=[study],
         input_type="studies",
         outputs=["summaries", "raw_studies"],
         config={
-            "use_atlases": False,
             "use_cached_dataset": False,
             "gemini_api_key": "key",
         },
@@ -75,18 +79,20 @@ def test_run_pipeline_studies(mock_ai, mock_summary):
     return_value=[{"id": "1"}, {"id": "2"}],
 )
 @patch("coord2region.pipeline.prepare_datasets", return_value={"Mock": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
 def test_pipeline_study_config_controls(
-    mock_ai, mock_prepare, mock_get, mock_summary
+    mock_ai, mock_multi, mock_prepare, mock_get, mock_summary
 ):
     mock_ai.return_value = object()
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
 
     results = run_pipeline(
         inputs=[[0, 0, 0]],
         input_type="coords",
         outputs=["summaries", "raw_studies"],
         config={
-            "use_atlases": False,
             "gemini_api_key": "key",
             "study_radius": 7.5,
             "study_limit": 1,
@@ -117,8 +123,11 @@ def test_pipeline_study_config_controls(
     "coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}]
 )
 @patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
-def test_run_pipeline_async(mock_ai, mock_prepare, mock_get):
+def test_run_pipeline_async(mock_ai, mock_multi, mock_prepare, mock_get):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     async_mock = AsyncMock(return_value="ASYNC")
     with patch(
         "coord2region.pipeline.generate_summary_async", new=async_mock
@@ -133,7 +142,6 @@ def test_run_pipeline_async(mock_ai, mock_prepare, mock_get):
             input_type="coords",
             outputs=["summaries"],
             config={
-                "use_atlases": False,
                 "gemini_api_key": "key",
             },
             async_mode=True,
@@ -148,14 +156,18 @@ def test_run_pipeline_async(mock_ai, mock_prepare, mock_get):
 @patch("coord2region.pipeline.generate_summary", side_effect=["S1", "S2"])
 @patch("coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}])
 @patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
-def test_run_pipeline_batch_coords(mock_ai, mock_prepare, mock_get, mock_summary):
+def test_run_pipeline_batch_coords(
+    mock_ai, mock_multi, mock_prepare, mock_get, mock_summary
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     results = run_pipeline(
         inputs=[[0, 0, 0], [1, 1, 1]],
         input_type="coords",
         outputs=["summaries", "raw_studies"],
         config={
-            "use_atlases": False,
             "gemini_api_key": "key",
         },
     )
@@ -168,10 +180,13 @@ def test_run_pipeline_batch_coords(mock_ai, mock_prepare, mock_get, mock_summary
 @patch("coord2region.pipeline.generate_summary", return_value="SUM")
 @patch("coord2region.pipeline.get_studies_for_coordinate", return_value=[])
 @patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.AIModelInterface")
 def test_run_pipeline_export_pdf(
-    mock_ai, mock_prepare, mock_get, mock_summary, mock_save_pdf, tmp_path
+    mock_ai, mock_multi, mock_prepare, mock_get, mock_summary, mock_save_pdf, tmp_path
 ):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     out_file = tmp_path / "results.pdf"
     res = run_pipeline(
         inputs=[[0, 0, 0]],
@@ -180,7 +195,6 @@ def test_run_pipeline_export_pdf(
         output_format="pdf",
         output_path=str(out_file),
         config={
-            "use_atlases": False,
             "gemini_api_key": "key",
         },
     )
@@ -189,11 +203,15 @@ def test_run_pipeline_export_pdf(
 
 
 @pytest.mark.unit
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.generate_mni152_image")
-def test_pipeline_nilearn_backend(mock_gen, tmp_path):
+def test_pipeline_nilearn_backend(mock_gen, mock_multi, tmp_path):
     buf = BytesIO()
     Image.new("RGB", (10, 10), color="white").save(buf, format="PNG")
     mock_gen.return_value = buf.getvalue()
+
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
 
     res = run_pipeline(
         inputs=[[0, 0, 0]],
@@ -201,7 +219,6 @@ def test_pipeline_nilearn_backend(mock_gen, tmp_path):
         outputs=["images"],
         image_backend="nilearn",
         config={
-            "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
         },
@@ -211,11 +228,15 @@ def test_pipeline_nilearn_backend(mock_gen, tmp_path):
 
 
 @pytest.mark.unit
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.ai_model_interface.AIModelInterface.generate_image")
-def test_pipeline_ai_watermark(mock_generate, tmp_path):
+def test_pipeline_ai_watermark(mock_generate, mock_multi, tmp_path):
     buf = BytesIO()
     Image.new("RGB", (100, 50), color="black").save(buf, format="PNG")
     mock_generate.return_value = buf.getvalue()
+
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
 
     res = run_pipeline(
         inputs=[[0, 0, 0]],
@@ -223,7 +244,6 @@ def test_pipeline_ai_watermark(mock_generate, tmp_path):
         outputs=["images"],
         image_backend="ai",
         config={
-            "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
             "gemini_api_key": "key",
@@ -249,14 +269,17 @@ def test_pipeline_both_backends(tmp_path):
         "coord2region.pipeline.generate_region_image", return_value=ai_bytes
     ) as mock_ai, patch(
         "coord2region.pipeline.generate_mni152_image", return_value=nilearn_bytes
-    ) as mock_nl, patch("coord2region.pipeline.AIModelInterface"):
+    ) as mock_nl, patch("coord2region.pipeline.AIModelInterface"), patch(
+        "coord2region.pipeline.MultiAtlasMapper"
+    ) as mock_multi:
+        mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+        mock_multi.return_value.batch_region_name_to_mni.return_value = {}
         res = run_pipeline(
             inputs=[[0, 0, 0]],
             input_type="coords",
             outputs=["images"],
             image_backend="both",
             config={
-                "use_atlases": False,
                 "use_cached_dataset": False,
                 "data_dir": str(tmp_path),
                 "gemini_api_key": "k",
@@ -279,7 +302,11 @@ def test_pipeline_async_both_backends(tmp_path):
         "coord2region.pipeline.generate_region_image", return_value=img_bytes
     ), patch(
         "coord2region.pipeline.generate_mni152_image", return_value=img_bytes
-    ), patch("coord2region.pipeline.AIModelInterface"):
+    ), patch("coord2region.pipeline.AIModelInterface"), patch(
+        "coord2region.pipeline.MultiAtlasMapper"
+    ) as mock_multi:
+        mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+        mock_multi.return_value.batch_region_name_to_mni.return_value = {}
         res = run_pipeline(
             inputs=[[0, 0, 0]],
             input_type="coords",
@@ -287,7 +314,6 @@ def test_pipeline_async_both_backends(tmp_path):
             image_backend="both",
             async_mode=True,
             config={
-                "use_atlases": False,
                 "use_cached_dataset": False,
                 "data_dir": str(tmp_path),
                 "gemini_api_key": "k",
@@ -337,50 +363,57 @@ def test_export_results_directory(tmp_path):
 @pytest.mark.unit
 def test_run_pipeline_invalid_input_type():
     with pytest.raises(ValueError):
-        run_pipeline([1], "invalid", [], config={"use_atlases": False})
+        run_pipeline([1], "invalid", [])
 
 
 @pytest.mark.unit
 def test_run_pipeline_invalid_output():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["bad"], config={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["bad"])
 
 
 @pytest.mark.unit
 def test_run_pipeline_missing_output_path():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json", config={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json")
 
 
 @pytest.mark.unit
 def test_run_pipeline_invalid_image_backend():
     with pytest.raises(ValueError):
-        run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong", config={"use_atlases": False})
+        run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong")
 
 
 @pytest.mark.unit
 @patch("coord2region.pipeline.AtlasFetcher")
 @patch("coord2region.pipeline.AIModelInterface")
+@patch("coord2region.pipeline.MultiAtlasMapper")
 @patch("coord2region.pipeline.prepare_datasets", return_value={})
-def test_run_pipeline_register_provider(_mock_prepare, mock_ai, _mock_fetcher):
+def test_run_pipeline_register_provider(
+    _mock_prepare, mock_multi, mock_ai, _mock_fetcher
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     run_pipeline(
         inputs=[],
         input_type="coords",
         outputs=[],
-        config={"providers": {"echo": {}}, "use_atlases": False},
+        config={"providers": {"echo": {}}},
     )
     mock_ai.assert_called_once_with()
     mock_ai.return_value.register_provider.assert_called_once_with("echo", **{})
 
 
 @pytest.mark.unit
-def test_run_pipeline_none_coord(tmp_path):
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_none_coord(mock_multi, tmp_path):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     results = run_pipeline(
         inputs=[None],
         input_type="coords",
         outputs=["region_labels"],
         config={
-            "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
         },
@@ -407,7 +440,6 @@ def test_run_pipeline_multiatlas_error(mock_multi, tmp_path):
         input_type="coords",
         outputs=["region_labels"],
         config={
-            "use_atlases": True,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
             "atlas_names": ["dummy"],
@@ -437,7 +469,6 @@ def test_run_pipeline_atlas_labels_success(mock_multi, tmp_path):
         input_type="coords",
         outputs=["region_labels"],
         config={
-            "use_atlases": True,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
             "atlas_names": ["custom"],
@@ -475,7 +506,6 @@ def test_run_pipeline_region_names_to_coords(
         input_type="region_names",
         outputs=["region_labels", "summaries"],
         config={
-            "use_atlases": True,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
             "gemini_api_key": "key",
@@ -490,7 +520,10 @@ def test_run_pipeline_region_names_to_coords(
 
 @pytest.mark.unit
 @patch("coord2region.pipeline.save_as_csv")
-def test_run_pipeline_relative_output_path(mock_save_csv, tmp_path):
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_relative_output_path(mock_multi, mock_save_csv, tmp_path):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     run_pipeline(
         inputs=[[0, 0, 0]],
         input_type="coords",
@@ -498,7 +531,6 @@ def test_run_pipeline_relative_output_path(mock_save_csv, tmp_path):
         output_format="csv",
         output_path="nested/out.csv",
         config={
-            "use_atlases": False,
             "use_cached_dataset": False,
             "data_dir": str(tmp_path),
         },

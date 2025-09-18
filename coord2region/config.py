@@ -65,7 +65,6 @@ class Coord2RegionConfig(BaseModel):
 
     atlas_names: Optional[List[str]] = None
     atlas_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    use_atlases: bool = True
     max_atlases: Optional[conint(gt=0)] = None
 
     image_model: Optional[str] = None
@@ -371,7 +370,6 @@ class Coord2RegionConfig(BaseModel):
         override("dataset_sources")
         override("study_limit", transform=lambda v: int(v) if v is not None else v)
         override("study_sources")
-        override("use_atlases")
         override("atlas_names")
         override("image_model")
         override("providers")

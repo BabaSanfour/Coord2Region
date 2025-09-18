@@ -175,8 +175,6 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
                 names.append(name)
     if "atlas_names" in kwargs:
         kwargs["atlas_names"] = list(dict.fromkeys(kwargs["atlas_names"]))
-    if getattr(args, "use_atlases", None) is not None:
-        kwargs["use_atlases"] = bool(args.use_atlases)
     return kwargs
 
 
@@ -221,9 +219,6 @@ def _common_config_flags(cfg: dict) -> List[str]:
         atlas_file = options.get("atlas_file")
         if atlas_file and atlas_file != name:
             flags.extend(["--atlas-file", f"{name}={atlas_file}"])
-
-    if cfg.get("use_atlases") is False:
-        flags.append("--no-atlases")
 
     batch_size = cfg.get("batch_size")
     if batch_size:
@@ -415,12 +410,6 @@ def create_parser() -> argparse.ArgumentParser:
             dest="atlas_files",
             action="append",
             help="Associate an atlas alias with a local file path (NAME=PATH)",
-        )
-        p.add_argument(
-            "--no-atlases",
-            dest="use_atlases",
-            action="store_false",
-            help="Disable atlas lookups",
         )
 
     p_sum = subparsers.add_parser(

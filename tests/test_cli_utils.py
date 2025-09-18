@@ -100,14 +100,12 @@ def test_collect_kwargs_with_atlas_names():
     args = argparse.Namespace(
         gemini_api_key=None,
         atlas_names=["harvard-oxford, juelich", " aal"],
-        use_atlases=0,
         data_dir="/tmp/data",
         email_for_abstracts="person@example.com",
     )
     kwargs = _collect_kwargs(args)
     assert kwargs == {
         "atlas_names": ["harvard-oxford", "juelich", "aal"],
-        "use_atlases": False,
         "data_dir": "/tmp/data",
         "email_for_abstracts": "person@example.com",
     }

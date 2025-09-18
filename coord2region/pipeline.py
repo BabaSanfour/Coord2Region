@@ -209,7 +209,6 @@ def run_pipeline(
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
-    use_atlases = kwargs.get("use_atlases", True)
     atlas_names = kwargs.get("atlas_names", ["harvard-oxford", "juelich", "aal"])
     provider_configs = kwargs.get("providers")
     gemini_api_key = kwargs.get("gemini_api_key")
@@ -246,20 +245,18 @@ def run_pipeline(
             huggingface_api_key=huggingface_api_key,
         )
 
-    multi_atlas: Optional[MultiAtlasMapper] = None
-    if use_atlases:
-        try:
-            atlas_configs = kwargs.get("atlas_configs") or {}
-            atlas_dict = {
-                name: dict(atlas_configs.get(name, {})) for name in atlas_names
-            }
-            multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
-        except Exception:
-            multi_atlas = None
+    atlas_configs = kwargs.get("atlas_configs") or {}
+    atlas_dict = {name: dict(atlas_configs.get(name, {})) for name in atlas_names or []}
+    if not atlas_dict:
+        raise ValueError(
+            "At least one atlas name must be provided to run the pipeline."
+        )
+    try:
+        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(base_dir), atlas_dict)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise RuntimeError("Failed to initialize atlas mappers") from exc
 
     def _from_region_name(name: str) -> Optional[List[float]]:
-        if not multi_atlas:
-            return None
         coords_dict = multi_atlas.batch_region_name_to_mni([name])
         for atlas_coords in coords_dict.values():
             if atlas_coords:
@@ -312,7 +309,7 @@ def run_pipeline(
                 logging.info("Processed %d/%d inputs", len(results), len(inputs))
             continue
 
-        if "region_labels" in outputs and multi_atlas:
+        if "region_labels" in outputs:
             try:
                 batch = multi_atlas.batch_mni_to_region_names([coord])
                 # Extract first match per atlas
@@ -434,7 +431,6 @@ async def _run_pipeline_async(
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
-    use_atlases = kwargs.get("use_atlases", True)
     atlas_names = kwargs.get("atlas_names", ["harvard-oxford", "juelich", "aal"])
     provider_configs = kwargs.get("providers")
     gemini_api_key = kwargs.get("gemini_api_key")
@@ -471,20 +467,18 @@ async def _run_pipeline_async(
             huggingface_api_key=huggingface_api_key,
         )
 
-    multi_atlas: Optional[MultiAtlasMapper] = None
-    if use_atlases:
-        try:
-            atlas_configs = kwargs.get("atlas_configs") or {}
-            atlas_dict = {
-                name: dict(atlas_configs.get(name, {})) for name in atlas_names
-            }
-            multi_atlas = MultiAtlasMapper(str(base_dir), atlas_dict)
-        except Exception:
-            multi_atlas = None
+    atlas_configs = kwargs.get("atlas_configs") or {}
+    atlas_dict = {name: dict(atlas_configs.get(name, {})) for name in atlas_names or []}
+    if not atlas_dict:
+        raise ValueError(
+            "At least one atlas name must be provided to run the pipeline."
+        )
+    try:
+        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(base_dir), atlas_dict)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise RuntimeError("Failed to initialize atlas mappers") from exc
 
     def _from_region_name(name: str) -> Optional[List[float]]:
-        if not multi_atlas:
-            return None
         coords_dict = multi_atlas.batch_region_name_to_mni([name])
         for atlas_coords in coords_dict.values():
             if atlas_coords:
@@ -528,7 +522,7 @@ async def _run_pipeline_async(
         if coord is None:
             return idx, res
 
-        if "region_labels" in outputs and multi_atlas:
+        if "region_labels" in outputs:
             try:
                 batch = await asyncio.to_thread(
                     multi_atlas.batch_mni_to_region_names, [coord]

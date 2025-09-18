@@ -416,11 +416,6 @@
       "default": null,
       "title": "Summary Type"
     },
-    "use_atlases": {
-      "default": true,
-      "title": "Use Atlases",
-      "type": "boolean"
-    },
     "use_cached_dataset": {
       "default": true,
       "title": "Use Cached Dataset",
