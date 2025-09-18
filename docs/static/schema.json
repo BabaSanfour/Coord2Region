@@ -107,7 +107,7 @@
       "default": null,
       "title": "Data Dir"
     },
-    "dataset_sources": {
+    "sources": {
       "anyOf": [
         {
           "items": {
@@ -120,7 +120,7 @@
         }
       ],
       "default": null,
-      "title": "Dataset Sources"
+      "title": "Sources"
     },
     "email_for_abstracts": {
       "anyOf": [
@@ -184,8 +184,7 @@
       "default": "coords",
       "enum": [
         "coords",
-        "region_names",
-        "studies"
+        "region_names"
       ],
       "title": "Input Type",
       "type": "string"
@@ -308,19 +307,7 @@
       "default": null,
       "title": "Region Names"
     },
-    "studies": {
-      "anyOf": [
-        {
-          "items": {},
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Studies"
-    },
+    
     "study_limit": {
       "anyOf": [
         {
@@ -340,21 +327,7 @@
       "title": "Study Radius",
       "type": "number"
     },
-    "study_sources": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Study Sources"
-    },
+    
     "summary_cache_size": {
       "anyOf": [
         {

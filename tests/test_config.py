@@ -124,19 +124,19 @@ def test_config_coordinates_from_string_inputs():
     assert inputs == [[1, 2, 3], [4, 5, 6]]
 
 
-def test_config_study_sources_and_limit():
+def test_config_sources_and_limit():
     cfg = Coord2RegionConfig.model_validate(
         {
             "input_type": "coords",
             "coordinates": [[0, 0, 0]],
             "outputs": ["summaries"],
             "gemini_api_key": "KEY",
-            "study_sources": ["Mock"],
+            "sources": ["Mock"],
             "study_limit": 5,
         }
     )
     runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
-    assert runtime["config"]["study_sources"] == ["Mock"]
+    assert runtime["config"]["sources"] == ["Mock"]
     assert runtime["config"]["study_limit"] == 5
 
 

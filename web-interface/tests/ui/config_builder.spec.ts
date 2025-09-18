@@ -77,7 +77,7 @@ test.describe('Coord2Region Config Builder', () => {
     await expect(yamlOutput).toContainText('aal');
     await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 2 atlases.');
 
-    const customAtlasInput = atlasField.locator('form.atlas-widget__form input[name="customAtlas"]');
+    const customAtlasInput = atlasField.locator('.atlas-widget__form input[name="customAtlas"]');
     await customAtlasInput.fill('https://example.com/custom.nii.gz');
     await customAtlasInput.press('Enter');
     await expect(yamlOutput).toContainText('https://example.com/custom.nii.gz');
@@ -86,7 +86,7 @@ test.describe('Coord2Region Config Builder', () => {
     await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 3 atlases.');
 
     const volumetricGroup = atlasField.locator('.atlas-group', { hasText: 'Volumetric (nilearn)' });
-    const selectAllVolumetric = volumetricGroup.getByRole('button', { name: /Select all/ });
+    const selectAllVolumetric = volumetricGroup.locator('.atlas-group__action');
     await selectAllVolumetric.click();
     await expect(selectAllVolumetric).toHaveText(/Clear all/);
     await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 11 atlases.');

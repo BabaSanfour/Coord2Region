@@ -34,7 +34,7 @@ def test_schema_matches_model_definition() -> None:
     assert file_schema == model_schema
 
     props = file_schema["properties"]
-    assert props["input_type"]["enum"] == ["coords", "region_names", "studies"]
+    assert props["input_type"]["enum"] == ["coords", "region_names"]
     assert props["outputs"]["items"]["enum"] == [
         "region_labels",
         "summaries",

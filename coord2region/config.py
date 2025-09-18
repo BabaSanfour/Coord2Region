@@ -26,7 +26,7 @@ class Coord2RegionConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    input_type: Literal["coords", "region_names", "studies"] = "coords"
+    input_type: Literal["coords", "region_names"] = "coords"
     inputs: Optional[List[Any]] = None
     coordinates: Optional[List[CoordinateTriple]] = Field(
         default=None,
@@ -44,7 +44,7 @@ class Coord2RegionConfig(BaseModel):
         ),
     )
     region_names: Optional[List[str]] = None
-    studies: Optional[List[Any]] = None
+    # direct study inputs are not supported
     legacy_config: Optional[Dict[str, Any]] = Field(default=None, alias="config")
 
     outputs: List[
@@ -60,8 +60,8 @@ class Coord2RegionConfig(BaseModel):
     data_dir: Optional[str] = None
     email_for_abstracts: Optional[str] = None
     use_cached_dataset: bool = True
-    dataset_sources: Optional[List[str]] = None
-    study_sources: Optional[List[str]] = None
+    # unified sources control for dataset preparation and study search
+    sources: Optional[List[str]] = None
     study_radius: confloat(ge=0) = 0.0
     study_limit: Optional[conint(gt=0)] = None
 
@@ -109,9 +109,7 @@ class Coord2RegionConfig(BaseModel):
             return [cls._coerce_coordinate(item) for item in value]
         raise TypeError("coordinates must be provided as a list")
 
-    @field_validator(
-        "atlas_names", "dataset_sources", "region_names", "study_sources", mode="before"
-    )
+    @field_validator("atlas_names", "sources", "region_names", mode="before")
     @classmethod
     def _normalize_string_list(cls, value: Any) -> Optional[List[str]]:
         if value is None:
@@ -215,10 +213,9 @@ class Coord2RegionConfig(BaseModel):
                 object.__setattr__(self, "coordinates", coords)
                 object.__setattr__(self, "inputs", None)
 
-            if self.region_names or self.studies:
+            if self.region_names:
                 raise ValueError(
-                    "Fields 'region_names' and 'studies' are not valid when "
-                    "input_type='coords'"
+                    "Field 'region_names' is not valid when " "input_type='coords'"
                 )
 
         elif self.input_type == "region_names":
@@ -233,26 +230,12 @@ class Coord2RegionConfig(BaseModel):
             object.__setattr__(self, "region_names", names)
             object.__setattr__(self, "inputs", None)
 
-            if self.coordinates or self.coordinates_file or self.studies:
+            if self.coordinates or self.coordinates_file:
                 raise ValueError(
-                    "Coordinate and study fields are not valid when "
-                    "input_type='region_names'"
+                    "Coordinate fields are not valid when " "input_type='region_names'"
                 )
-
-        else:  # studies
-            studies = self.studies or (list(self.inputs) if self.inputs else [])
-            if not studies:
-                raise ValueError(
-                    "Study inputs require 'studies' or the legacy 'inputs' field"
-                )
-            object.__setattr__(self, "studies", studies)
-            object.__setattr__(self, "inputs", None)
-
-            if self.coordinates or self.coordinates_file or self.region_names:
-                raise ValueError(
-                    "Coordinate and region name fields are not valid when "
-                    "input_type='studies'"
-                )
+        else:
+            raise ValueError("input_type must be 'coords' or 'region_names'")
 
     @staticmethod
     def _coerce_coordinate(item: Any) -> CoordinateTriple:
@@ -356,8 +339,8 @@ class Coord2RegionConfig(BaseModel):
 
         if self.input_type == "region_names":
             return [str(item) for item in self.region_names or []]
-
-        return list(self.studies or [])
+        # no other input types supported
+        raise ValueError("input_type must be 'coords' or 'region_names'")
 
     def build_pipeline_config(self) -> Dict[str, Any]:
         """Construct the keyword arguments passed to ``run_pipeline``'s config."""
@@ -374,9 +357,8 @@ class Coord2RegionConfig(BaseModel):
         override("study_radius", transform=lambda v: float(v))
         override("data_dir")
         override("email_for_abstracts")
-        override("dataset_sources")
+        override("sources")
         override("study_limit", transform=lambda v: int(v) if v is not None else v)
-        override("study_sources")
         override("atlas_names")
         override("image_model")
         override("providers")

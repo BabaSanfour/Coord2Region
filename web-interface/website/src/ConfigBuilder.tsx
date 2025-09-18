@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Form, { IChangeEvent } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import {
@@ -123,6 +123,7 @@ const knownAtlases = new Set<string>(atlasGroups.flatMap((group) => group.option
 const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const datasetSourceOptions = ["neurosynth", "neuroquery", "nidm_pain"] as const;
+const outputFormatOptions = ["json", "pickle", "csv", "pdf", "directory"] as const;
 
 const atlasProperty = (() => {
   const property = schema.properties?.atlas_names;
@@ -144,8 +145,9 @@ const atlasProperty = (() => {
   return cloned as RJSFSchema;
 })();
 
-const datasetSourcesProperty = (() => {
-  const property = schema.properties?.dataset_sources;
+const sourcesProperty = (() => {
+  // Align with schema which defines `sources` (not `dataset_sources`)
+  const property = schema.properties?.sources;
   if (!property || typeof property !== 'object') {
     return undefined;
   }
@@ -169,6 +171,24 @@ const datasetSourcesProperty = (() => {
   return cloned as RJSFSchema;
 })();
 
+const outputFormatProperty = (() => {
+  const property = schema.properties?.output_format;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema & { enum?: Array<string | null> };
+  // Flatten anyOf to avoid RJSF "Option 1/2" selector
+  delete (cloned as RJSFSchema).anyOf;
+  // Allow null (represented by clearing selection) and restrict to known formats for validation
+  cloned.type = ['string', 'null'] as unknown as RJSFSchema['type'];
+  cloned.enum = [...outputFormatOptions, null];
+  // Keep default null for empty state
+  if (cloned.default === undefined) {
+    cloned.default = null as unknown as RJSFSchema;
+  }
+  return cloned as RJSFSchema;
+})();
+
 const dataDirProperty = (() => {
   const property = schema.properties?.data_dir;
   if (!property || typeof property !== 'object') {
@@ -186,9 +206,8 @@ const dataDirProperty = (() => {
 const builderKeys: string[] = [
   'input_type',
   'data_dir',
-  'dataset_sources',
+  'sources',
   'atlas_names',
-  'region_names',
   'outputs',
   'output_format',
   'output_path',
@@ -210,6 +229,22 @@ const builderKeys: string[] = [
   'huggingface_api_key',
   'email_for_abstracts'
 ];
+
+const defaultRegionNames = (() => {
+  const property = schema.properties?.region_names as SchemaProperty | undefined;
+  if (!property) {
+    return [] as string[];
+  }
+  const value = Object.prototype.hasOwnProperty.call(property, 'default')
+    ? property.default
+    : undefined;
+  if (Array.isArray(value)) {
+    return value
+      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+      .map((name) => name.trim());
+  }
+  return [] as string[];
+})();
 
 const deriveDefaults = (keys: string[]): FormState => {
   const defaults: FormState = {};
@@ -242,8 +277,12 @@ if (builderSchema.properties?.atlas_names && atlasProperty) {
   builderSchema.properties.atlas_names = atlasProperty;
 }
 
-if (builderSchema.properties?.dataset_sources && datasetSourcesProperty) {
-  builderSchema.properties.dataset_sources = datasetSourcesProperty;
+if (builderSchema.properties?.sources && sourcesProperty) {
+  builderSchema.properties.sources = sourcesProperty;
+}
+
+if (builderSchema.properties?.output_format && outputFormatProperty) {
+  builderSchema.properties.output_format = outputFormatProperty;
 }
 
 if (builderSchema.properties?.data_dir && dataDirProperty) {
@@ -304,7 +343,14 @@ const tooltipMap: Record<string, string | undefined> = builderKeys.reduce(
 );
 
 const FieldTemplate = (props: FieldTemplateProps) => {
-  const { id, classNames, label, required, description, errors, help, children } = props;
+  const { id, classNames, label, required, description, errors, help, children, hidden } = props;
+  if (hidden) {
+    return (
+      <div className="form-field" style={{ display: 'none' }}>
+        {children}
+      </div>
+    );
+  }
   const key = id.replace(/^root_/, '').split('_')[0];
   const tooltip = tooltipMap[key];
   const labelText = label || key;
@@ -361,20 +407,29 @@ const AtlasMultiSelect = (props: WidgetProps) => {
     commitSelection(next);
   };
 
-  const handleCustomAtlas = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const input = form.elements.namedItem('customAtlas') as HTMLInputElement | null;
-    if (!input) {
+  const [customAtlasInput, setCustomAtlasInput] = useState('');
+
+  const addCustomAtlas = () => {
+    if (isReadOnly) {
       return;
     }
-    const atlas = input.value.trim();
-    if (atlas) {
-      const next = new Set(selected);
-      next.add(atlas);
-      commitSelection(next);
+    const atlas = customAtlasInput.trim();
+    setCustomAtlasInput('');
+    if (!atlas) {
+      return;
     }
-    input.value = '';
+    const next = new Set(selected);
+    next.add(atlas);
+    commitSelection(next);
+  };
+
+  const handleCustomAtlasKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    addCustomAtlas();
   };
 
   const customAtlases = selected.filter((atlas) => !knownAtlases.has(atlas));
@@ -448,17 +503,20 @@ const AtlasMultiSelect = (props: WidgetProps) => {
           );
         })}
       </div>
-      <form className="atlas-widget__form" onSubmit={handleCustomAtlas}>
+      <div className="atlas-widget__form" role="group" aria-label="Custom atlas entry">
         <input
           type="text"
           name="customAtlas"
+          value={customAtlasInput}
+          onChange={(event) => setCustomAtlasInput(event.target.value)}
+          onKeyDown={handleCustomAtlasKeyDown}
           placeholder="Add atlas (name, URL, or local path)"
           disabled={isReadOnly}
         />
-        <button type="submit" disabled={isReadOnly}>
+        <button type="button" onClick={addCustomAtlas} disabled={isReadOnly}>
           Add
         </button>
-      </form>
+      </div>
       <p className="atlas-summary">
         Selected {selected.length} atlas{selected.length === 1 ? '' : 'es'}.
       </p>
@@ -484,12 +542,39 @@ const SummaryModelField = ({ formData, onChange, idSchema }: FieldProps) => {
   );
 };
 
+const OutputFormatField = ({ formData, onChange, idSchema }: FieldProps) => {
+  const value = typeof formData === 'string' ? formData : '';
+  const inputId = idSchema?.$id ?? 'output-format';
+  return (
+    <div className="form-field">
+      <label className="field-label" htmlFor={inputId}>Output Format</label>
+      <select
+        id={inputId}
+        value={value}
+        onChange={(event) => {
+          const next = event.target.value;
+          onChange(next ? next : null);
+        }}
+      >
+        <option value="">No export</option>
+        {outputFormatOptions.map((option) => (
+          <option key={option} value={option}>
+            {option.toUpperCase()}
+          </option>
+        ))}
+      </select>
+      <p className="helper">Leave blank to skip file export.</p>
+    </div>
+  );
+};
+
 const widgets = {
   atlasMultiSelect: AtlasMultiSelect
 };
 
 const fields = {
-  summaryModelField: SummaryModelField
+  summaryModelField: SummaryModelField,
+  outputFormatField: OutputFormatField
 };
 
 const parseCoordinateText = (value: string): ParsedCoordinates => {
@@ -564,12 +649,8 @@ const ConfigBuilder = () => {
     if (!defaults.atlas_names) {
       defaults.atlas_names = ['harvard-oxford', 'juelich'];
     }
-    const regionNamesArray = Array.isArray(defaults.region_names)
-      ? defaults.region_names.filter((name) => typeof name === 'string' && name.trim())
-      : [];
-    defaults.region_names = regionNamesArray;
-    defaults.dataset_sources = Array.isArray(defaults.dataset_sources)
-      ? defaults.dataset_sources
+    defaults.sources = Array.isArray((defaults as any).sources)
+      ? (defaults as any).sources
       : [];
     defaults.data_dir = typeof defaults.data_dir === 'string' ? defaults.data_dir : '';
 
@@ -579,7 +660,7 @@ const ConfigBuilder = () => {
           return 'region_names';
         }
       }
-      if (regionNamesArray.length > 0) {
+      if (defaultRegionNames.length > 0) {
         return 'region_names';
       }
       return 'coords';
@@ -590,7 +671,7 @@ const ConfigBuilder = () => {
     return {
       defaults,
       inputMode: inferredInputType,
-      regionNamesText: regionNamesArray.join('\n')
+      regionNamesText: defaultRegionNames.join('\n')
     };
   }, []);
 
@@ -611,16 +692,6 @@ const ConfigBuilder = () => {
     [coordinateText]
   );
 
-  useEffect(() => {
-    const names = Array.isArray(formData.region_names)
-      ? formData.region_names.filter((name) => typeof name === 'string' && name.trim())
-      : [];
-    const joined = names.join('\n');
-    if (joined !== regionNamesText) {
-      setRegionNamesText(joined);
-    }
-  }, [formData.region_names, regionNamesText]);
-
   const regionNameList = useMemo(
     () =>
       regionNamesText
@@ -638,14 +709,15 @@ const ConfigBuilder = () => {
         'ui:emptyValue': null,
         'ui:placeholder': '/path/to/data-directory'
       },
-      dataset_sources: {
+      sources: {
         'ui:widget': 'checkboxes'
       },
       atlas_names: {
         'ui:widget': 'atlasMultiSelect'
       },
-      region_names: {
-        'ui:widget': 'hidden'
+      output_format: {
+        'ui:field': 'outputFormatField',
+        'ui:emptyValue': null
       },
       outputs: {
         'ui:widget': 'checkboxes'
@@ -680,14 +752,6 @@ const ConfigBuilder = () => {
 
   const handleRegionNamesInput = (value: string) => {
     setRegionNamesText(value);
-    const names = value
-      .split(/\r?\n+/)
-      .map((name) => name.trim())
-      .filter(Boolean);
-    setFormData((current) => ({
-      ...current,
-      region_names: names.length ? names : null
-    }));
   };
 
   const handleFormChange = useCallback(

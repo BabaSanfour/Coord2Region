@@ -50,26 +50,7 @@ def test_run_pipeline_coords(
     assert exported[0]["summary"] == "SUMMARY"
 
 
-@pytest.mark.unit
-@patch("coord2region.pipeline.generate_summary", return_value="SUMMARY")
-@patch("coord2region.pipeline.MultiAtlasMapper")
-@patch("coord2region.pipeline.AIModelInterface")
-def test_run_pipeline_studies(mock_ai, mock_multi, mock_summary):
-    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
-    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
-    study = {"id": "1"}
-    results = run_pipeline(
-        inputs=[study],
-        input_type="studies",
-        outputs=["summaries", "raw_studies"],
-        config={
-            "use_cached_dataset": False,
-            "gemini_api_key": "key",
-        },
-    )
-
-    assert results[0].studies == [study]
-    assert results[0].summary == "SUMMARY"
+    # Note: input_type='studies' is no longer supported
 
 
 @pytest.mark.unit
@@ -96,7 +77,7 @@ def test_pipeline_study_config_controls(
             "gemini_api_key": "key",
             "study_radius": 7.5,
             "study_limit": 1,
-            "study_sources": ["Mock"],
+            "sources": ["Mock"],
             "summary_model": "custom-model",
             "summary_type": "detailed",
             "summary_prompt_template": "Prompt",

@@ -2,9 +2,9 @@
 
 This module exposes a single convenience function :func:`run_pipeline` which
 coordinates the existing building blocks in the package to provide an
-end-to-end workflow. Users can submit coordinates, region names or pre-fetched
-studies and request different types of outputs such as atlas labels, textual
-summaries, generated images and the raw study metadata.
+end-to-end workflow. Users can submit coordinates or region names and request
+different types of outputs such as atlas labels, textual summaries, generated
+images and the raw study metadata.
 
 The implementation builds directly on the lower-level modules in the package.
 Atlas lookups are performed via :mod:`coord2region.coord2region`, studies are
@@ -59,8 +59,7 @@ class PipelineResult:
     studies : List[Dict[str, Any]]
         Raw study metadata dictionaries.
     image : Optional[str]
-        Path or URL to the first generated image (kept for backward
-        compatibility).
+        Primary image path (first generated), kept for backward compatibility.
     images : Dict[str, str]
         Mapping of image backend names to generated image paths.
     warnings : List[str]
@@ -128,7 +127,7 @@ def run_pipeline(
     inputs : sequence
         Iterable containing the inputs. The interpretation depends on
         ``input_type``.
-    input_type : {"coords", "region_names", "studies"}
+    input_type : {"coords", "region_names"}
         Specifies how to treat ``inputs``.
     outputs : sequence of
         {"region_labels", "summaries", "images", "raw_studies", "mni_coordinates"}
@@ -163,8 +162,8 @@ def run_pipeline(
         One result object per item in ``inputs``.
     """
     input_type = input_type.lower()
-    if input_type not in {"coords", "region_names", "studies"}:
-        raise ValueError("input_type must be 'coords', 'region_names' or 'studies'")
+    if input_type not in {"coords", "region_names"}:
+        raise ValueError("input_type must be 'coords' or 'region_names'")
 
     outputs = [o.lower() for o in outputs]
     base_outputs = {"region_labels", "summaries", "images", "raw_studies"}
@@ -203,8 +202,8 @@ def run_pipeline(
     kwargs = config or {}
     study_radius = float(kwargs.get("study_radius", 0))
     study_limit = kwargs.get("study_limit")
-    study_sources = kwargs.get("study_sources")
-    dataset_sources = kwargs.get("dataset_sources")
+    # unified sources control both dataset preparation and study search
+    sources = kwargs.get("sources")
     summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
     summary_type = kwargs.get("summary_type", "summary")
     summary_prompt_template = kwargs.get("summary_prompt_template")
@@ -237,9 +236,7 @@ def run_pipeline(
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = (
-        prepare_datasets(str(base_dir), sources=dataset_sources)
-        if use_cached_dataset
-        else None
+        prepare_datasets(str(base_dir), sources=sources) if use_cached_dataset else None
     )
     ai = None
     if provider_configs:
@@ -295,33 +292,15 @@ def run_pipeline(
         elif input_type == "region_names":
             region_name_input = str(item)
             coord = _from_region_name(region_name_input)
-        else:  # "studies"
+        else:
+            # only "coords" or "region_names" supported
             coord = None
 
         res = PipelineResult(coordinate=coord)
         if coord is not None and "mni_coordinates" in outputs:
             res.mni_coordinates = list(coord)
 
-        if input_type == "studies":
-            if "raw_studies" in outputs:
-                res.studies = [item] if isinstance(item, dict) else list(item)
-            if "summaries" in outputs and ai:
-                res.summary = generate_summary(
-                    ai,
-                    res.studies,
-                    coord or [0, 0, 0],
-                    summary_type=summary_type,
-                    model=summary_model,
-                    prompt_template=summary_prompt_template,
-                    max_tokens=summary_max_tokens,
-                    cache_size=summary_cache_size,
-                )
-            results.append(res)
-            if progress_callback:
-                progress_callback(len(results), len(inputs), res)
-            else:
-                logging.info("Processed %d/%d inputs", len(results), len(inputs))
-            continue
+        # No special case for input_type "studies" (unsupported)
 
         if coord is None:
             if region_name_input is not None:
@@ -356,7 +335,7 @@ def run_pipeline(
                     coord,
                     radius=study_radius,
                     email=email,
-                    sources=study_sources,
+                    sources=sources,
                 )
             except Exception:
                 res.studies = []
@@ -436,8 +415,8 @@ async def _run_pipeline_async(
     kwargs = config or {}
     study_radius = float(kwargs.get("study_radius", 0))
     study_limit = kwargs.get("study_limit")
-    study_sources = kwargs.get("study_sources")
-    dataset_sources = kwargs.get("dataset_sources")
+    # unified sources control both dataset preparation and study search
+    sources = kwargs.get("sources")
     summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
     summary_type = kwargs.get("summary_type", "summary")
     summary_prompt_template = kwargs.get("summary_prompt_template")
@@ -470,7 +449,7 @@ async def _run_pipeline_async(
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = (
-        await asyncio.to_thread(prepare_datasets, str(base_dir), dataset_sources)
+        await asyncio.to_thread(prepare_datasets, str(base_dir), sources)
         if use_cached_dataset
         else None
     )
@@ -529,28 +508,15 @@ async def _run_pipeline_async(
         elif input_type == "region_names":
             region_name_input = str(item)
             coord = await asyncio.to_thread(_from_region_name, region_name_input)
-        else:  # "studies"
+        else:
+            # only "coords" or "region_names" supported
             coord = None
 
         res = PipelineResult(coordinate=coord)
         if coord is not None and "mni_coordinates" in outputs:
             res.mni_coordinates = list(coord)
 
-        if input_type == "studies":
-            if "raw_studies" in outputs:
-                res.studies = [item] if isinstance(item, dict) else list(item)
-            if "summaries" in outputs and ai:
-                res.summary = await generate_summary_async(
-                    ai,
-                    res.studies,
-                    coord or [0, 0, 0],
-                    summary_type=summary_type,
-                    model=summary_model,
-                    prompt_template=summary_prompt_template,
-                    max_tokens=summary_max_tokens,
-                    cache_size=summary_cache_size,
-                )
-            return idx, res
+        # No special case for input_type "studies" (unsupported)
 
         if coord is None:
             if region_name_input is not None:
@@ -582,7 +548,7 @@ async def _run_pipeline_async(
                     coord,
                     study_radius,
                     email,
-                    study_sources,
+                    sources,
                 )
             except Exception:
                 res.studies = []
