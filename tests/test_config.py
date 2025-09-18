@@ -13,7 +13,7 @@ def test_config_inline_coordinates_valid():
             "atlas_names": ["aal", "juelich"],
             "max_atlases": 3,
             "study_radius": 6,
-            "summary_model": "custom",
+            "summary_models": ["custom"],
             "summary_max_tokens": 256,
             "prompt_type": "custom",
             "custom_prompt": "Prompt for {coord}",
@@ -29,7 +29,7 @@ def test_config_inline_coordinates_valid():
     assert runtime["outputs"] == ["summaries", "images"]
     assert runtime["config"]["gemini_api_key"] == "KEY"
     assert runtime["config"]["study_radius"] == 6.0
-    assert runtime["config"]["summary_model"] == "custom"
+    assert runtime["config"]["summary_models"] == ["custom"]
     assert runtime["config"]["summary_max_tokens"] == 256
     assert runtime["config"]["prompt_type"] == "custom"
     assert runtime["config"]["custom_prompt"] == "Prompt for {coord}"
@@ -140,6 +140,21 @@ def test_config_sources_and_limit():
     runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
     assert runtime["config"]["sources"] == ["Mock"]
     assert runtime["config"]["study_limit"] == 5
+
+
+def test_config_summary_models_list():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[0, 0, 0]],
+            "outputs": ["summaries"],
+            "summary_models": ["model-a", "model-b", "model-a"],
+        }
+    )
+
+    runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
+    config = runtime["config"]
+    assert config["summary_models"] == ["model-a", "model-b"]
 
 
 def test_config_legacy_block_passthrough():

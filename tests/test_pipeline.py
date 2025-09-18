@@ -43,11 +43,13 @@ def test_run_pipeline_coords(
 
     assert results[0].studies == [{"id": "1"}]
     assert results[0].summary == "SUMMARY"
+    assert results[0].summaries == {"gemini-2.0-flash": "SUMMARY"}
     assert results[0].image and os.path.exists(results[0].image)
 
     with open(out_file, "r", encoding="utf8") as f:
         exported = json.load(f)
     assert exported[0]["summary"] == "SUMMARY"
+    assert exported[0]["summaries"] == {"gemini-2.0-flash": "SUMMARY"}
 
 
     # Note: input_type='studies' is no longer supported
@@ -78,7 +80,7 @@ def test_pipeline_study_config_controls(
             "study_radius": 7.5,
             "study_limit": 1,
             "sources": ["Mock"],
-            "summary_model": "custom-model",
+            "summary_models": ["custom-model"],
             "prompt_type": "custom",
             "custom_prompt": "Prompt",
             "summary_max_tokens": 42,
@@ -90,11 +92,42 @@ def test_pipeline_study_config_controls(
     assert pytest.approx(kwargs["radius"]) == 7.5
     assert kwargs["sources"] == ["Mock"]
 
-    _, summary_kwargs = mock_summary.call_args
-    assert summary_kwargs["model"] == "custom-model"
-    assert summary_kwargs["prompt_type"] == "custom"
-    assert summary_kwargs["custom_prompt"] == "Prompt"
-    assert summary_kwargs["max_tokens"] == 42
+    first_call_kwargs = mock_summary.call_args_list[0][1]
+    assert first_call_kwargs["model"] == "custom-model"
+    assert first_call_kwargs["prompt_type"] == "custom"
+    assert first_call_kwargs["custom_prompt"] == "Prompt"
+    assert first_call_kwargs["max_tokens"] == 42
+    assert results[0].summaries == {"custom-model": "SUMMARY"}
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_summary", side_effect=["S-A", "S-B"])
+@patch(
+    "coord2region.pipeline.get_studies_for_coordinate", return_value=[{"id": "1"}]
+)
+@patch("coord2region.pipeline.prepare_datasets", return_value={"Combined": object()})
+@patch("coord2region.pipeline.MultiAtlasMapper")
+@patch("coord2region.pipeline.AIModelInterface")
+def test_run_pipeline_multiple_summary_models(
+    mock_ai, mock_multi, mock_prepare, mock_get, mock_summary
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
+
+    results = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["summaries"],
+        config={
+            "gemini_api_key": "key",
+            "summary_models": ["model-a", "model-b"],
+        },
+    )
+
+    assert results[0].summary == "S-A"
+    assert results[0].summaries == {"model-a": "S-A", "model-b": "S-B"}
+    assert mock_summary.call_args_list[0][1]["model"] == "model-a"
+    assert mock_summary.call_args_list[1][1]["model"] == "model-b"
 
 
 @pytest.mark.unit
@@ -128,6 +161,10 @@ def test_run_pipeline_async(mock_ai, mock_multi, mock_prepare, mock_get):
         )
 
     assert [r.summary for r in results] == ["ASYNC", "ASYNC"]
+    assert [r.summaries for r in results] == [
+        {"gemini-2.0-flash": "ASYNC"},
+        {"gemini-2.0-flash": "ASYNC"},
+    ]
     assert len(progress_calls) == 2
 
 

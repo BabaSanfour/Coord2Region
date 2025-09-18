@@ -78,7 +78,7 @@ class Coord2RegionConfig(BaseModel):
     huggingface_api_key: Optional[str] = None
     providers: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
-    summary_model: Optional[str] = None
+    summary_models: Optional[List[str]] = None
     prompt_type: Optional[str] = None
     custom_prompt: Optional[str] = None
     summary_max_tokens: Optional[conint(gt=0)] = None
@@ -136,6 +136,29 @@ class Coord2RegionConfig(BaseModel):
             normalized[str(key)] = cfg
         return normalized
 
+    @field_validator("summary_models", mode="before")
+    @classmethod
+    def _normalize_summary_models(cls, value: Any) -> Optional[List[str]]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            candidates = [value]
+        elif isinstance(value, (list, tuple, set)):
+            candidates = list(value)
+        else:
+            raise TypeError("summary_models must be provided as a string or list")
+
+        normalized: List[str] = []
+        seen = set()
+        for item in candidates:
+            if item is None:
+                continue
+            name = str(item).strip()
+            if name and name not in seen:
+                normalized.append(name)
+                seen.add(name)
+        return normalized or None
+
     @field_validator("atlas_configs", mode="before")
     @classmethod
     def _normalize_atlas_configs(cls, value: Any) -> Dict[str, Dict[str, Any]]:
@@ -187,6 +210,7 @@ class Coord2RegionConfig(BaseModel):
             object.__setattr__(self, "atlas_configs", existing)
 
         self._validate_inputs_section()
+
         return self
 
     def _validate_inputs_section(self) -> None:
@@ -372,7 +396,7 @@ class Coord2RegionConfig(BaseModel):
             if key in fields_set and getattr(self, key):
                 config[key] = getattr(self, key)
 
-        override("summary_model")
+        override("summary_models", transform=lambda v: list(v))
         override("prompt_type")
         override("custom_prompt")
         if "summary_max_tokens" in fields_set:

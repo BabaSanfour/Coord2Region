@@ -54,8 +54,11 @@ class PipelineResult:
         requested via ``outputs``.
     region_labels : Dict[str, str]
         Atlas region labels keyed by atlas name.
+    summaries : Dict[str, str]
+        Mapping of language-model identifiers to their generated summaries.
     summary : Optional[str]
-        Text summary produced by the language model.
+        Primary summary (first entry in :attr:`summaries`) kept for
+        backward compatibility.
     studies : List[Dict[str, Any]]
         Raw study metadata dictionaries.
     image : Optional[str]
@@ -69,11 +72,42 @@ class PipelineResult:
     coordinate: Optional[List[float]] = None
     mni_coordinates: Optional[List[float]] = None
     region_labels: Dict[str, str] = field(default_factory=dict)
+    summaries: Dict[str, str] = field(default_factory=dict)
     summary: Optional[str] = None
     studies: List[Dict[str, Any]] = field(default_factory=list)
     image: Optional[str] = None
     images: Dict[str, str] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
+
+
+def _normalize_model_list(value: Any) -> List[str]:
+    """Coerce a config value into a list of unique model identifiers."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        candidates = [value]
+    elif isinstance(value, Sequence):
+        candidates = list(value)
+    else:
+        candidates = [value]
+
+    normalized: List[str] = []
+    for item in candidates:
+        if item is None:
+            continue
+        name = str(item).strip()
+        if name and name not in normalized:
+            normalized.append(name)
+    return normalized
+
+
+def _get_summary_models(config: Dict[str, Any], default_model: str) -> List[str]:
+    """Return the ordered list of summary models honoring config defaults."""
+    raw = config.get("summary_models")
+    models = _normalize_model_list(raw)
+    if not models and default_model:
+        models = [default_model]
+    return models
 
 
 def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
@@ -204,7 +238,7 @@ def run_pipeline(
     study_limit = kwargs.get("study_limit")
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
-    summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
+    summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
     prompt_type = kwargs.get("prompt_type") or "summary"
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
@@ -341,17 +375,21 @@ def run_pipeline(
             if study_limit is not None and res.studies:
                 res.studies = res.studies[:study_limit]
 
-        if "summaries" in outputs and ai:
-            res.summary = generate_summary(
-                ai,
-                res.studies,
-                coord,
-                prompt_type=prompt_type,
-                model=summary_model,
-                atlas_labels=res.region_labels or None,
-                custom_prompt=custom_prompt if prompt_type == "custom" else None,
-                max_tokens=summary_max_tokens,
-            )
+        if "summaries" in outputs and ai and summary_models:
+            for model_idx, model_name in enumerate(summary_models):
+                summary_text = generate_summary(
+                    ai,
+                    res.studies,
+                    coord,
+                    prompt_type=prompt_type,
+                    model=model_name,
+                    atlas_labels=res.region_labels or None,
+                    custom_prompt=custom_prompt if prompt_type == "custom" else None,
+                    max_tokens=summary_max_tokens,
+                )
+                res.summaries[model_name] = summary_text
+                if model_idx == 0:
+                    res.summary = summary_text
 
         if "images" in outputs:
             img_dir = image_dir
@@ -415,7 +453,7 @@ async def _run_pipeline_async(
     study_limit = kwargs.get("study_limit")
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
-    summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
+    summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
     prompt_type = kwargs.get("prompt_type") or "summary"
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
@@ -552,17 +590,21 @@ async def _run_pipeline_async(
             if study_limit is not None and res.studies:
                 res.studies = res.studies[:study_limit]
 
-        if "summaries" in outputs and ai:
-            res.summary = await generate_summary_async(
-                ai,
-                res.studies,
-                coord,
-                prompt_type=prompt_type,
-                model=summary_model,
-                atlas_labels=res.region_labels or None,
-                custom_prompt=custom_prompt if prompt_type == "custom" else None,
-                max_tokens=summary_max_tokens,
-            )
+        if "summaries" in outputs and ai and summary_models:
+            for model_idx, model_name in enumerate(summary_models):
+                summary_text = await generate_summary_async(
+                    ai,
+                    res.studies,
+                    coord,
+                    prompt_type=prompt_type,
+                    model=model_name,
+                    atlas_labels=res.region_labels or None,
+                    custom_prompt=custom_prompt if prompt_type == "custom" else None,
+                    max_tokens=summary_max_tokens,
+                )
+                res.summaries[model_name] = summary_text
+                if model_idx == 0:
+                    res.summary = summary_text
 
         if "images" in outputs:
             img_dir = image_dir
