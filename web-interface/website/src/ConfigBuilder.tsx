@@ -252,9 +252,9 @@ const builderKeys: string[] = [
   'study_radius',
   'study_limit',
   'prompt_type',
+  'custom_prompt',
   'summary_model',
   'summary_max_tokens',
-  'custom_prompt',
   'use_cached_dataset',
   'batch_size',
   'anthropic_api_key',
@@ -642,6 +642,30 @@ const OutputFormatField = ({ formData, onChange, idSchema }: FieldProps) => {
   );
 };
 
+const CustomPromptField = ({ formData, onChange, formContext, idSchema }: FieldProps) => {
+  const context = formContext as { promptType?: string } | undefined;
+  if (context?.promptType !== 'custom') {
+    return null;
+  }
+  const value = typeof formData === 'string' ? formData : '';
+  const inputId = idSchema?.$id ?? 'custom-prompt';
+  return (
+    <div className="form-field">
+      <label className="field-label" htmlFor={inputId}>Custom prompt template</label>
+      <textarea
+        id={inputId}
+        rows={6}
+        value={value}
+        onChange={(event) => onChange(event.target.value || null)}
+        placeholder="You are an expert neuroscientist..."
+      />
+      <p className="helper">
+        Use {'{coord}'} for the coordinate and {'{studies}'} for the study list. These placeholders are filled automatically before calling the model.
+      </p>
+    </div>
+  );
+};
+
 const widgets = {
   atlasMultiSelect: AtlasMultiSelect
 };
@@ -649,6 +673,7 @@ const widgets = {
 const fields = {
   summaryModelField: SummaryModelField,
   promptTypeField: PromptTypeField,
+  customPromptField: CustomPromptField,
   outputFormatField: OutputFormatField
 };
 
@@ -819,13 +844,8 @@ const ConfigBuilder = () => {
         ? { 'ui:field': 'summaryModelField' }
         : { 'ui:widget': 'hidden' },
       summary_max_tokens: enableSummary ? {} : { 'ui:widget': 'hidden' },
-      custom_prompt: enableSummary && promptType === 'custom'
-        ? {
-            'ui:widget': 'textarea',
-            'ui:options': { rows: 6 },
-            'ui:help': 'Include {coord} for the coordinate and {studies} for the study list. The builder fills these placeholders before sending the prompt.',
-            'ui:placeholder': 'You are an expert neuroscientist...'
-          }
+      custom_prompt: enableSummary
+        ? { 'ui:field': 'customPromptField' }
         : { 'ui:widget': 'hidden' },
       input_type: { 'ui:widget': 'hidden' }
     }),
@@ -864,8 +884,6 @@ const ConfigBuilder = () => {
           : 'summary';
       if (normalizedPromptType !== 'custom') {
         next.custom_prompt = null;
-      } else if (typeof next.custom_prompt !== 'string') {
-        next.custom_prompt = '';
       }
       setFormData({
         ...next,
@@ -1154,6 +1172,7 @@ const ConfigBuilder = () => {
             widgets={widgets}
             fields={fields}
             FieldTemplate={FieldTemplate}
+            formContext={{ promptType }}
             liveValidate={false}
             noHtml5Validate
           >

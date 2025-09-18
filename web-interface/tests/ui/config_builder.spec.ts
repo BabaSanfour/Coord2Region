@@ -94,7 +94,11 @@ test.describe('Coord2Region Config Builder', () => {
     await studyCardButton.click();
     await expect(studyCardButton).toHaveClass(/toggle--active/);
 
-    const summaryCardButton = page.locator('.card', { hasText: 'Summaries' }).locator('button');
+    const summaryCardButton = page
+      .locator('.card.card--inline', {
+        has: page.getByRole('heading', { name: 'Summaries' })
+      })
+      .locator('button');
     await summaryCardButton.click();
     await expect(summaryCardButton).not.toHaveClass(/toggle--active/);
     await expect(yamlOutput).not.toContainText('summary_model');
