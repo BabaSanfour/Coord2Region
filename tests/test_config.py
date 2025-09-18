@@ -12,7 +12,7 @@ def test_config_inline_coordinates_valid():
             "gemini_api_key": "KEY",
             "atlas_names": ["aal", "juelich"],
             "max_atlases": 3,
-            "study_radius": 6,
+            "study_search_radius": 6,
             "summary_models": ["custom"],
             "summary_max_tokens": 256,
             "prompt_type": "custom",
@@ -28,7 +28,7 @@ def test_config_inline_coordinates_valid():
     assert runtime["input_type"] == "coords"
     assert runtime["outputs"] == ["summaries", "images"]
     assert runtime["config"]["gemini_api_key"] == "KEY"
-    assert runtime["config"]["study_radius"] == 6.0
+    assert runtime["config"]["study_search_radius"] == 6.0
     assert runtime["config"]["summary_models"] == ["custom"]
     assert runtime["config"]["summary_max_tokens"] == 256
     assert runtime["config"]["prompt_type"] == "custom"
@@ -126,7 +126,7 @@ def test_config_coordinates_from_string_inputs():
     assert inputs == [[1, 2, 3], [4, 5, 6]]
 
 
-def test_config_sources_and_limit():
+def test_config_sources():
     cfg = Coord2RegionConfig.model_validate(
         {
             "input_type": "coords",
@@ -134,12 +134,10 @@ def test_config_sources_and_limit():
             "outputs": ["summaries"],
             "gemini_api_key": "KEY",
             "sources": ["Mock"],
-            "study_limit": 5,
         }
     )
     runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
     assert runtime["config"]["sources"] == ["Mock"]
-    assert runtime["config"]["study_limit"] == 5
 
 
 def test_config_summary_models_list():
@@ -164,13 +162,13 @@ def test_config_legacy_block_passthrough():
             "outputs": ["region_labels"],
             "config": {
                 "atlas_names": ["aal"],
-                "data_dir": "/tmp/data",
+                "working_directory": "/tmp/data",
             },
         }
     )
     runtime = cfg.to_pipeline_runtime(cfg.collect_inputs(load_coords_file=lambda _: []))
     assert runtime["config"]["atlas_names"] == ["aal"]
-    assert runtime["config"]["data_dir"] == "/tmp/data"
+    assert runtime["config"]["working_directory"] == "/tmp/data"
 
 
 def test_config_max_atlases_checks_legacy():

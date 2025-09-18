@@ -18,7 +18,7 @@ from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
 from nimare.utils import get_resource_path
 
-from .utils import resolve_data_dir
+from .utils import resolve_working_directory
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +278,7 @@ def prepare_datasets(
         The deduplicated NiMARE ``Dataset`` object, or ``None`` if preparation
         fails.
     """
-    base_dir = resolve_data_dir(data_dir)
+    base_dir = resolve_working_directory(data_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
 
     cache_dir = base_dir / "cached_data"

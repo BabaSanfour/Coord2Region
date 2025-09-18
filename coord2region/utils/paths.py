@@ -1,9 +1,4 @@
-"""Path helpers for coord2region.
-
-Centralizing data-directory resolution ensures consistent configuration
-management and allows flexible storage locations that adapt to different
-environments.
-"""
+"""Working directory helpers for Coord2Region projects."""
 
 from __future__ import annotations
 
@@ -11,8 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 
-def resolve_data_dir(base: Optional[str] = None) -> Path:
-    """Return the directory for coord2region data.
+def resolve_working_directory(base: Optional[str] = None) -> Path:
+    """Return the root working directory for coord2region assets.
 
     Parameters
     ----------
@@ -24,7 +19,7 @@ def resolve_data_dir(base: Optional[str] = None) -> Path:
     Returns
     -------
     pathlib.Path
-        Absolute path to the base directory.
+        Absolute path to the working directory.
     """
     if base is None:
         return Path.home() / "coord2region"

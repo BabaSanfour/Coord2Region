@@ -28,15 +28,15 @@ def test_run_pipeline_coords(
 ):
     mock_multi.return_value.batch_mni_to_region_names.return_value = {}
     mock_multi.return_value.batch_region_name_to_mni.return_value = {}
-    out_file = tmp_path / "results.json"
+    output_name = "results.json"
     results = run_pipeline(
         inputs=[[0, 0, 0]],
         input_type="coords",
         outputs=["raw_studies", "summaries", "images"],
         output_format="json",
-        output_path=str(out_file),
+        output_name=output_name,
         config={
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
             "gemini_api_key": "key",
         },
     )
@@ -46,7 +46,8 @@ def test_run_pipeline_coords(
     assert results[0].summaries == {"gemini-2.0-flash": "SUMMARY"}
     assert results[0].image and os.path.exists(results[0].image)
 
-    with open(out_file, "r", encoding="utf8") as f:
+    export_path = tmp_path / "results" / output_name
+    with open(export_path, "r", encoding="utf8") as f:
         exported = json.load(f)
     assert exported[0]["summary"] == "SUMMARY"
     assert exported[0]["summaries"] == {"gemini-2.0-flash": "SUMMARY"}
@@ -77,8 +78,7 @@ def test_pipeline_study_config_controls(
         outputs=["summaries", "raw_studies"],
         config={
             "gemini_api_key": "key",
-            "study_radius": 7.5,
-            "study_limit": 1,
+            "study_search_radius": 7.5,
             "sources": ["Mock"],
             "summary_models": ["custom-model"],
             "prompt_type": "custom",
@@ -203,14 +203,15 @@ def test_run_pipeline_export_pdf(
 ):
     mock_multi.return_value.batch_mni_to_region_names.return_value = {}
     mock_multi.return_value.batch_region_name_to_mni.return_value = {}
-    out_file = tmp_path / "results.pdf"
+    output_name = "results.pdf"
     res = run_pipeline(
         inputs=[[0, 0, 0]],
         input_type="coords",
         outputs=["summaries"],
         output_format="pdf",
-        output_path=str(out_file),
+        output_name=output_name,
         config={
+            "working_directory": str(tmp_path),
             "gemini_api_key": "key",
         },
     )
@@ -236,7 +237,7 @@ def test_pipeline_nilearn_backend(mock_gen, mock_multi, tmp_path):
         image_backend="nilearn",
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
         },
     )
     path = res[0].images.get("nilearn")
@@ -261,7 +262,7 @@ def test_pipeline_ai_watermark(mock_generate, mock_multi, tmp_path):
         image_backend="ai",
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
             "gemini_api_key": "key",
         },
     )
@@ -297,7 +298,7 @@ def test_pipeline_both_backends(tmp_path):
             image_backend="both",
             config={
                 "use_cached_dataset": False,
-                "data_dir": str(tmp_path),
+                "working_directory": str(tmp_path),
                 "gemini_api_key": "k",
             },
         )
@@ -331,7 +332,7 @@ def test_pipeline_async_both_backends(tmp_path):
             async_mode=True,
             config={
                 "use_cached_dataset": False,
-                "data_dir": str(tmp_path),
+                "working_directory": str(tmp_path),
                 "gemini_api_key": "k",
             },
         )
@@ -389,7 +390,7 @@ def test_run_pipeline_invalid_output():
 
 
 @pytest.mark.unit
-def test_run_pipeline_missing_output_path():
+def test_run_pipeline_missing_output_name():
     with pytest.raises(ValueError):
         run_pipeline([[0, 0, 0]], "coords", ["summaries"], output_format="json")
 
@@ -431,7 +432,7 @@ def test_run_pipeline_none_coord(mock_multi, tmp_path):
         outputs=["region_labels"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
         },
     )
     assert len(results) == 1
@@ -447,7 +448,7 @@ def test_run_pipeline_multiatlas_error(mock_multi, tmp_path):
         def __init__(self, *_args, **_kwargs):
             pass
 
-        def batch_mni_to_region_names(self, coords):
+        def batch_mni_to_region_names(self, coords, max_distance=None, hemi=None):
             raise RuntimeError("boom")
 
     mock_multi.side_effect = lambda *a, **k: RaisingMultiAtlas()
@@ -457,7 +458,7 @@ def test_run_pipeline_multiatlas_error(mock_multi, tmp_path):
         outputs=["region_labels"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
             "atlas_names": ["dummy"],
         },
     )
@@ -474,7 +475,7 @@ def test_run_pipeline_atlas_labels_success(mock_multi, tmp_path):
             captured["base_dir"] = base_dir
             captured["atlases"] = atlases
 
-        def batch_mni_to_region_names(self, coords):
+        def batch_mni_to_region_names(self, coords, max_distance=None, hemi=None):
             captured["coords"] = coords
             return {"custom": ["Region"]}
 
@@ -486,7 +487,7 @@ def test_run_pipeline_atlas_labels_success(mock_multi, tmp_path):
         outputs=["region_labels"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
             "atlas_names": ["custom"],
         },
     )
@@ -511,7 +512,7 @@ def test_run_pipeline_region_names_to_coords(
             assert names == ["Region"]
             return {"custom": [np.array([1.0, 2.0, 3.0])]}
 
-        def batch_mni_to_region_names(self, coords):
+        def batch_mni_to_region_names(self, coords, max_distance=None, hemi=None):
             assert coords == [[1.0, 2.0, 3.0]]
             return {"custom": ["Resolved"]}
 
@@ -523,7 +524,7 @@ def test_run_pipeline_region_names_to_coords(
         outputs=["region_labels", "summaries"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
             "gemini_api_key": "key",
         },
     )
@@ -545,7 +546,7 @@ def test_run_pipeline_region_names_mni_only(mock_multi, tmp_path):
             assert names == ["Region"]
             return {"custom": [np.array([4.0, 5.0, 6.0])]}
 
-        def batch_mni_to_region_names(self, _coords):
+        def batch_mni_to_region_names(self, _coords, max_distance=None, hemi=None):
             raise AssertionError("region lookup should not occur when only MNI requested")
 
     mock_multi.side_effect = lambda *a, **k: DummyMulti()
@@ -556,7 +557,7 @@ def test_run_pipeline_region_names_mni_only(mock_multi, tmp_path):
         outputs=["mni_coordinates"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
         },
     )
 
@@ -576,7 +577,9 @@ def test_run_pipeline_region_names_missing_warning(mock_multi, tmp_path):
             assert names == ["Missing"]
             return {"custom": []}
 
-        def batch_mni_to_region_names(self, _coords):  # pragma: no cover - defensive
+        def batch_mni_to_region_names(
+            self, _coords, max_distance=None, hemi=None
+        ):  # pragma: no cover - defensive
             raise AssertionError("Should not look up region names when coordinate missing")
 
     mock_multi.side_effect = lambda *a, **k: DummyMulti()
@@ -587,7 +590,7 @@ def test_run_pipeline_region_names_missing_warning(mock_multi, tmp_path):
         outputs=["mni_coordinates"],
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
         },
     )
 
@@ -602,7 +605,7 @@ def test_run_pipeline_region_names_missing_warning(mock_multi, tmp_path):
 @pytest.mark.unit
 @patch("coord2region.pipeline.save_as_csv")
 @patch("coord2region.pipeline.MultiAtlasMapper")
-def test_run_pipeline_relative_output_path(mock_multi, mock_save_csv, tmp_path):
+def test_run_pipeline_relative_output_name(mock_multi, mock_save_csv, tmp_path):
     mock_multi.return_value.batch_mni_to_region_names.return_value = {}
     mock_multi.return_value.batch_region_name_to_mni.return_value = {}
     run_pipeline(
@@ -610,10 +613,10 @@ def test_run_pipeline_relative_output_path(mock_multi, mock_save_csv, tmp_path):
         input_type="coords",
         outputs=[],
         output_format="csv",
-        output_path="nested/out.csv",
+        output_name="nested/out.csv",
         config={
             "use_cached_dataset": False,
-            "data_dir": str(tmp_path),
+            "working_directory": str(tmp_path),
         },
     )
     saved_path = Path(mock_save_csv.call_args[0][1])

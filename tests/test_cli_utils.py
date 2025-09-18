@@ -100,13 +100,13 @@ def test_collect_kwargs_with_atlas_names():
     args = argparse.Namespace(
         gemini_api_key=None,
         atlas_names=["harvard-oxford, juelich", " aal"],
-        data_dir="/tmp/data",
+        working_directory="/tmp/data",
         email_for_abstracts="person@example.com",
     )
     kwargs = _collect_kwargs(args)
     assert kwargs == {
         "atlas_names": ["harvard-oxford", "juelich", "aal"],
-        "data_dir": "/tmp/data",
+        "working_directory": "/tmp/data",
         "email_for_abstracts": "person@example.com",
     }
 
@@ -210,7 +210,7 @@ inputs:
 input_type: coords
 outputs: ["summaries"]
 output_format: json
-output_path: out.json
+output_name: out.json
 config:
   atlas_names: ["aal"]
 """,
@@ -223,7 +223,7 @@ config:
     assert kwargs["input_type"] == "coords"
     assert kwargs["outputs"] == ["summaries"]
     assert kwargs["output_format"] == "json"
-    assert kwargs["output_path"] == "out.json"
+    assert kwargs["output_name"] == "out.json"
     assert kwargs["image_backend"] == "ai"
     assert kwargs["config"]["atlas_names"] == ["aal"]
 
@@ -240,7 +240,7 @@ input_type: coords
 outputs: [region_labels, summaries]
 config:
   atlas_names: [aal, juelich]
-  data_dir: /tmp/data
+  working_directory: /tmp/data
 """,
         encoding="utf8",
     )
@@ -248,6 +248,6 @@ config:
     run_from_config(str(cfg), dry_run=True)
     out = capsys.readouterr().out.strip().splitlines()
     assert out == [
-        "coord2region coords-to-atlas 1 2 3 4 5 6 --data-dir /tmp/data --atlas aal --atlas juelich",
-        "coord2region coords-to-summary 1 2 3 4 5 6 --data-dir /tmp/data --atlas aal --atlas juelich",
+        "coord2region coords-to-atlas 1 2 3 4 5 6 --working-directory /tmp/data --atlas aal --atlas juelich",
+        "coord2region coords-to-summary 1 2 3 4 5 6 --working-directory /tmp/data --atlas aal --atlas juelich",
     ]

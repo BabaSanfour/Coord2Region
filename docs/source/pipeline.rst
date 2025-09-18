@@ -35,7 +35,7 @@ image while saving the results to a PDF file:
         input_type="coords",
         outputs=["region_labels", "summaries", "images"],
         output_format="pdf",
-        output_path="results.pdf",
+        output_name="results.pdf",
         config={"use_cached_dataset": False},
     )
 
@@ -116,7 +116,7 @@ Complex runs can be described in YAML and executed with ``--config``:
     input_type: coords
     outputs: [region_labels, summaries, images]
     output_format: pdf
-    output_path: results.pdf
+    output_name: results.pdf
 
 .. code-block:: bash
 

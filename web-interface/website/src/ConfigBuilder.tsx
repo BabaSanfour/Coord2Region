@@ -225,8 +225,8 @@ const promptTypeProperty = (() => {
   return cloned as RJSFSchema;
 })();
 
-const dataDirProperty = (() => {
-  const property = schema.properties?.data_dir;
+const workingDirectoryProperty = (() => {
+  const property = schema.properties?.working_directory;
   if (!property || typeof property !== 'object') {
     return undefined;
   }
@@ -241,19 +241,19 @@ const dataDirProperty = (() => {
 
 const builderKeys: string[] = [
   'input_type',
-  'data_dir',
+  'working_directory',
   'sources',
   'atlas_names',
   'outputs',
   'output_format',
-  'output_path',
+  'output_name',
   'studies',
   'study_sources',
-  'study_radius',
-  'study_limit',
+  'study_search_radius',
+  'region_search_radius',
   'prompt_type',
   'custom_prompt',
-  'summary_model',
+  'summary_models',
   'summary_max_tokens',
   'use_cached_dataset',
   'batch_size',
@@ -324,8 +324,8 @@ if (builderSchema.properties?.prompt_type && promptTypeProperty) {
   builderSchema.properties.prompt_type = promptTypeProperty;
 }
 
-if (builderSchema.properties?.data_dir && dataDirProperty) {
-  builderSchema.properties.data_dir = dataDirProperty;
+if (builderSchema.properties?.working_directory && workingDirectoryProperty) {
+  builderSchema.properties.working_directory = workingDirectoryProperty;
 }
 
 const tooltipFromSchema = (key: string): string | undefined => {
@@ -565,20 +565,22 @@ const AtlasMultiSelect = (props: WidgetProps) => {
 };
 
 const SummaryModelField = ({ formData, onChange, idSchema }: FieldProps) => {
-  const value = typeof formData === 'string' ? formData : '';
+  const value = Array.isArray(formData) && formData.length > 0
+    ? String(formData[0])
+    : '';
   const inputId = idSchema?.$id ?? 'summary-model';
   const listId = `${inputId}-options`;
 
   return (
     <div className="form-field">
-      <label className="field-label" htmlFor={inputId}>Summary Model</label>
+      <label className="field-label" htmlFor={inputId}>Summary Models</label>
       <input
         id={inputId}
         type="text"
         list={listId}
         value={value}
         placeholder="Start typing or pick a model"
-        onChange={(event) => onChange(event.target.value || null)}
+        onChange={(event) => onChange(event.target.value ? [event.target.value] : null)}
       />
       <datalist id={listId}>
         {summaryModelOptions.map((option) => (
@@ -752,10 +754,16 @@ const ConfigBuilder = () => {
     defaults.sources = Array.isArray((defaults as any).sources)
       ? (defaults as any).sources
       : [];
-    defaults.data_dir = typeof defaults.data_dir === 'string' ? defaults.data_dir : '';
+    defaults.working_directory = typeof defaults.working_directory === 'string' ? defaults.working_directory : '';
     defaults.prompt_type = typeof (defaults as any).prompt_type === 'string'
       ? (defaults as any).prompt_type
       : 'summary';
+    if (!Array.isArray((defaults as any).summary_models)) {
+      defaults.summary_models =
+        (typeof (defaults as any).summary_models === 'string' && (defaults as any).summary_models)
+          ? [(defaults as any).summary_models as string]
+          : [];
+    }
     if (defaults.prompt_type !== 'custom') {
       defaults.custom_prompt = null;
     } else if (typeof defaults.custom_prompt !== 'string') {
@@ -815,10 +823,10 @@ const ConfigBuilder = () => {
   const uiSchema: UiSchema = useMemo(
     () => ({
       'ui:order': builderKeys,
-      data_dir: {
+      working_directory: {
         'ui:widget': 'text',
         'ui:emptyValue': null,
-        'ui:placeholder': '/path/to/data-directory'
+        'ui:placeholder': '/path/to/working-directory'
       },
       sources: {
         'ui:widget': 'checkboxes'
@@ -835,12 +843,12 @@ const ConfigBuilder = () => {
       },
       studies: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_sources: enableStudy ? {} : { 'ui:widget': 'hidden' },
-      study_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
-      study_limit: enableStudy ? {} : { 'ui:widget': 'hidden' },
+      study_search_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
+      region_search_radius: {},
       prompt_type: enableSummary
         ? { 'ui:field': 'promptTypeField' }
         : { 'ui:widget': 'hidden' },
-      summary_model: enableSummary
+      summary_models: enableSummary
         ? { 'ui:field': 'summaryModelField' }
         : { 'ui:widget': 'hidden' },
       summary_max_tokens: enableSummary ? {} : { 'ui:widget': 'hidden' },
@@ -902,8 +910,7 @@ const ConfigBuilder = () => {
         if (!next) {
           updated.studies = null;
           updated.study_sources = null;
-          updated.study_radius = null;
-          updated.study_limit = null;
+          updated.study_search_radius = null;
         } else {
           updated.studies = updated.studies ?? [];
         }
@@ -920,7 +927,7 @@ const ConfigBuilder = () => {
         const updated = { ...current };
         if (!next) {
           updated.prompt_type = null;
-          updated.summary_model = null;
+          updated.summary_models = null;
           updated.summary_max_tokens = null;
           updated.custom_prompt = null;
         } else {
@@ -929,6 +936,9 @@ const ConfigBuilder = () => {
           }
           if (updated.prompt_type !== 'custom') {
             updated.custom_prompt = null;
+          }
+          if (!Array.isArray(updated.summary_models)) {
+            updated.summary_models = [];
           }
         }
         return updated;
@@ -957,17 +967,24 @@ const ConfigBuilder = () => {
     if (!enableStudy) {
       payload.studies = null;
       payload.study_sources = null;
-      payload.study_radius = null;
-      payload.study_limit = null;
+      payload.study_search_radius = null;
     }
 
     if (!enableSummary) {
       payload.prompt_type = null;
-      payload.summary_model = null;
+      payload.summary_models = null;
       payload.summary_max_tokens = null;
       payload.custom_prompt = null;
-    } else if (payload.prompt_type !== 'custom') {
-      payload.custom_prompt = null;
+    } else {
+      if (!Array.isArray(payload.summary_models)) {
+        payload.summary_models = payload.summary_models ? [payload.summary_models] : [];
+      }
+      if (Array.isArray(payload.summary_models) && payload.summary_models.length === 0) {
+        payload.summary_models = null;
+      }
+      if (payload.prompt_type !== 'custom') {
+        payload.custom_prompt = null;
+      }
     }
 
     const atlasConfigs = deriveAtlasConfigs(formData.atlas_names);

@@ -44,6 +44,13 @@ def test_schema_matches_model_definition() -> None:
     ]
     assert props["image_backend"]["enum"] == ["ai", "nilearn", "both"]
     assert props["batch_size"]["minimum"] == 0
-    assert props["study_limit"]["anyOf"][0]["exclusiveMinimum"] == 0
+    assert props["study_search_radius"]["minimum"] == 0
+    region_radius_prop = props["region_search_radius"]
+    if "minimum" in region_radius_prop:
+        assert region_radius_prop["minimum"] == 0
+    else:
+        any_of = region_radius_prop.get("anyOf", [])
+        assert any_of and any_of[0]["minimum"] == 0
+    assert "summary_models" in props
     assert props["coordinates"]["anyOf"][0]["type"] == "array"
     assert file_schema["additionalProperties"] is False

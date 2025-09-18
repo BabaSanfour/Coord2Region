@@ -143,7 +143,7 @@ from coord2region.pipeline import PipelineResult
 
 captured = {}
 
-def fake_run_pipeline(inputs, input_type, outputs, output_format, output_path, **kwargs):
+def fake_run_pipeline(inputs, input_type, outputs, output_format, output_name, **kwargs):
     captured['config'] = kwargs.get('config', {})
     return [PipelineResult(coordinate=inputs[0], summary=None, region_labels={}, studies=[], image=None)]
 

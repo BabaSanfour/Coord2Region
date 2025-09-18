@@ -2,19 +2,32 @@
   "additionalProperties": false,
   "description": "Pydantic model capturing all CLI-facing configuration options.",
   "properties": {
-    "input_type": {
-      "default": "coords",
-      "enum": [
-        "coords",
-        "region_names"
-      ],
-      "title": "Input Type",
-      "type": "string"
-    },
-    "inputs": {
+    "anthropic_api_key": {
       "anyOf": [
         {
-          "items": {},
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Anthropic Api Key"
+    },
+    "atlas_configs": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Atlas Configs",
+      "type": "object"
+    },
+    "atlas_names": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
           "type": "array"
         },
         {
@@ -22,7 +35,26 @@
         }
       ],
       "default": null,
-      "title": "Inputs"
+      "title": "Atlas Names"
+    },
+    "batch_size": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Batch Size",
+      "type": "integer"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
     },
     "coordinates": {
       "anyOf": [
@@ -63,12 +95,89 @@
       "description": "Local filesystem path to tabular coordinates (e.g. CSV/TSV/XLSX). Remote URLs are not supported.",
       "title": "Coords File"
     },
-    "region_names": {
+    "custom_prompt": {
       "anyOf": [
         {
-          "items": {
-            "type": "string"
-          },
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Custom Prompt"
+    },
+    "email_for_abstracts": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Email For Abstracts"
+    },
+    "gemini_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gemini Api Key"
+    },
+    "huggingface_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Huggingface Api Key"
+    },
+    "image_backend": {
+      "default": "ai",
+      "enum": [
+        "ai",
+        "nilearn",
+        "both"
+      ],
+      "title": "Image Backend",
+      "type": "string"
+    },
+    "image_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Image Model"
+    },
+    "input_type": {
+      "default": "coords",
+      "enum": [
+        "coords",
+        "region_names"
+      ],
+      "title": "Input Type",
+      "type": "string"
+    },
+    "inputs": {
+      "anyOf": [
+        {
+          "items": {},
           "type": "array"
         },
         {
@@ -76,34 +185,44 @@
         }
       ],
       "default": null,
-      "title": "Region Names"
+      "title": "Inputs"
     },
-    "config": {
+    "max_atlases": {
       "anyOf": [
         {
-          "additionalProperties": true,
-          "type": "object"
+          "exclusiveMinimum": 0,
+          "type": "integer"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Config"
+      "title": "Max Atlases"
     },
-    "outputs": {
-      "items": {
-        "enum": [
-          "region_labels",
-          "summaries",
-          "images",
-          "raw_studies",
-          "mni_coordinates"
-        ],
-        "type": "string"
-      },
-      "title": "Outputs",
-      "type": "array"
+    "openai_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Openai Api Key"
+    },
+    "openrouter_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Openrouter Api Key"
     },
     "output_format": {
       "anyOf": [
@@ -124,7 +243,7 @@
       "default": null,
       "title": "Output Format"
     },
-    "output_path": {
+    "output_name": {
       "anyOf": [
         {
           "type": "string"
@@ -134,25 +253,23 @@
         }
       ],
       "default": null,
-      "title": "Output Path"
+      "title": "Output Name"
     },
-    "image_backend": {
-      "default": "ai",
-      "enum": [
-        "ai",
-        "nilearn",
-        "both"
-      ],
-      "title": "Image Backend",
-      "type": "string"
+    "outputs": {
+      "items": {
+        "enum": [
+          "region_labels",
+          "summaries",
+          "images",
+          "raw_studies",
+          "mni_coordinates"
+        ],
+        "type": "string"
+      },
+      "title": "Outputs",
+      "type": "array"
     },
-    "batch_size": {
-      "default": 0,
-      "minimum": 0,
-      "title": "Batch Size",
-      "type": "integer"
-    },
-    "data_dir": {
+    "prompt_type": {
       "anyOf": [
         {
           "type": "string"
@@ -162,24 +279,43 @@
         }
       ],
       "default": null,
-      "title": "Data Dir"
+      "title": "Prompt Type"
     },
-    "email_for_abstracts": {
+    "providers": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Providers",
+      "type": "object"
+    },
+    "region_names": {
       "anyOf": [
         {
-          "type": "string"
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Email For Abstracts"
+      "title": "Region Names"
     },
-    "use_cached_dataset": {
-      "default": true,
-      "title": "Use Cached Dataset",
-      "type": "boolean"
+    "region_search_radius": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Region Search Radius"
     },
     "sources": {
       "anyOf": [
@@ -196,176 +332,11 @@
       "default": null,
       "title": "Sources"
     },
-    "study_radius": {
+    "study_search_radius": {
       "default": 0.0,
       "minimum": 0,
-      "title": "Study Radius",
+      "title": "Study Search Radius",
       "type": "number"
-    },
-    "study_limit": {
-      "anyOf": [
-        {
-          "exclusiveMinimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Study Limit"
-    },
-    "atlas_names": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Atlas Names"
-    },
-    "atlas_configs": {
-      "additionalProperties": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Atlas Configs",
-      "type": "object"
-    },
-    "max_atlases": {
-      "anyOf": [
-        {
-          "exclusiveMinimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Max Atlases"
-    },
-    "image_model": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Image Model"
-    },
-    "gemini_api_key": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Gemini Api Key"
-    },
-    "openrouter_api_key": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Openrouter Api Key"
-    },
-    "openai_api_key": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Openai Api Key"
-    },
-    "anthropic_api_key": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Anthropic Api Key"
-    },
-    "huggingface_api_key": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Huggingface Api Key"
-    },
-    "providers": {
-      "additionalProperties": {
-        "additionalProperties": true,
-        "type": "object"
-      },
-      "title": "Providers",
-      "type": "object"
-    },
-    "summary_model": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Summary Model"
-    },
-    "prompt_type": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Prompt Type"
-    },
-    "custom_prompt": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Custom Prompt"
     },
     "summary_max_tokens": {
       "anyOf": [
@@ -379,6 +350,38 @@
       ],
       "default": null,
       "title": "Summary Max Tokens"
+    },
+    "summary_models": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary Models"
+    },
+    "use_cached_dataset": {
+      "default": true,
+      "title": "Use Cached Dataset",
+      "type": "boolean"
+    },
+    "working_directory": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Working Directory"
     }
   },
   "title": "Coord2RegionConfig",

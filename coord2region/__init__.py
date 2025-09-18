@@ -12,7 +12,7 @@ from .coord2region import (
 )
 from .fetching import AtlasFetcher
 from .utils.file_handler import AtlasFileHandler
-from .paths import get_data_directory
+from .paths import get_working_directory
 
 # coord2study utilities
 from .coord2study import (
@@ -43,7 +43,7 @@ __all__ = [
     "MultiAtlasMapper",
     "AtlasFetcher",
     "AtlasFileHandler",
-    "get_data_directory",
+    "get_working_directory",
     "fetch_datasets",
     "load_deduplicated_dataset",
     "deduplicate_datasets",

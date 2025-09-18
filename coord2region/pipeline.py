@@ -37,7 +37,7 @@ from .llm import (
     generate_summary_async,
 )
 from .ai_model_interface import AIModelInterface
-from .utils import resolve_data_dir
+from .utils import resolve_working_directory
 from .fetching import AtlasFetcher  # noqa: F401 - used by tests via patching
 
 
@@ -147,7 +147,7 @@ def run_pipeline(
     input_type: str,
     outputs: Sequence[str],
     output_format: Optional[str] = None,
-    output_path: Optional[str] = None,
+    output_name: Optional[str] = None,
     image_backend: str = "ai",
     *,
     config: Optional[Dict[str, Any]] = None,
@@ -170,10 +170,10 @@ def run_pipeline(
         ``input_type == "region_names"``.
     output_format : {"json", "pickle", "csv", "pdf", "directory"}, optional
         When provided, results are exported to the specified format.
-    output_path : str, optional
-        Target file or directory for ``output_format``. Relative paths are
-        resolved against the base data directory. Required when an
-        ``output_format`` is specified.
+    output_name : str, optional
+        File or directory name to use when exporting results. The name is
+        created inside the working directory's ``results`` subfolder.
+        Required when ``output_format`` is specified.
     image_backend : {"ai", "nilearn", "both"}, optional
         Backend used to generate images when ``"images"`` is requested.
         Defaults to ``"ai"``.
@@ -212,8 +212,8 @@ def run_pipeline(
             f"{sorted(valid_outputs)} for input_type='{input_type}'"
         )
 
-    if output_format and output_path is None:
-        raise ValueError("output_path must be provided when output_format is set")
+    if output_format and output_name is None:
+        raise ValueError("output_name must be provided when output_format is set")
 
     image_backend = image_backend.lower()
     if image_backend not in {"ai", "nilearn", "both"}:
@@ -226,7 +226,7 @@ def run_pipeline(
                 input_type,
                 outputs,
                 output_format,
-                output_path,
+                output_name,
                 image_backend=image_backend,
                 config=config,
                 progress_callback=progress_callback,
@@ -234,8 +234,11 @@ def run_pipeline(
         )
 
     kwargs = config or {}
-    study_radius = float(kwargs.get("study_radius", 0))
-    study_limit = kwargs.get("study_limit")
+    study_search_radius = float(kwargs.get("study_search_radius", 0))
+    region_radius_value = kwargs.get("region_search_radius")
+    region_search_radius = (
+        float(region_radius_value) if region_radius_value is not None else None
+    )
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
     summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
@@ -243,19 +246,21 @@ def run_pipeline(
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
 
-    base_dir = resolve_data_dir(kwargs.get("data_dir"))
-    base_dir.mkdir(parents=True, exist_ok=True)
-    cache_dir = base_dir / "cached_data"
-    image_dir = base_dir / "generated_images"
-    results_dir = base_dir / "results"
+    working_dir = resolve_working_directory(kwargs.get("working_directory"))
+    working_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = working_dir / "cached_data"
+    image_dir = working_dir / "generated_images"
+    results_dir = working_dir / "results"
     for p in (cache_dir, image_dir, results_dir):
         p.mkdir(parents=True, exist_ok=True)
 
-    if output_path is not None:
-        op = Path(output_path).expanduser()
-        if not op.is_absolute():
-            op = results_dir / op
-        output_path = str(op)
+    export_path: Optional[Path] = None
+    if output_format:
+        name_path = Path(cast(str, output_name))
+        if name_path.is_absolute() or any(part == ".." for part in name_path.parts):
+            message = "output_name must be a relative path within the working directory"
+            raise ValueError(message)
+        export_path = results_dir / name_path
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
@@ -269,7 +274,9 @@ def run_pipeline(
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = (
-        prepare_datasets(str(base_dir), sources=sources) if use_cached_dataset else None
+        prepare_datasets(str(working_dir), sources=sources)
+        if use_cached_dataset
+        else None
     )
     ai = None
     if provider_configs:
@@ -300,7 +307,7 @@ def run_pipeline(
             "At least one atlas name must be provided to run the pipeline."
         )
     try:
-        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(base_dir), atlas_dict)
+        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(working_dir), atlas_dict)
     except Exception as exc:  # pragma: no cover - defensive guard
         raise RuntimeError("Failed to initialize atlas mappers") from exc
 
@@ -352,7 +359,9 @@ def run_pipeline(
 
         if "region_labels" in outputs:
             try:
-                batch = multi_atlas.batch_mni_to_region_names([coord])
+                batch = multi_atlas.batch_mni_to_region_names(
+                    [coord], max_distance=region_search_radius
+                )
                 # Extract first match per atlas
                 res.region_labels = {
                     atlas: (names[0] if names else "Unknown")
@@ -366,14 +375,12 @@ def run_pipeline(
                 res.studies = get_studies_for_coordinate(
                     dataset,
                     coord,
-                    radius=study_radius,
+                    radius=study_search_radius,
                     email=email,
                     sources=sources,
                 )
             except Exception:
                 res.studies = []
-            if study_limit is not None and res.studies:
-                res.studies = res.studies[:study_limit]
 
         if "summaries" in outputs and ai and summary_models:
             for model_idx, model_name in enumerate(summary_models):
@@ -430,8 +437,8 @@ def run_pipeline(
         else:
             logging.info("Processed %d/%d inputs", len(results), len(inputs))
 
-    if output_format:
-        _export_results(results, output_format.lower(), cast(str, output_path))
+    if output_format and export_path is not None:
+        _export_results(results, output_format.lower(), str(export_path))
 
     return results
 
@@ -441,7 +448,7 @@ async def _run_pipeline_async(
     input_type: str,
     outputs: Sequence[str],
     output_format: Optional[str],
-    output_path: Optional[str],
+    output_name: Optional[str],
     image_backend: str,
     *,
     config: Optional[Dict[str, Any]],
@@ -449,8 +456,11 @@ async def _run_pipeline_async(
 ) -> List[PipelineResult]:
     """Asynchronous implementation backing :func:`run_pipeline`."""
     kwargs = config or {}
-    study_radius = float(kwargs.get("study_radius", 0))
-    study_limit = kwargs.get("study_limit")
+    study_search_radius = float(kwargs.get("study_search_radius", 0))
+    region_radius_value = kwargs.get("region_search_radius")
+    region_search_radius = (
+        float(region_radius_value) if region_radius_value is not None else None
+    )
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
     summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
@@ -458,19 +468,21 @@ async def _run_pipeline_async(
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
 
-    base_dir = resolve_data_dir(kwargs.get("data_dir"))
-    base_dir.mkdir(parents=True, exist_ok=True)
-    cache_dir = base_dir / "cached_data"
-    image_dir = base_dir / "generated_images"
-    results_dir = base_dir / "results"
+    working_dir = resolve_working_directory(kwargs.get("working_directory"))
+    working_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = working_dir / "cached_data"
+    image_dir = working_dir / "generated_images"
+    results_dir = working_dir / "results"
     for p in (cache_dir, image_dir, results_dir):
         p.mkdir(parents=True, exist_ok=True)
 
-    if output_path is not None:
-        op = Path(output_path).expanduser()
-        if not op.is_absolute():
-            op = results_dir / op
-        output_path = str(op)
+    export_path: Optional[Path] = None
+    if output_format:
+        name_path = Path(cast(str, output_name))
+        if name_path.is_absolute() or any(part == ".." for part in name_path.parts):
+            message = "output_name must be a relative path within the working directory"
+            raise ValueError(message)
+        export_path = results_dir / name_path
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
@@ -484,7 +496,7 @@ async def _run_pipeline_async(
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
 
     dataset = (
-        await asyncio.to_thread(prepare_datasets, str(base_dir), sources)
+        await asyncio.to_thread(prepare_datasets, str(working_dir), sources)
         if use_cached_dataset
         else None
     )
@@ -517,7 +529,7 @@ async def _run_pipeline_async(
             "At least one atlas name must be provided to run the pipeline."
         )
     try:
-        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(base_dir), atlas_dict)
+        multi_atlas: MultiAtlasMapper = MultiAtlasMapper(str(working_dir), atlas_dict)
     except Exception as exc:  # pragma: no cover - defensive guard
         raise RuntimeError("Failed to initialize atlas mappers") from exc
 
@@ -566,7 +578,9 @@ async def _run_pipeline_async(
         if "region_labels" in outputs:
             try:
                 batch = await asyncio.to_thread(
-                    multi_atlas.batch_mni_to_region_names, [coord]
+                    multi_atlas.batch_mni_to_region_names,
+                    [coord],
+                    max_distance=region_search_radius,
                 )
                 res.region_labels = {
                     atlas: (names[0] if names else "Unknown")
@@ -581,14 +595,12 @@ async def _run_pipeline_async(
                     get_studies_for_coordinate,
                     dataset,
                     coord,
-                    study_radius,
+                    study_search_radius,
                     email,
                     sources,
                 )
             except Exception:
                 res.studies = []
-            if study_limit is not None and res.studies:
-                res.studies = res.studies[:study_limit]
 
         if "summaries" in outputs and ai and summary_models:
             for model_idx, model_name in enumerate(summary_models):
@@ -665,12 +677,12 @@ async def _run_pipeline_async(
 
     final_results = [r for r in results if r is not None]
 
-    if output_format:
+    if output_format and export_path is not None:
         await asyncio.to_thread(
             _export_results,
             final_results,
             output_format.lower(),
-            cast(str, output_path),
+            str(export_path),
         )
 
     return final_results

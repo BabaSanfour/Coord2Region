@@ -1181,7 +1181,10 @@ class MultiAtlasMapper:
             self.mappers[name] = batch_mapper
 
     def batch_mni_to_region_names(
-        self, coords: Union[List[List[float]], np.ndarray]
+        self,
+        coords: Union[List[List[float]], np.ndarray],
+        max_distance: Optional[float] = None,
+        hemi: Optional[Union[List[int], int]] = None,
     ) -> Dict[str, List[str]]:
         """
         Convert a batch of MNI coordinates to region names for all atlases.
@@ -1190,7 +1193,9 @@ class MultiAtlasMapper:
         """
         results = {}
         for atlas_name, mapper in self.mappers.items():
-            results[atlas_name] = mapper.batch_mni_to_region_name(coords)
+            results[atlas_name] = mapper.batch_mni_to_region_name(
+                coords, max_distance=max_distance, hemi=hemi
+            )
         return results
 
     def batch_region_name_to_mni(

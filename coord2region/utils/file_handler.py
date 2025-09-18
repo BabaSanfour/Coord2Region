@@ -18,7 +18,7 @@ from fpdf import FPDF
 
 import mne
 from .utils import fetch_labels, pack_vol_output
-from .paths import resolve_data_dir
+from .paths import resolve_working_directory
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class AtlasFileHandler:
         --------
         >>> AtlasFileHandler()  # doctest: +SKIP
         """
-        base_dir = resolve_data_dir(data_dir)
+        base_dir = resolve_working_directory(data_dir)
         self.data_dir = str(base_dir)
 
         try:

@@ -116,8 +116,8 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
         kwargs["huggingface_api_key"] = args.huggingface_api_key
     if getattr(args, "image_model", None):
         kwargs["image_model"] = args.image_model
-    if getattr(args, "data_dir", None):
-        kwargs["data_dir"] = args.data_dir
+    if getattr(args, "working_directory", None):
+        kwargs["working_directory"] = args.working_directory
     if getattr(args, "email_for_abstracts", None):
         kwargs["email_for_abstracts"] = args.email_for_abstracts
     # Atlas selection
@@ -197,7 +197,7 @@ def _common_config_flags(cfg: dict) -> List[str]:
         "openai_api_key": "--openai-api-key",
         "anthropic_api_key": "--anthropic-api-key",
         "huggingface_api_key": "--huggingface-api-key",
-        "data_dir": "--data-dir",
+        "working_directory": "--working-directory",
         "email_for_abstracts": "--email-for-abstracts",
     }
     for key, flag in mapping.items():
@@ -301,8 +301,8 @@ def _commands_from_config(cfg: dict) -> List[str]:
     if include_export_flags:
         if cfg.get("output_format"):
             export_flags.extend(["--output-format", str(cfg["output_format"])])
-        if cfg.get("output_path"):
-            export_flags.extend(["--output-path", str(cfg["output_path"])])
+        if cfg.get("output_name"):
+            export_flags.extend(["--output-name", str(cfg["output_name"])])
 
     image_backend = cfg.get("image_backend")
 
@@ -381,9 +381,20 @@ def create_parser() -> argparse.ArgumentParser:
             choices=["json", "pickle", "csv", "pdf", "directory"],
             help="Export results to the chosen format",
         )
-        p.add_argument("--output-path", help="Target file or directory for outputs")
+        p.add_argument(
+            "--output-name",
+            dest="output_name",
+            help=(
+                "File or directory name for exported results "
+                "(stored under the working directory)"
+            ),
+        )
         p.add_argument("--batch-size", type=int, default=0, help="Batch size")
-        p.add_argument("--data-dir", help="Base data directory for caches/results")
+        p.add_argument(
+            "--working-directory",
+            dest="working_directory",
+            help="Base working directory for caches and outputs",
+        )
 
         # Datasets & atlas options
         p.add_argument(
@@ -477,7 +488,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "coords",
                 ["summaries"],
                 args.output_format,
-                args.output_path,
+                args.output_name,
                 config=kwargs,
             )
             _print_results(res)
@@ -494,7 +505,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "coords",
                 ["region_labels"],
                 args.output_format,
-                args.output_path,
+                args.output_name,
                 config=kwargs,
             )
             _print_results(res)
@@ -511,7 +522,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "coords",
                 ["images"],
                 args.output_format,
-                args.output_path,
+                args.output_name,
                 image_backend=getattr(args, "image_backend", "ai"),
                 config=kwargs,
             )
@@ -524,7 +535,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "region_names",
                 ["mni_coordinates"],
                 args.output_format,
-                args.output_path,
+                args.output_name,
                 config=kwargs,
             )
             _print_results(res)

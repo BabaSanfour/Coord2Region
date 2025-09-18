@@ -9,24 +9,23 @@ SPEC = importlib.util.spec_from_file_location(
 )
 paths = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(paths)
-resolve_data_dir = paths.resolve_data_dir
+resolve_working_directory = paths.resolve_working_directory
 
 
 @pytest.mark.unit
-def test_resolve_data_dir_absolute(tmp_path):
-    result = resolve_data_dir(str(tmp_path))
+def test_resolve_working_directory_absolute(tmp_path):
+    result = resolve_working_directory(str(tmp_path))
     assert result == tmp_path.resolve()
 
 
 @pytest.mark.unit
-def test_resolve_data_dir_relative(tmp_path, monkeypatch):
+def test_resolve_working_directory_relative(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    result = resolve_data_dir("relative")
+    result = resolve_working_directory("relative")
     assert result == (tmp_path / "relative").resolve()
 
 
 @pytest.mark.unit
-def test_resolve_data_dir_invalid():
+def test_resolve_working_directory_invalid():
     with pytest.raises(ValueError):
-        resolve_data_dir("invalid\x00path")
-
+        resolve_working_directory("invalid\x00path")

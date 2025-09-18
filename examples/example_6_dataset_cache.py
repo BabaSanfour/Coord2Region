@@ -12,25 +12,25 @@ import sys
 import requests
 
 from coord2region.coord2study import prepare_datasets
-from coord2region.paths import get_data_directory
+from coord2region.paths import get_working_directory
 
 
-# Use a custom data directory; the deduplicated dataset will be stored in
-# ``<data_dir>/cached_data`` alongside any downloaded atlases.
-data_dir = get_data_directory("coord2region_example")
+# Use a custom working directory; the deduplicated dataset will be stored in
+# ``<working_directory>/cached_data`` alongside any downloaded atlases.
+working_dir = get_working_directory("coord2region_example")
 
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("Using data directory: %s", data_dir)
+logger.info("Using working directory: %s", working_dir)
 
 
-def load_dataset(data_dir, sources, *, is_cached):
+def load_dataset(path, sources, *, is_cached):
     """Wrap :func:`prepare_datasets` with unified error handling and logging."""
 
     action = "loading cached dataset" if is_cached else "preparing datasets"
 
     try:
-        dataset = prepare_datasets(data_dir, sources=sources)
+        dataset = prepare_datasets(path, sources=sources)
     except requests.exceptions.RequestException as exc:
         logger.error("Failed to download datasets: %s", exc)
         sys.exit(1)
@@ -58,9 +58,8 @@ def load_dataset(data_dir, sources, *, is_cached):
     return dataset
 
 
-merged = load_dataset(data_dir, ["nidm_pain"], is_cached=False)
+merged = load_dataset(working_dir, ["nidm_pain"], is_cached=False)
 assert merged is not None
 
-merged_again = load_dataset(data_dir, ["nidm_pain"], is_cached=True)
+merged_again = load_dataset(working_dir, ["nidm_pain"], is_cached=True)
 assert merged_again is not None
-

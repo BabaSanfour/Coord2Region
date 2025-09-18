@@ -53,17 +53,17 @@ class Coord2RegionConfig(BaseModel):
         ]
     ] = Field(default_factory=list)
     output_format: Optional[Literal["json", "pickle", "csv", "pdf", "directory"]] = None
-    output_path: Optional[str] = None
+    output_name: Optional[str] = None
     image_backend: Literal["ai", "nilearn", "both"] = "ai"
     batch_size: conint(ge=0) = 0
 
-    data_dir: Optional[str] = None
+    working_directory: Optional[str] = None
     email_for_abstracts: Optional[str] = None
     use_cached_dataset: bool = True
     # unified sources control for dataset preparation and study search
     sources: Optional[List[str]] = None
-    study_radius: confloat(ge=0) = 0.0
-    study_limit: Optional[conint(gt=0)] = None
+    study_search_radius: confloat(ge=0) = 0.0
+    region_search_radius: Optional[confloat(ge=0)] = None
 
     atlas_names: Optional[List[str]] = None
     atlas_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
@@ -188,8 +188,8 @@ class Coord2RegionConfig(BaseModel):
                 "'mni_coordinates' output requires input_type='region_names'"
             )
 
-        if self.output_format and not self.output_path:
-            raise ValueError("output_path must be provided when output_format is set")
+        if self.output_format and not self.output_name:
+            raise ValueError("output_name must be provided when output_format is set")
 
         legacy_atlases = self._legacy_list("atlas_names") or []
         active_atlases = self.atlas_names or legacy_atlases
@@ -377,11 +377,14 @@ class Coord2RegionConfig(BaseModel):
                 config[key or field] = transform(getattr(self, field))
 
         override("use_cached_dataset")
-        override("study_radius", transform=lambda v: float(v))
-        override("data_dir")
+        override("study_search_radius", transform=lambda v: float(v))
+        override(
+            "region_search_radius",
+            transform=lambda v: float(v) if v is not None else v,
+        )
+        override("working_directory")
         override("email_for_abstracts")
         override("sources")
-        override("study_limit", transform=lambda v: int(v) if v is not None else v)
         override("atlas_names")
         override("image_model")
         override("providers")
@@ -418,7 +421,7 @@ class Coord2RegionConfig(BaseModel):
             "input_type": self.input_type,
             "outputs": self.outputs,
             "output_format": self.output_format,
-            "output_path": self.output_path,
+            "output_name": self.output_name,
             "image_backend": self.image_backend,
         }
 
