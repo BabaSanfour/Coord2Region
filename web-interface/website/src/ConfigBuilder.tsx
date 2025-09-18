@@ -239,6 +239,62 @@ const workingDirectoryProperty = (() => {
   return cloned;
 })();
 
+const outputNameProperty = (() => {
+  const property = schema.properties?.output_name;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const customPromptProperty = (() => {
+  const property = schema.properties?.custom_prompt;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const summaryModelsProperty = (() => {
+  const property = schema.properties?.summary_models;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const summaryMaxTokensProperty = (() => {
+  const property = schema.properties?.summary_max_tokens;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
 const builderKeys: string[] = [
   'input_type',
   'working_directory',
@@ -255,7 +311,6 @@ const builderKeys: string[] = [
   'custom_prompt',
   'summary_models',
   'summary_max_tokens',
-  'use_cached_dataset',
   'batch_size',
   'anthropic_api_key',
   'openai_api_key',
@@ -326,6 +381,22 @@ if (builderSchema.properties?.prompt_type && promptTypeProperty) {
 
 if (builderSchema.properties?.working_directory && workingDirectoryProperty) {
   builderSchema.properties.working_directory = workingDirectoryProperty;
+}
+
+if (builderSchema.properties?.output_name && outputNameProperty) {
+  builderSchema.properties.output_name = outputNameProperty;
+}
+
+if (builderSchema.properties?.custom_prompt && customPromptProperty) {
+  builderSchema.properties.custom_prompt = customPromptProperty;
+}
+
+if (builderSchema.properties?.summary_models && summaryModelsProperty) {
+  builderSchema.properties.summary_models = summaryModelsProperty;
+}
+
+if (builderSchema.properties?.summary_max_tokens && summaryMaxTokensProperty) {
+    builderSchema.properties.summary_max_tokens = summaryMaxTokensProperty;
 }
 
 const tooltipFromSchema = (key: string): string | undefined => {
@@ -755,6 +826,23 @@ const ConfigBuilder = () => {
       ? (defaults as any).sources
       : [];
     defaults.working_directory = typeof defaults.working_directory === 'string' ? defaults.working_directory : '';
+    defaults.output_name = typeof defaults.output_name === 'string' ? defaults.output_name : '';
+    defaults.custom_prompt = typeof defaults.custom_prompt === 'string' ? defaults.custom_prompt : '';
+    defaults.summary_models = typeof defaults.summary_models === 'string'
+      ? defaults.summary_models
+      : Array.isArray(defaults.summary_models) && defaults.summary_models.length > 0
+        ? defaults.summary_models[0] as string
+        : '';
+    defaults.summary_max_tokens = typeof defaults.summary_max_tokens === 'number'
+      ? defaults.summary_max_tokens.toString()
+      : typeof defaults.summary_max_tokens === 'string'
+        ? defaults.summary_max_tokens
+        : '';
+    defaults.region_search_radius = typeof defaults.region_search_radius === 'number'
+      ? defaults.region_search_radius.toString()
+      : typeof defaults.region_search_radius === 'string'
+        ? defaults.region_search_radius
+        : '';
     defaults.prompt_type = typeof (defaults as any).prompt_type === 'string'
       ? (defaults as any).prompt_type
       : 'summary';
@@ -828,6 +916,11 @@ const ConfigBuilder = () => {
         'ui:emptyValue': null,
         'ui:placeholder': '/path/to/working-directory'
       },
+      output_name: {
+        'ui:widget': 'text',
+        'ui:emptyValue': null,
+        'ui:placeholder': 'results.json'
+      },
       sources: {
         'ui:widget': 'checkboxes'
       },
@@ -844,14 +937,26 @@ const ConfigBuilder = () => {
       studies: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_sources: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_search_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
-      region_search_radius: {},
+      region_search_radius: {
+        'ui:widget': 'text',
+        'ui:options': { inputType: 'text' },
+        'ui:placeholder': '0.4',
+        'ui:emptyValue': ''
+      },
       prompt_type: enableSummary
         ? { 'ui:field': 'promptTypeField' }
         : { 'ui:widget': 'hidden' },
       summary_models: enableSummary
         ? { 'ui:field': 'summaryModelField' }
         : { 'ui:widget': 'hidden' },
-      summary_max_tokens: enableSummary ? {} : { 'ui:widget': 'hidden' },
+      summary_max_tokens: enableSummary
+        ? {
+            'ui:widget': 'text',
+            'ui:options': { inputType: 'text' },
+            'ui:placeholder': '1000',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
       custom_prompt: enableSummary
         ? { 'ui:field': 'customPromptField' }
         : { 'ui:widget': 'hidden' },
@@ -984,6 +1089,33 @@ const ConfigBuilder = () => {
       }
       if (payload.prompt_type !== 'custom') {
         payload.custom_prompt = null;
+      }
+    }
+
+    if (typeof payload.summary_models === 'string') {
+      const trimmed = payload.summary_models.trim();
+      payload.summary_models = trimmed ? [trimmed] : null;
+    }
+
+    const summaryTokenValue = payload.summary_max_tokens;
+    if (typeof summaryTokenValue === 'string') {
+      const trimmed = summaryTokenValue.trim();
+      if (!trimmed) {
+        payload.summary_max_tokens = null;
+      } else {
+        const parsed = Number(trimmed);
+        payload.summary_max_tokens = Number.isFinite(parsed) ? Math.floor(parsed) : null;
+      }
+    }
+
+    const radiusValue = payload.region_search_radius;
+    if (typeof radiusValue === 'string') {
+      const trimmed = radiusValue.trim();
+      if (!trimmed) {
+        payload.region_search_radius = null;
+      } else {
+        const parsed = Number(trimmed);
+        payload.region_search_radius = Number.isFinite(parsed) ? parsed : null;
       }
     }
 

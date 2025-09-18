@@ -305,16 +305,9 @@
       "title": "Region Names"
     },
     "region_search_radius": {
-      "anyOf": [
-        {
-          "minimum": 0,
-          "type": "number"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
       "title": "Region Search Radius"
     },
     "sources": {
@@ -339,16 +332,9 @@
       "type": "number"
     },
     "summary_max_tokens": {
-      "anyOf": [
-        {
-          "exclusiveMinimum": 0,
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "type": "integer",
+      "minimum": 1,
+      "default": 1000,
       "title": "Summary Max Tokens"
     },
     "summary_models": {
