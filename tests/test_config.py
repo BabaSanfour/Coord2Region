@@ -15,7 +15,8 @@ def test_config_inline_coordinates_valid():
             "study_radius": 6,
             "summary_model": "custom",
             "summary_max_tokens": 256,
-            "summary_cache_size": 1,
+            "prompt_type": "custom",
+            "custom_prompt": "Prompt for {coord}",
             "providers": {},
         }
     )
@@ -30,7 +31,8 @@ def test_config_inline_coordinates_valid():
     assert runtime["config"]["study_radius"] == 6.0
     assert runtime["config"]["summary_model"] == "custom"
     assert runtime["config"]["summary_max_tokens"] == 256
-    assert runtime["config"]["summary_cache_size"] == 1
+    assert runtime["config"]["prompt_type"] == "custom"
+    assert runtime["config"]["custom_prompt"] == "Prompt for {coord}"
 
 
 def test_config_coordinates_file_loader_invoked(tmp_path):

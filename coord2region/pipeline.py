@@ -205,10 +205,9 @@ def run_pipeline(
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
     summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
-    summary_type = kwargs.get("summary_type", "summary")
-    summary_prompt_template = kwargs.get("summary_prompt_template")
+    prompt_type = kwargs.get("prompt_type") or "summary"
+    custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
-    summary_cache_size = kwargs.get("summary_cache_size", 128)
 
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -347,12 +346,11 @@ def run_pipeline(
                 ai,
                 res.studies,
                 coord,
-                summary_type=summary_type,
+                prompt_type=prompt_type,
                 model=summary_model,
                 atlas_labels=res.region_labels or None,
-                prompt_template=summary_prompt_template,
+                custom_prompt=custom_prompt if prompt_type == "custom" else None,
                 max_tokens=summary_max_tokens,
-                cache_size=summary_cache_size,
             )
 
         if "images" in outputs:
@@ -418,10 +416,9 @@ async def _run_pipeline_async(
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
     summary_model = kwargs.get("summary_model", "gemini-2.0-flash")
-    summary_type = kwargs.get("summary_type", "summary")
-    summary_prompt_template = kwargs.get("summary_prompt_template")
+    prompt_type = kwargs.get("prompt_type") or "summary"
+    custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
-    summary_cache_size = kwargs.get("summary_cache_size", 128)
 
     base_dir = resolve_data_dir(kwargs.get("data_dir"))
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -560,12 +557,11 @@ async def _run_pipeline_async(
                 ai,
                 res.studies,
                 coord,
-                summary_type=summary_type,
+                prompt_type=prompt_type,
                 model=summary_model,
                 atlas_labels=res.region_labels or None,
-                prompt_template=summary_prompt_template,
+                custom_prompt=custom_prompt if prompt_type == "custom" else None,
                 max_tokens=summary_max_tokens,
-                cache_size=summary_cache_size,
             )
 
         if "images" in outputs:

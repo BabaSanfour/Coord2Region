@@ -79,10 +79,9 @@ class Coord2RegionConfig(BaseModel):
     providers: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
     summary_model: Optional[str] = None
-    summary_type: Optional[str] = None
-    summary_prompt_template: Optional[str] = None
+    prompt_type: Optional[str] = None
+    custom_prompt: Optional[str] = None
     summary_max_tokens: Optional[conint(gt=0)] = None
-    summary_cache_size: Optional[conint(ge=0)] = None
 
     @field_validator("outputs", mode="before")
     @classmethod
@@ -374,18 +373,12 @@ class Coord2RegionConfig(BaseModel):
                 config[key] = getattr(self, key)
 
         override("summary_model")
-        override("summary_type")
-        override("summary_prompt_template")
+        override("prompt_type")
+        override("custom_prompt")
         if "summary_max_tokens" in fields_set:
             config["summary_max_tokens"] = (
                 int(self.summary_max_tokens)
                 if self.summary_max_tokens is not None
-                else None
-            )
-        if "summary_cache_size" in fields_set:
-            config["summary_cache_size"] = (
-                int(self.summary_cache_size)
-                if self.summary_cache_size is not None
                 else None
             )
 

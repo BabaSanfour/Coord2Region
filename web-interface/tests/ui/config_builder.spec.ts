@@ -102,6 +102,7 @@ test.describe('Coord2Region Config Builder', () => {
     await summaryCardButton.click();
     await expect(summaryCardButton).toHaveClass(/toggle--active/);
     await expect(yamlOutput).not.toContainText('summary_model');
+    await expect(yamlOutput).toContainText('prompt_type: summary');
 
     const fileRadio = page.getByRole('radio', { name: 'Use coordinate file' });
     await fileRadio.click();

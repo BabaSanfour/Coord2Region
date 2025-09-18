@@ -79,10 +79,9 @@ def test_pipeline_study_config_controls(
             "study_limit": 1,
             "sources": ["Mock"],
             "summary_model": "custom-model",
-            "summary_type": "detailed",
-            "summary_prompt_template": "Prompt",
+            "prompt_type": "custom",
+            "custom_prompt": "Prompt",
             "summary_max_tokens": 42,
-            "summary_cache_size": 2,
         },
     )
 
@@ -93,10 +92,9 @@ def test_pipeline_study_config_controls(
 
     _, summary_kwargs = mock_summary.call_args
     assert summary_kwargs["model"] == "custom-model"
-    assert summary_kwargs["summary_type"] == "detailed"
-    assert summary_kwargs["prompt_template"] == "Prompt"
+    assert summary_kwargs["prompt_type"] == "custom"
+    assert summary_kwargs["custom_prompt"] == "Prompt"
     assert summary_kwargs["max_tokens"] == 42
-    assert summary_kwargs["cache_size"] == 2
 
 
 @pytest.mark.unit

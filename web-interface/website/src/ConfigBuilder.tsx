@@ -124,6 +124,27 @@ const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const datasetSourceOptions = ["neurosynth", "neuroquery", "nidm_pain"] as const;
 const outputFormatOptions = ["json", "pickle", "csv", "pdf", "directory"] as const;
+type SelectOption = { value: string; label: string };
+
+const summaryModelOptions: ReadonlyArray<SelectOption> = [
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Google)' },
+  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Google)' },
+  { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro (Google)' },
+  { value: 'claude-3-haiku', label: 'Claude 3 Haiku (Anthropic)' },
+  { value: 'claude-3-opus', label: 'Claude 3 Opus (Anthropic)' },
+  { value: 'deepseek-r1', label: 'DeepSeek R1 (OpenRouter)' },
+  { value: 'deepseek-chat-v3-0324', label: 'DeepSeek Chat v3 (OpenRouter)' },
+  { value: 'gpt-4', label: 'GPT-4 (OpenAI)' },
+  { value: 'distilgpt2', label: 'distilgpt2 (Hugging Face)' }
+];
+
+const promptTypeOptions: ReadonlyArray<SelectOption> = [
+  { value: 'summary', label: 'Integrated summary' },
+  { value: 'region_name', label: 'Region name focus' },
+  { value: 'function', label: 'Functional profile' },
+  { value: 'custom', label: 'Custom prompt' }
+];
+
 
 const atlasProperty = (() => {
   const property = schema.properties?.atlas_names;
@@ -189,6 +210,21 @@ const outputFormatProperty = (() => {
   return cloned as RJSFSchema;
 })();
 
+const promptTypeProperty = (() => {
+  const property = schema.properties?.prompt_type;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema & { enum?: Array<string | null> };
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  cloned.enum = promptTypeOptions.map((option) => option.value);
+  if (!cloned.default) {
+    cloned.default = 'summary';
+  }
+  return cloned as RJSFSchema;
+})();
+
 const dataDirProperty = (() => {
   const property = schema.properties?.data_dir;
   if (!property || typeof property !== 'object') {
@@ -215,11 +251,10 @@ const builderKeys: string[] = [
   'study_sources',
   'study_radius',
   'study_limit',
-  'summary_type',
+  'prompt_type',
   'summary_model',
   'summary_max_tokens',
-  'summary_cache_size',
-  'summary_prompt_template',
+  'custom_prompt',
   'use_cached_dataset',
   'batch_size',
   'anthropic_api_key',
@@ -283,6 +318,10 @@ if (builderSchema.properties?.sources && sourcesProperty) {
 
 if (builderSchema.properties?.output_format && outputFormatProperty) {
   builderSchema.properties.output_format = outputFormatProperty;
+}
+
+if (builderSchema.properties?.prompt_type && promptTypeProperty) {
+  builderSchema.properties.prompt_type = promptTypeProperty;
 }
 
 if (builderSchema.properties?.data_dir && dataDirProperty) {
@@ -528,16 +567,51 @@ const AtlasMultiSelect = (props: WidgetProps) => {
 const SummaryModelField = ({ formData, onChange, idSchema }: FieldProps) => {
   const value = typeof formData === 'string' ? formData : '';
   const inputId = idSchema?.$id ?? 'summary-model';
+  const listId = `${inputId}-options`;
+
   return (
     <div className="form-field">
       <label className="field-label" htmlFor={inputId}>Summary Model</label>
       <input
         id={inputId}
         type="text"
+        list={listId}
         value={value}
-        placeholder="e.g. gpt-4o"
+        placeholder="Start typing or pick a model"
         onChange={(event) => onChange(event.target.value || null)}
       />
+      <datalist id={listId}>
+        {summaryModelOptions.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </datalist>
+      <p className="helper">
+        Choose a registered model or enter another identifier supported by your providers.
+      </p>
+    </div>
+  );
+};
+
+const PromptTypeField = ({ formData, onChange, idSchema }: FieldProps) => {
+  const value = typeof formData === 'string' && formData ? formData : 'summary';
+  const inputId = idSchema?.$id ?? 'prompt-type';
+  return (
+    <div className="form-field">
+      <label className="field-label" htmlFor={inputId}>Prompt Type</label>
+      <select
+        id={inputId}
+        value={value}
+        onChange={(event) => onChange(event.target.value || null)}
+      >
+        {promptTypeOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <p className="helper">
+        Select a template for generated summaries. Choose “Custom prompt” to provide your own wording below.
+      </p>
     </div>
   );
 };
@@ -574,6 +648,7 @@ const widgets = {
 
 const fields = {
   summaryModelField: SummaryModelField,
+  promptTypeField: PromptTypeField,
   outputFormatField: OutputFormatField
 };
 
@@ -653,6 +728,14 @@ const ConfigBuilder = () => {
       ? (defaults as any).sources
       : [];
     defaults.data_dir = typeof defaults.data_dir === 'string' ? defaults.data_dir : '';
+    defaults.prompt_type = typeof (defaults as any).prompt_type === 'string'
+      ? (defaults as any).prompt_type
+      : 'summary';
+    if (defaults.prompt_type !== 'custom') {
+      defaults.custom_prompt = null;
+    } else if (typeof defaults.custom_prompt !== 'string') {
+      defaults.custom_prompt = '';
+    }
 
     const inferredInputType: InputMode = (() => {
       if (typeof defaults.input_type === 'string') {
@@ -686,6 +769,9 @@ const ConfigBuilder = () => {
   const [cliCopied, setCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const [formData, setFormData] = useState<FormState>(() => initialState.defaults);
+  const promptType = typeof formData.prompt_type === 'string' && formData.prompt_type
+    ? (formData.prompt_type as string)
+    : 'summary';
 
   const { coords, errors: coordErrors } = useMemo(
     () => parseCoordinateText(coordinateText),
@@ -726,16 +812,24 @@ const ConfigBuilder = () => {
       study_sources: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_limit: enableStudy ? {} : { 'ui:widget': 'hidden' },
-      summary_type: enableSummary ? {} : { 'ui:widget': 'hidden' },
+      prompt_type: enableSummary
+        ? { 'ui:field': 'promptTypeField' }
+        : { 'ui:widget': 'hidden' },
       summary_model: enableSummary
         ? { 'ui:field': 'summaryModelField' }
         : { 'ui:widget': 'hidden' },
       summary_max_tokens: enableSummary ? {} : { 'ui:widget': 'hidden' },
-      summary_cache_size: enableSummary ? {} : { 'ui:widget': 'hidden' },
-      summary_prompt_template: enableSummary ? {} : { 'ui:widget': 'hidden' },
+      custom_prompt: enableSummary && promptType === 'custom'
+        ? {
+            'ui:widget': 'textarea',
+            'ui:options': { rows: 6 },
+            'ui:help': 'Include {coord} for the coordinate and {studies} for the study list. The builder fills these placeholders before sending the prompt.',
+            'ui:placeholder': 'You are an expert neuroscientist...'
+          }
+        : { 'ui:widget': 'hidden' },
       input_type: { 'ui:widget': 'hidden' }
     }),
-    [enableStudy, enableSummary]
+    [enableStudy, enableSummary, promptType]
   );
 
   const handleInputModeChange = (nextMode: InputMode) => {
@@ -756,7 +850,7 @@ const ConfigBuilder = () => {
 
   const handleFormChange = useCallback(
     (event: IChangeEvent<FormState>) => {
-      const next = event.formData as FormState;
+      const next = { ...(event.formData as FormState) };
       let normalizedMode: InputMode = inputMode;
       if (typeof next.input_type === 'string') {
         normalizedMode = next.input_type === 'region_names' ? 'region_names' : 'coords';
@@ -764,7 +858,20 @@ const ConfigBuilder = () => {
           setInputMode(normalizedMode);
         }
       }
-      setFormData({ ...next, input_type: normalizedMode });
+      const normalizedPromptType =
+        typeof next.prompt_type === 'string' && next.prompt_type
+          ? (next.prompt_type as string)
+          : 'summary';
+      if (normalizedPromptType !== 'custom') {
+        next.custom_prompt = null;
+      } else if (typeof next.custom_prompt !== 'string') {
+        next.custom_prompt = '';
+      }
+      setFormData({
+        ...next,
+        input_type: normalizedMode,
+        prompt_type: normalizedPromptType
+      });
     },
     [inputMode]
   );
@@ -794,11 +901,17 @@ const ConfigBuilder = () => {
       setFormData((current) => {
         const updated = { ...current };
         if (!next) {
-          updated.summary_type = null;
+          updated.prompt_type = null;
           updated.summary_model = null;
           updated.summary_max_tokens = null;
-          updated.summary_cache_size = null;
-          updated.summary_prompt_template = null;
+          updated.custom_prompt = null;
+        } else {
+          if (typeof updated.prompt_type !== 'string' || !updated.prompt_type) {
+            updated.prompt_type = 'summary';
+          }
+          if (updated.prompt_type !== 'custom') {
+            updated.custom_prompt = null;
+          }
         }
         return updated;
       });
@@ -831,11 +944,12 @@ const ConfigBuilder = () => {
     }
 
     if (!enableSummary) {
-      payload.summary_type = null;
+      payload.prompt_type = null;
       payload.summary_model = null;
       payload.summary_max_tokens = null;
-      payload.summary_cache_size = null;
-      payload.summary_prompt_template = null;
+      payload.custom_prompt = null;
+    } else if (payload.prompt_type !== 'custom') {
+      payload.custom_prompt = null;
     }
 
     const atlasConfigs = deriveAtlasConfigs(formData.atlas_names);
