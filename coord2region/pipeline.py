@@ -49,6 +49,9 @@ class PipelineResult:
     ----------
     coordinate : Optional[List[float]]
         Coordinate associated with this result (if available).
+    mni_coordinates : Optional[List[float]]
+        Representative MNI coordinate resolved from region name inputs when
+        requested via ``outputs``.
     region_labels : Dict[str, str]
         Atlas region labels keyed by atlas name.
     summary : Optional[str]
@@ -60,14 +63,18 @@ class PipelineResult:
         compatibility).
     images : Dict[str, str]
         Mapping of image backend names to generated image paths.
+    warnings : List[str]
+        Non-fatal issues encountered while processing the input item.
     """
 
     coordinate: Optional[List[float]] = None
+    mni_coordinates: Optional[List[float]] = None
     region_labels: Dict[str, str] = field(default_factory=dict)
     summary: Optional[str] = None
     studies: List[Dict[str, Any]] = field(default_factory=list)
     image: Optional[str] = None
     images: Dict[str, str] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
 
 
 def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
@@ -123,8 +130,11 @@ def run_pipeline(
         ``input_type``.
     input_type : {"coords", "region_names", "studies"}
         Specifies how to treat ``inputs``.
-    outputs : sequence of {"region_labels", "summaries", "images", "raw_studies"}
+    outputs : sequence of
+        {"region_labels", "summaries", "images", "raw_studies", "mni_coordinates"}
         Requested pieces of information for each input item.
+        The ``"mni_coordinates"`` option is only supported when
+        ``input_type == "region_names"``.
     output_format : {"json", "pickle", "csv", "pdf", "directory"}, optional
         When provided, results are exported to the specified format.
     output_path : str, optional
@@ -157,9 +167,17 @@ def run_pipeline(
         raise ValueError("input_type must be 'coords', 'region_names' or 'studies'")
 
     outputs = [o.lower() for o in outputs]
-    valid_outputs = {"region_labels", "summaries", "images", "raw_studies"}
-    if any(o not in valid_outputs for o in outputs):
-        raise ValueError(f"outputs must be a subset of {valid_outputs}")
+    base_outputs = {"region_labels", "summaries", "images", "raw_studies"}
+    valid_outputs = set(base_outputs)
+    if input_type == "region_names":
+        valid_outputs.add("mni_coordinates")
+
+    invalid_outputs = sorted(set(outputs) - valid_outputs)
+    if invalid_outputs:
+        raise ValueError(
+            "outputs must be a subset of "
+            f"{sorted(valid_outputs)} for input_type='{input_type}'"
+        )
 
     if output_format and output_path is None:
         raise ValueError("output_path must be provided when output_format is set")
@@ -271,14 +289,18 @@ def run_pipeline(
     results: List[PipelineResult] = []
 
     for item in inputs:
+        region_name_input: Optional[str] = None
         if input_type == "coords":
             coord = list(item) if item is not None else None
         elif input_type == "region_names":
-            coord = _from_region_name(str(item))
+            region_name_input = str(item)
+            coord = _from_region_name(region_name_input)
         else:  # "studies"
             coord = None
 
         res = PipelineResult(coordinate=coord)
+        if coord is not None and "mni_coordinates" in outputs:
+            res.mni_coordinates = list(coord)
 
         if input_type == "studies":
             if "raw_studies" in outputs:
@@ -302,6 +324,13 @@ def run_pipeline(
             continue
 
         if coord is None:
+            if region_name_input is not None:
+                message = (
+                    "Region '{name}' could not be resolved to coordinates "
+                    "with the configured atlases."
+                ).format(name=region_name_input)
+                logging.warning(message)
+                res.warnings.append(message)
             results.append(res)
             if progress_callback:
                 progress_callback(len(results), len(inputs), res)
@@ -494,14 +523,18 @@ async def _run_pipeline_async(
     results: List[Optional[PipelineResult]] = [None] * total
 
     async def _process(idx: int, item: Any) -> Tuple[int, PipelineResult]:
+        region_name_input: Optional[str] = None
         if input_type == "coords":
             coord = list(item) if item is not None else None
         elif input_type == "region_names":
-            coord = await asyncio.to_thread(_from_region_name, str(item))
+            region_name_input = str(item)
+            coord = await asyncio.to_thread(_from_region_name, region_name_input)
         else:  # "studies"
             coord = None
 
         res = PipelineResult(coordinate=coord)
+        if coord is not None and "mni_coordinates" in outputs:
+            res.mni_coordinates = list(coord)
 
         if input_type == "studies":
             if "raw_studies" in outputs:
@@ -520,6 +553,13 @@ async def _run_pipeline_async(
             return idx, res
 
         if coord is None:
+            if region_name_input is not None:
+                message = (
+                    "Region '{name}' could not be resolved to coordinates "
+                    "with the configured atlases."
+                ).format(name=region_name_input)
+                logging.warning(message)
+                res.warnings.append(message)
             return idx, res
 
         if "region_labels" in outputs:

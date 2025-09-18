@@ -40,6 +40,7 @@ def test_schema_matches_model_definition() -> None:
         "summaries",
         "images",
         "raw_studies",
+        "mni_coordinates",
     ]
     assert props["image_backend"]["enum"] == ["ai", "nilearn", "both"]
     assert props["batch_size"]["minimum"] == 0

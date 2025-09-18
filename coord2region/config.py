@@ -47,9 +47,11 @@ class Coord2RegionConfig(BaseModel):
     studies: Optional[List[Any]] = None
     legacy_config: Optional[Dict[str, Any]] = Field(default=None, alias="config")
 
-    outputs: List[Literal["region_labels", "summaries", "images", "raw_studies"]] = (
-        Field(default_factory=list)
-    )
+    outputs: List[
+        Literal[
+            "region_labels", "summaries", "images", "raw_studies", "mni_coordinates"
+        ]
+    ] = Field(default_factory=list)
     output_format: Optional[Literal["json", "pickle", "csv", "pdf", "directory"]] = None
     output_path: Optional[str] = None
     image_backend: Literal["ai", "nilearn", "both"] = "ai"
@@ -160,6 +162,11 @@ class Coord2RegionConfig(BaseModel):
     def _validate_model(self) -> "Coord2RegionConfig":
         if not self.outputs:
             raise ValueError("At least one output must be specified")
+
+        if "mni_coordinates" in self.outputs and self.input_type != "region_names":
+            raise ValueError(
+                "'mni_coordinates' output requires input_type='region_names'"
+            )
 
         if self.output_format and not self.output_path:
             raise ValueError("output_path must be provided when output_format is set")

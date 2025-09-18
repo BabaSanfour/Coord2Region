@@ -99,6 +99,19 @@ def test_config_region_inputs_from_legacy_field():
     assert inputs == ["Region A", "Region B"]
 
 
+def test_config_region_names_mni_coordinates_output():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "region_names",
+            "region_names": ["Region"],
+            "outputs": ["mni_coordinates"],
+        }
+    )
+    assert cfg.outputs == ["mni_coordinates"]
+    inputs = cfg.collect_inputs(load_coords_file=lambda _: [])
+    assert inputs == ["Region"]
+
+
 def test_config_coordinates_from_string_inputs():
     cfg = Coord2RegionConfig.model_validate(
         {
@@ -151,5 +164,16 @@ def test_config_max_atlases_checks_legacy():
                 "outputs": ["region_labels"],
                 "max_atlases": 1,
                 "config": {"atlas_names": ["aal", "juelich"]},
+            }
+        )
+
+
+def test_config_mni_coordinates_requires_region_names():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "coords",
+                "coordinates": [[0, 0, 0]],
+                "outputs": ["mni_coordinates"],
             }
         )

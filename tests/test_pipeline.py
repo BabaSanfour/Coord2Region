@@ -519,6 +519,71 @@ def test_run_pipeline_region_names_to_coords(
 
 
 @pytest.mark.unit
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_region_names_mni_only(mock_multi, tmp_path):
+    class DummyMulti:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def batch_region_name_to_mni(self, names):
+            assert names == ["Region"]
+            return {"custom": [np.array([4.0, 5.0, 6.0])]}
+
+        def batch_mni_to_region_names(self, _coords):
+            raise AssertionError("region lookup should not occur when only MNI requested")
+
+    mock_multi.side_effect = lambda *a, **k: DummyMulti()
+
+    results = run_pipeline(
+        inputs=["Region"],
+        input_type="region_names",
+        outputs=["mni_coordinates"],
+        config={
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+        },
+    )
+
+    res = results[0]
+    assert res.coordinate == [4.0, 5.0, 6.0]
+    assert res.mni_coordinates == [4.0, 5.0, 6.0]
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.MultiAtlasMapper")
+def test_run_pipeline_region_names_missing_warning(mock_multi, tmp_path):
+    class DummyMulti:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def batch_region_name_to_mni(self, names):
+            assert names == ["Missing"]
+            return {"custom": []}
+
+        def batch_mni_to_region_names(self, _coords):  # pragma: no cover - defensive
+            raise AssertionError("Should not look up region names when coordinate missing")
+
+    mock_multi.side_effect = lambda *a, **k: DummyMulti()
+
+    results = run_pipeline(
+        inputs=["Missing"],
+        input_type="region_names",
+        outputs=["mni_coordinates"],
+        config={
+            "use_cached_dataset": False,
+            "data_dir": str(tmp_path),
+        },
+    )
+
+    res = results[0]
+    assert res.coordinate is None
+    assert res.mni_coordinates is None
+    assert res.warnings == [
+        "Region 'Missing' could not be resolved to coordinates with the configured atlases."
+    ]
+
+
+@pytest.mark.unit
 @patch("coord2region.pipeline.save_as_csv")
 @patch("coord2region.pipeline.MultiAtlasMapper")
 def test_run_pipeline_relative_output_path(mock_multi, mock_save_csv, tmp_path):

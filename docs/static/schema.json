@@ -277,7 +277,8 @@
           "region_labels",
           "summaries",
           "images",
-          "raw_studies"
+          "raw_studies",
+          "mni_coordinates"
         ],
         "type": "string"
       },

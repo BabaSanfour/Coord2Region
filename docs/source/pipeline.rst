@@ -15,8 +15,8 @@ Supported use cases
   language‑model summary.
 * **Coordinates to images** – create an illustrative image for the queried
   coordinate.
-* **Region names to coordinates** – retrieve representative coordinates for a
-  given anatomical label.
+* **Region names to coordinates** – retrieve representative MNI coordinates for
+  a given anatomical label (use the ``mni_coordinates`` output).
 * **Batch processing and exporting** – process many items at once and export the
   results as JSON, pickle, CSV, PDF or a directory of files.
 
@@ -41,6 +41,11 @@ image while saving the results to a PDF file:
 
     print(results[0].summary)
     print("Image saved to", results[0].image)
+
+Each :class:`coord2region.pipeline.PipelineResult` also exposes a ``warnings``
+list. When a region name cannot be mapped to any configured atlas, the pipeline
+records an explanatory warning instead of failing, allowing you to surface the
+issue to end users.
 
 AI-generated images are watermarked by default with the text
 ``"AI approximation for illustrative purposes"``. To produce an image without
@@ -82,7 +87,7 @@ via ``--coords-file``.
     # Load many coordinates from a file
     coord2region coords-to-atlas --coords-file path/to/coords.csv --output-format csv --output-path results.csv
 
-    # Convert a region name to an example coordinate
+    # Convert a region name to an example coordinate (field 'mni_coordinates')
     coord2region region-to-coords "Amygdala"
 
 Common options:

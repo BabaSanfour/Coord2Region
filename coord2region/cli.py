@@ -522,7 +522,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             res = run_pipeline(
                 batch,
                 "region_names",
-                [],
+                ["mni_coordinates"],
                 args.output_format,
                 args.output_path,
                 config=kwargs,
