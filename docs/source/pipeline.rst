@@ -47,6 +47,10 @@ list. When a region name cannot be mapped to any configured atlas, the pipeline
 records an explanatory warning instead of failing, allowing you to surface the
 issue to end users.
 
+The ``output_name`` argument is a simple filename or directory name without
+path separators. It is automatically created inside the ``results`` subfolder
+of the working directory.
+
 AI-generated images are watermarked by default with the text
 ``"AI approximation for illustrative purposes"``. To produce an image without
 the watermark, call :func:`coord2region.llm.generate_region_image` with

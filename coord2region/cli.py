@@ -385,8 +385,8 @@ def create_parser() -> argparse.ArgumentParser:
             "--output-name",
             dest="output_name",
             help=(
-                "File or directory name for exported results "
-                "(stored under the working directory)"
+                "File or directory name without path separators for exported "
+                "results stored under the working directory"
             ),
         )
         p.add_argument("--batch-size", type=int, default=0, help="Batch size")

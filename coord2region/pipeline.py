@@ -256,11 +256,15 @@ def run_pipeline(
 
     export_path: Optional[Path] = None
     if output_format:
-        name_path = Path(cast(str, output_name))
-        if name_path.is_absolute() or any(part == ".." for part in name_path.parts):
-            message = "output_name must be a relative path within the working directory"
+        output_label = cast(str, output_name)
+        name_path = Path(output_label)
+        if not output_label or name_path.name != output_label:
+            message = (
+                "output_name must be a single file or directory name without path"
+                " separators"
+            )
             raise ValueError(message)
-        export_path = results_dir / name_path
+        export_path = results_dir / output_label
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)
@@ -478,11 +482,15 @@ async def _run_pipeline_async(
 
     export_path: Optional[Path] = None
     if output_format:
-        name_path = Path(cast(str, output_name))
-        if name_path.is_absolute() or any(part == ".." for part in name_path.parts):
-            message = "output_name must be a relative path within the working directory"
+        output_label = cast(str, output_name)
+        name_path = Path(output_label)
+        if not output_label or name_path.name != output_label:
+            message = (
+                "output_name must be a single file or directory name without path"
+                " separators"
+            )
             raise ValueError(message)
-        export_path = results_dir / name_path
+        export_path = results_dir / output_label
 
     email = kwargs.get("email_for_abstracts")
     use_cached_dataset = kwargs.get("use_cached_dataset", True)

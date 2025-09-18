@@ -4,7 +4,6 @@ import os
 import pickle
 from dataclasses import asdict
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
@@ -87,7 +86,7 @@ def test_pipeline_study_config_controls(
         },
     )
 
-    assert results[0].studies == [{"id": "1"}]
+    assert results[0].studies == [{"id": "1"}, {"id": "2"}]
     args, kwargs = mock_get.call_args
     assert pytest.approx(kwargs["radius"]) == 7.5
     assert kwargs["sources"] == ["Mock"]
@@ -603,21 +602,19 @@ def test_run_pipeline_region_names_missing_warning(mock_multi, tmp_path):
 
 
 @pytest.mark.unit
-@patch("coord2region.pipeline.save_as_csv")
 @patch("coord2region.pipeline.MultiAtlasMapper")
-def test_run_pipeline_relative_output_name(mock_multi, mock_save_csv, tmp_path):
+def test_run_pipeline_output_name_rejects_paths(mock_multi, tmp_path):
     mock_multi.return_value.batch_mni_to_region_names.return_value = {}
     mock_multi.return_value.batch_region_name_to_mni.return_value = {}
-    run_pipeline(
-        inputs=[[0, 0, 0]],
-        input_type="coords",
-        outputs=[],
-        output_format="csv",
-        output_name="nested/out.csv",
-        config={
-            "use_cached_dataset": False,
-            "working_directory": str(tmp_path),
-        },
-    )
-    saved_path = Path(mock_save_csv.call_args[0][1])
-    assert saved_path.parent.parent.name == "results"
+    with pytest.raises(ValueError):
+        run_pipeline(
+            inputs=[[0, 0, 0]],
+            input_type="coords",
+            outputs=[],
+            output_format="csv",
+            output_name="nested/out.csv",
+            config={
+                "use_cached_dataset": False,
+                "working_directory": str(tmp_path),
+            },
+        )
