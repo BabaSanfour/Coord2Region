@@ -138,6 +138,28 @@ const summaryModelOptions: ReadonlyArray<SelectOption> = [
   { value: 'distilgpt2', label: 'distilgpt2 (Hugging Face)' }
 ];
 
+// Map models to their API key providers
+const modelToProvider: Record<string, string> = {
+  'gemini-2.0-flash': 'gemini',
+  'gemini-1.5-pro': 'gemini',
+  'gemini-1.0-pro': 'gemini',
+  'claude-3-haiku': 'anthropic',
+  'claude-3-opus': 'anthropic',
+  'deepseek-r1': 'openrouter',
+  'deepseek-chat-v3-0324': 'openrouter',
+  'gpt-4': 'openai',
+  'distilgpt2': 'huggingface'
+};
+
+// Provider display names
+const providerDisplayNames: Record<string, string> = {
+  'gemini': 'Google Gemini',
+  'anthropic': 'Anthropic Claude',
+  'openrouter': 'OpenRouter',
+  'openai': 'OpenAI',
+  'huggingface': 'Hugging Face'
+};
+
 const promptTypeOptions: ReadonlyArray<SelectOption> = [
   { value: 'summary', label: 'Integrated summary' },
   { value: 'region_name', label: 'Region name focus' },
@@ -274,9 +296,10 @@ const summaryModelsProperty = (() => {
   }
   const cloned = deepClone(property) as RJSFSchema;
   delete cloned.anyOf;
-  cloned.type = 'string';
+  cloned.type = 'array';
+  cloned.items = { type: 'string' };
   if (cloned.default === null || cloned.default === undefined) {
-    cloned.default = '';
+    cloned.default = [];
   }
   return cloned;
 })();
@@ -635,31 +658,109 @@ const AtlasMultiSelect = (props: WidgetProps) => {
   );
 };
 
-const SummaryModelField = ({ formData, onChange, idSchema }: FieldProps) => {
-  const value = Array.isArray(formData) && formData.length > 0
-    ? String(formData[0])
-    : '';
-  const inputId = idSchema?.$id ?? 'summary-model';
-  const listId = `${inputId}-options`;
+const SummaryModelMultiSelect = ({ formData, onChange, idSchema }: FieldProps) => {
+  const value = Array.isArray(formData) ? formData : [];
+  const inputId = idSchema?.$id ?? 'summary-models';
+  const [inputValue, setInputValue] = useState('');
+  
+  // Calculate required providers based on selected models
+  const requiredProviders = Array.from(new Set(
+    value.map(model => modelToProvider[model]).filter(Boolean)
+  ));
+
+  const handleAddModel = (modelValue: string) => {
+    const trimmedValue = modelValue.trim();
+    if (trimmedValue && !value.includes(trimmedValue)) {
+      onChange([...value, trimmedValue]);
+    }
+    setInputValue('');
+  };
+
+  const handleRemoveModel = (modelToRemove: string) => {
+    onChange(value.filter(model => model !== modelToRemove));
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddModel(inputValue);
+    }
+  };
 
   return (
     <div className="form-field">
       <label className="field-label" htmlFor={inputId}>Summary Models</label>
+      
+      {/* Selected models display */}
+      {value.length > 0 && (
+        <div className="selected-items">
+          {value.map((model) => (
+            <span key={model} className="selected-item">
+              {model}
+              <button
+                type="button"
+                className="remove-item"
+                onClick={() => handleRemoveModel(model)}
+                aria-label={`Remove ${model}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Add new model input */}
       <input
-        id={inputId}
         type="text"
-        list={listId}
-        value={value}
-        placeholder="Start typing or pick a model"
-        onChange={(event) => onChange(event.target.value ? [event.target.value] : null)}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder="Type model name and press Enter to add"
+        list={`${inputId}-options`}
       />
-      <datalist id={listId}>
+      <datalist id={`${inputId}-options`}>
         {summaryModelOptions.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </datalist>
+      
       <p className="helper">
-        Choose a registered model or enter another identifier supported by your providers.
+        Type model names and press Enter to add them. You can use any model identifier supported by your providers.
+      </p>
+      
+      {/* Show required API keys */}
+      {value.length > 0 && (
+        <div className="api-key-requirements">
+          <p className="helper">
+            <strong>Required API Keys:</strong> {requiredProviders.map(provider => providerDisplayNames[provider]).join(', ')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ApiKeyField = ({ formData, onChange, idSchema, uiSchema }: FieldProps) => {
+  const value = typeof formData === 'string' ? formData : '';
+  const inputId = idSchema?.$id ?? 'api-key';
+  const placeholder = uiSchema?.['ui:placeholder'] || 'Enter API key';
+  
+  return (
+    <div className="form-field">
+      <label className="field-label" htmlFor={inputId}>
+        {uiSchema?.['ui:title'] || 'API Key'}
+      </label>
+      <input
+        id={inputId}
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value || null)}
+        placeholder={placeholder}
+        className="api-key-input"
+      />
+      <p className="helper">
+        Enter your API key for this provider.
       </p>
     </div>
   );
@@ -683,7 +784,7 @@ const PromptTypeField = ({ formData, onChange, idSchema }: FieldProps) => {
         ))}
       </select>
       <p className="helper">
-        Select a template for generated summaries. Choose “Custom prompt” to provide your own wording below.
+        Select a template for generated summaries. Choose "Custom prompt" to provide your own wording below.
       </p>
     </div>
   );
@@ -744,10 +845,11 @@ const widgets = {
 };
 
 const fields = {
-  summaryModelField: SummaryModelField,
+  summaryModelMultiSelect: SummaryModelMultiSelect,
   promptTypeField: PromptTypeField,
   customPromptField: CustomPromptField,
-  outputFormatField: OutputFormatField
+  outputFormatField: OutputFormatField,
+  apiKeyField: ApiKeyField
 };
 
 const parseCoordinateText = (value: string): ParsedCoordinates => {
@@ -828,11 +930,11 @@ const ConfigBuilder = () => {
     defaults.working_directory = typeof defaults.working_directory === 'string' ? defaults.working_directory : '';
     defaults.output_name = typeof defaults.output_name === 'string' ? defaults.output_name : '';
     defaults.custom_prompt = typeof defaults.custom_prompt === 'string' ? defaults.custom_prompt : '';
-    defaults.summary_models = typeof defaults.summary_models === 'string'
+    defaults.summary_models = Array.isArray(defaults.summary_models) 
       ? defaults.summary_models
-      : Array.isArray(defaults.summary_models) && defaults.summary_models.length > 0
-        ? defaults.summary_models[0] as string
-        : '';
+      : typeof defaults.summary_models === 'string' && defaults.summary_models
+        ? [defaults.summary_models]
+        : [];
     defaults.summary_max_tokens = typeof defaults.summary_max_tokens === 'number'
       ? defaults.summary_max_tokens.toString()
       : typeof defaults.summary_max_tokens === 'string'
@@ -846,12 +948,6 @@ const ConfigBuilder = () => {
     defaults.prompt_type = typeof (defaults as any).prompt_type === 'string'
       ? (defaults as any).prompt_type
       : 'summary';
-    if (!Array.isArray((defaults as any).summary_models)) {
-      defaults.summary_models =
-        (typeof (defaults as any).summary_models === 'string' && (defaults as any).summary_models)
-          ? [(defaults as any).summary_models as string]
-          : [];
-    }
     if (defaults.prompt_type !== 'custom') {
       defaults.custom_prompt = null;
     } else if (typeof defaults.custom_prompt !== 'string') {
@@ -893,6 +989,14 @@ const ConfigBuilder = () => {
   const promptType = typeof formData.prompt_type === 'string' && formData.prompt_type
     ? (formData.prompt_type as string)
     : 'summary';
+
+  // Get required API keys based on selected models
+  const selectedModels = Array.isArray(formData.summary_models) 
+    ? formData.summary_models as string[]
+    : [];
+  const requiredProviders = Array.from(new Set(
+    selectedModels.map(model => modelToProvider[model]).filter(Boolean)
+  ));
 
   const { coords, errors: coordErrors } = useMemo(
     () => parseCoordinateText(coordinateText),
@@ -947,7 +1051,7 @@ const ConfigBuilder = () => {
         ? { 'ui:field': 'promptTypeField' }
         : { 'ui:widget': 'hidden' },
       summary_models: enableSummary
-        ? { 'ui:field': 'summaryModelField' }
+        ? { 'ui:field': 'summaryModelMultiSelect' }
         : { 'ui:widget': 'hidden' },
       summary_max_tokens: enableSummary
         ? {
@@ -960,9 +1064,50 @@ const ConfigBuilder = () => {
       custom_prompt: enableSummary
         ? { 'ui:field': 'customPromptField' }
         : { 'ui:widget': 'hidden' },
-      input_type: { 'ui:widget': 'hidden' }
+      // API Key fields - only show for required providers
+      anthropic_api_key: requiredProviders.includes('anthropic')
+        ? {
+            'ui:field': 'apiKeyField',
+            'ui:title': 'Anthropic API Key',
+            'ui:placeholder': 'Enter your Anthropic API key',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
+      openai_api_key: requiredProviders.includes('openai')
+        ? {
+            'ui:field': 'apiKeyField',
+            'ui:title': 'OpenAI API Key',
+            'ui:placeholder': 'Enter your OpenAI API key',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
+      openrouter_api_key: requiredProviders.includes('openrouter')
+        ? {
+            'ui:field': 'apiKeyField',
+            'ui:title': 'OpenRouter API Key',
+            'ui:placeholder': 'Enter your OpenRouter API key',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
+      gemini_api_key: requiredProviders.includes('gemini')
+        ? {
+            'ui:field': 'apiKeyField',
+            'ui:title': 'Google Gemini API Key',
+            'ui:placeholder': 'Enter your Google Gemini API key',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
+      huggingface_api_key: requiredProviders.includes('huggingface')
+        ? {
+            'ui:field': 'apiKeyField',
+            'ui:title': 'Hugging Face API Key',
+            'ui:placeholder': 'Enter your Hugging Face API key',
+            'ui:emptyValue': ''
+          }
+        : { 'ui:widget': 'hidden' },
+      input_type: { 'ui:widget': 'hidden' },
     }),
-    [enableStudy, enableSummary, promptType]
+    [enableStudy, enableSummary, promptType, requiredProviders]
   );
 
   const handleInputModeChange = (nextMode: InputMode) => {
@@ -1081,20 +1226,21 @@ const ConfigBuilder = () => {
       payload.summary_max_tokens = null;
       payload.custom_prompt = null;
     } else {
+      // Ensure summary_models is an array
       if (!Array.isArray(payload.summary_models)) {
         payload.summary_models = payload.summary_models ? [payload.summary_models] : [];
       }
-      if (Array.isArray(payload.summary_models) && payload.summary_models.length === 0) {
+      // Filter out empty strings and null values
+      payload.summary_models = (payload.summary_models as string[]).filter((model: string) => 
+        typeof model === 'string' && model.trim().length > 0
+      );
+      // Set to null if no valid models
+      if ((payload.summary_models as string[]).length === 0) {
         payload.summary_models = null;
       }
       if (payload.prompt_type !== 'custom') {
         payload.custom_prompt = null;
       }
-    }
-
-    if (typeof payload.summary_models === 'string') {
-      const trimmed = payload.summary_models.trim();
-      payload.summary_models = trimmed ? [trimmed] : null;
     }
 
     const summaryTokenValue = payload.summary_max_tokens;

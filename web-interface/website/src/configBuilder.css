@@ -341,6 +341,121 @@
   color: #fca5a5;
 }
 
+/* Summary Model Multi-Select Styles */
+.selected-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.selected-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: #e0f2fe;
+}
+
+.remove-item {
+  background: none;
+  border: none;
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.remove-item:hover {
+  background: rgba(252, 165, 165, 0.2);
+}
+
+/* Summary model input styling */
+.form-field input[list] {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  padding: 0.7rem 0.85rem;
+  width: 100%;
+}
+
+.form-field input[list]:focus {
+  outline: 2px solid rgba(56, 189, 248, 0.45);
+}
+
+/* API Key Requirements */
+.api-key-requirements {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 0.5rem;
+}
+
+.api-key-requirements .helper {
+  margin: 0;
+  color: rgba(56, 189, 248, 0.9);
+  font-size: 0.85rem;
+}
+
+.api-key-requirements .helper strong {
+  color: #38bdf8;
+}
+
+/* API Key input styling */
+.api-key-input {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  padding: 0.7rem 0.85rem;
+  width: 100%;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.api-key-input:focus {
+  outline: 2px solid rgba(56, 189, 248, 0.45);
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.api-key-input::placeholder {
+  color: rgba(226, 232, 240, 0.5);
+  font-family: inherit;
+}
+
+/* Hide any field that contains "option" in its content */
+.form-field:has(label:contains("option")),
+.form-field:has(.field-label:contains("option")),
+.form-field:has(input[placeholder*="option"]),
+.form-field:has(select:contains("option")),
+.form-field:has(button:contains("option")) {
+  display: none !important;
+}
+
+/* Alternative approach - hide any field with "option" in the ID */
+[id*="option"] {
+  display: none !important;
+}
+
+/* Hide any field that contains "option" in its text content */
+.form-field:has(*:contains("option")) {
+  display: none !important;
+}
+
 @media (max-width: 900px) {
   .config-builder {
     grid-template-columns: 1fr;
