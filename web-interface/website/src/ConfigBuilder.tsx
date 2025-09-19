@@ -175,7 +175,7 @@ const atlasProperty = (() => {
   }
   const cloned = deepClone(property);
   if (Array.isArray((cloned as RJSFSchema).anyOf)) {
-    const arrayOption = (cloned as RJSFSchema).anyOf?.find((option) => option?.type === 'array');
+  const arrayOption = (cloned as RJSFSchema).anyOf?.find((option: any) => option?.type === 'array');
     if (arrayOption && typeof arrayOption === 'object') {
       Object.assign(cloned, arrayOption);
     }
@@ -196,7 +196,7 @@ const sourcesProperty = (() => {
   }
   const cloned = deepClone(property) as RJSFSchema;
   if (Array.isArray(cloned.anyOf)) {
-    const arrayOption = cloned.anyOf.find((option) => option?.type === 'array');
+  const arrayOption = cloned.anyOf.find((option: any) => option?.type === 'array');
     if (arrayOption && typeof arrayOption === 'object') {
       Object.assign(cloned, arrayOption);
     }
@@ -318,6 +318,91 @@ const summaryMaxTokensProperty = (() => {
   return cloned;
 })();
 
+const emailForAbstractsProperty = (() => {
+  const property = schema.properties?.email_for_abstracts;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+// Flatten API key fields to simple strings to avoid RJSF anyOf ("Option 1/2") selectors
+const anthropicApiKeyProperty = (() => {
+  const property = schema.properties?.anthropic_api_key;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const openaiApiKeyProperty = (() => {
+  const property = schema.properties?.openai_api_key;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const openrouterApiKeyProperty = (() => {
+  const property = schema.properties?.openrouter_api_key;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const geminiApiKeyProperty = (() => {
+  const property = schema.properties?.gemini_api_key;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
+const huggingfaceApiKeyProperty = (() => {
+  const property = schema.properties?.huggingface_api_key;
+  if (!property || typeof property !== 'object') {
+    return undefined;
+  }
+  const cloned = deepClone(property) as RJSFSchema;
+  delete cloned.anyOf;
+  cloned.type = 'string';
+  if (cloned.default === null || cloned.default === undefined) {
+    cloned.default = '';
+  }
+  return cloned;
+})();
+
 const builderKeys: string[] = [
   'input_type',
   'working_directory',
@@ -381,7 +466,7 @@ const builderSchema: RJSFSchema = {
     return acc;
   }, {} as NonNullable<RJSFSchema['properties']>),
   required: Array.isArray(schema.required)
-    ? schema.required.filter((key) => builderKeys.includes(key))
+    ? schema.required.filter((key: string) => builderKeys.includes(key))
     : undefined,
   additionalProperties: false
 };
@@ -420,6 +505,26 @@ if (builderSchema.properties?.summary_models && summaryModelsProperty) {
 
 if (builderSchema.properties?.summary_max_tokens && summaryMaxTokensProperty) {
     builderSchema.properties.summary_max_tokens = summaryMaxTokensProperty;
+}
+if (builderSchema.properties?.email_for_abstracts && emailForAbstractsProperty) {
+  builderSchema.properties.email_for_abstracts = emailForAbstractsProperty;
+}
+
+// Apply flattened API key properties
+if (builderSchema.properties?.anthropic_api_key && anthropicApiKeyProperty) {
+  builderSchema.properties.anthropic_api_key = anthropicApiKeyProperty;
+}
+if (builderSchema.properties?.openai_api_key && openaiApiKeyProperty) {
+  builderSchema.properties.openai_api_key = openaiApiKeyProperty;
+}
+if (builderSchema.properties?.openrouter_api_key && openrouterApiKeyProperty) {
+  builderSchema.properties.openrouter_api_key = openrouterApiKeyProperty;
+}
+if (builderSchema.properties?.gemini_api_key && geminiApiKeyProperty) {
+  builderSchema.properties.gemini_api_key = geminiApiKeyProperty;
+}
+if (builderSchema.properties?.huggingface_api_key && huggingfaceApiKeyProperty) {
+  builderSchema.properties.huggingface_api_key = huggingfaceApiKeyProperty;
 }
 
 const tooltipFromSchema = (key: string): string | undefined => {
@@ -755,7 +860,7 @@ const ApiKeyField = ({ formData, onChange, idSchema, uiSchema }: FieldProps) => 
         id={inputId}
         type="text"
         value={value}
-        onChange={(event) => onChange(event.target.value || null)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="api-key-input"
       />
@@ -1037,6 +1142,11 @@ const ConfigBuilder = () => {
       },
       outputs: {
         'ui:widget': 'checkboxes'
+      },
+      email_for_abstracts: {
+        'ui:widget': 'text',
+        'ui:placeholder': 'name@example.com',
+        'ui:emptyValue': ''
       },
       studies: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_sources: enableStudy ? {} : { 'ui:widget': 'hidden' },
@@ -1462,11 +1572,11 @@ const ConfigBuilder = () => {
             schema={builderSchema}
             formData={formData}
             onChange={handleFormChange}
-            validator={validator}
-            uiSchema={uiSchema}
+            validator={validator as unknown as any}
+            uiSchema={uiSchema as unknown as UiSchema<FormState>}
             widgets={widgets}
             fields={fields}
-            FieldTemplate={FieldTemplate}
+            templates={{ FieldTemplate } as any}
             formContext={{ promptType }}
             liveValidate={false}
             noHtml5Validate

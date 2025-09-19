@@ -437,25 +437,6 @@
   font-family: inherit;
 }
 
-/* Hide any field that contains "option" in its content */
-.form-field:has(label:contains("option")),
-.form-field:has(.field-label:contains("option")),
-.form-field:has(input[placeholder*="option"]),
-.form-field:has(select:contains("option")),
-.form-field:has(button:contains("option")) {
-  display: none !important;
-}
-
-/* Alternative approach - hide any field with "option" in the ID */
-[id*="option"] {
-  display: none !important;
-}
-
-/* Hide any field that contains "option" in its text content */
-.form-field:has(*:contains("option")) {
-  display: none !important;
-}
-
 @media (max-width: 900px) {
   .config-builder {
     grid-template-columns: 1fr;
