@@ -571,8 +571,6 @@ async def _run_pipeline_async(
         if coord is not None and "mni_coordinates" in outputs:
             res.mni_coordinates = list(coord)
 
-        # No special case for input_type "studies" (unsupported)
-
         if coord is None:
             if region_name_input is not None:
                 message = (

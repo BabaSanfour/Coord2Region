@@ -120,6 +120,23 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
         kwargs["working_directory"] = args.working_directory
     if getattr(args, "email_for_abstracts", None):
         kwargs["email_for_abstracts"] = args.email_for_abstracts
+    # Dataset/study sources (canonical name: sources)
+    sources_tokens: List[str] = []
+    values = getattr(args, "sources", None) or []
+    for item in values:
+        # Allow comma-separated items per token
+        parts = [p.strip() for p in str(item).split(",")]
+        sources_tokens.extend([p for p in parts if p])
+    if sources_tokens:
+        # de-duplicate while preserving order
+        seen = set()
+        ordered = []
+        for s in sources_tokens:
+            low = s  # Keep original case; normalization happens later
+            if low not in seen:
+                seen.add(low)
+                ordered.append(s)
+        kwargs["sources"] = ordered
     # Atlas selection
     atlas_names = getattr(args, "atlas_names", None)
     if atlas_names:
@@ -223,6 +240,12 @@ def _common_config_flags(cfg: dict) -> List[str]:
     batch_size = cfg.get("batch_size")
     if batch_size:
         flags.extend(["--batch-size", str(batch_size)])
+
+    # Sources: emit canonical --sources (comma-separated for compactness)
+    sources = cfg.get("sources") or []
+    if isinstance(sources, list) and sources:
+        # We keep one flag with comma-separated list to remain concise
+        flags.extend(["--sources", ",".join(str(s) for s in sources)])
 
     return flags
 
@@ -397,6 +420,14 @@ def create_parser() -> argparse.ArgumentParser:
         )
 
         # Datasets & atlas options
+        p.add_argument(
+            "--sources",
+            action="append",
+            help=(
+                "Datasets to use (repeat --sources or provide comma-separated list). "
+                "Examples: neurosynth,neuroquery,nidm_pain"
+            ),
+        )
         p.add_argument(
             "--email-for-abstracts",
             help="Contact email used when querying study abstracts",

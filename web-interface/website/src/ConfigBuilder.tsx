@@ -167,6 +167,29 @@ const promptTypeOptions: ReadonlyArray<SelectOption> = [
   { value: 'custom', label: 'Custom prompt' }
 ];
 
+// Suggested image model options (single selection)
+const imageModelOptions: ReadonlyArray<SelectOption> = [
+  { value: 'stabilityai/stable-diffusion-2', label: 'Stable Diffusion 2 (Stability)' },
+  { value: 'runwayml/stable-diffusion-v1-5', label: 'Stable Diffusion v1-5 (RunwayML)' },
+  { value: 'stabilityai/sd-turbo', label: 'SD Turbo (Stability)' },
+  { value: 'stabilityai/stable-diffusion-xl-base-1.0', label: 'Stable Diffusion XL Base 1.0' },
+  { value: 'gpt-image-1', label: 'GPT-Image-1 (OpenAI)' }
+];
+
+// Synthetic properties for image generation controls (not present in exported schema)
+const imageBackendProperty: RJSFSchema = {
+  type: 'string',
+  enum: ['ai', 'nilearn', 'both'],
+  default: 'ai',
+  title: 'Image backend'
+};
+
+const imageModelProperty: RJSFSchema = {
+  type: 'string',
+  default: 'stabilityai/stable-diffusion-2',
+  title: 'Image model'
+};
+
 
 const atlasProperty = (() => {
   const property = schema.properties?.atlas_names;
@@ -175,7 +198,7 @@ const atlasProperty = (() => {
   }
   const cloned = deepClone(property);
   if (Array.isArray((cloned as RJSFSchema).anyOf)) {
-  const arrayOption = (cloned as RJSFSchema).anyOf?.find((option: any) => option?.type === 'array');
+    const arrayOption = (cloned as RJSFSchema).anyOf?.find((option: any) => option?.type === 'array');
     if (arrayOption && typeof arrayOption === 'object') {
       Object.assign(cloned, arrayOption);
     }
@@ -196,7 +219,7 @@ const sourcesProperty = (() => {
   }
   const cloned = deepClone(property) as RJSFSchema;
   if (Array.isArray(cloned.anyOf)) {
-  const arrayOption = cloned.anyOf.find((option: any) => option?.type === 'array');
+    const arrayOption = cloned.anyOf.find((option: any) => option?.type === 'array');
     if (arrayOption && typeof arrayOption === 'object') {
       Object.assign(cloned, arrayOption);
     }
@@ -409,17 +432,16 @@ const builderKeys: string[] = [
   'sources',
   'atlas_names',
   'outputs',
+  'image_backend',
+  'image_model',
   'output_format',
   'output_name',
-  'studies',
-  'study_sources',
   'study_search_radius',
   'region_search_radius',
   'prompt_type',
   'custom_prompt',
   'summary_models',
   'summary_max_tokens',
-  'batch_size',
   'anthropic_api_key',
   'openai_api_key',
   'openrouter_api_key',
@@ -527,6 +549,11 @@ if (builderSchema.properties?.huggingface_api_key && huggingfaceApiKeyProperty) 
   builderSchema.properties.huggingface_api_key = huggingfaceApiKeyProperty;
 }
 
+// Inject synthetic image properties (override to flatten anyOf and avoid Option 1/2)
+builderSchema.properties = builderSchema.properties || {};
+builderSchema.properties.image_backend = imageBackendProperty;
+builderSchema.properties.image_model = imageModelProperty;
+
 const tooltipFromSchema = (key: string): string | undefined => {
   const property = (schema.properties ?? {})[key] as SchemaProperty | undefined;
   if (!property) {
@@ -581,7 +608,8 @@ const tooltipMap: Record<string, string | undefined> = builderKeys.reduce(
 );
 
 const FieldTemplate = (props: FieldTemplateProps) => {
-  const { id, classNames, label, required, description, errors, help, children, hidden } = props;
+  const { id, classNames, label, required, description, errors, help, children, hidden, uiSchema } = props as FieldTemplateProps & { uiSchema?: any };
+  const displayLabel = (props as any).displayLabel !== false;
   if (hidden) {
     return (
       <div className="form-field" style={{ display: 'none' }}>
@@ -591,7 +619,9 @@ const FieldTemplate = (props: FieldTemplateProps) => {
   }
   const key = id.replace(/^root_/, '').split('_')[0];
   const tooltip = tooltipMap[key];
-  const labelText = label || key;
+  const labelText = (!displayLabel || (uiSchema && uiSchema['ui:options'] && uiSchema['ui:options'].label === false))
+    ? ''
+    : (label || key);
 
   return (
     <div className={clsx('form-field', classNames)}>
@@ -871,6 +901,75 @@ const ApiKeyField = ({ formData, onChange, idSchema, uiSchema }: FieldProps) => 
   );
 };
 
+const ImageModelField = ({ formData, onChange, idSchema }: FieldProps) => {
+  // Single-value selector inspired by SummaryModelMultiSelect
+  const value = typeof formData === 'string' ? formData : '';
+  const inputId = idSchema?.$id ?? 'image-model';
+  const datalistId = `${inputId}-options`;
+  const [inputValue, setInputValue] = useState('');
+
+  const setModel = (model: string) => {
+    const trimmed = (model || '').trim();
+    onChange(trimmed);
+    setInputValue('');
+  };
+
+  const clearModel = () => {
+    onChange('');
+    setInputValue('');
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      setModel(inputValue);
+    }
+  };
+
+  return (
+    <div className="form-field">
+      <label className="field-label" htmlFor={inputId}>Image Model</label>
+
+      {/* Selected model chip */}
+      {value && (
+        <div className="selected-items" style={{ marginBottom: 6 }}>
+          <span className="selected-item">
+            {value}
+            <button
+              type="button"
+              className="remove-item"
+              onClick={clearModel}
+              aria-label={`Remove ${value}`}
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
+
+      {/* Input with datalist suggestions */}
+      <input
+        id={inputId}
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder={value ? 'Type to change model, press Enter' : 'stabilityai/stable-diffusion-2'}
+        list={datalistId}
+      />
+      <datalist id={datalistId}>
+        {imageModelOptions.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </datalist>
+
+      <p className="helper">
+        Type a model identifier and press Enter, or pick from the suggestions.
+      </p>
+    </div>
+  );
+};
+
 const PromptTypeField = ({ formData, onChange, idSchema }: FieldProps) => {
   const value = typeof formData === 'string' && formData ? formData : 'summary';
   const inputId = idSchema?.$id ?? 'prompt-type';
@@ -939,7 +1038,7 @@ const CustomPromptField = ({ formData, onChange, formContext, idSchema }: FieldP
         placeholder="You are an expert neuroscientist..."
       />
       <p className="helper">
-        Use {'{coord}'} for the coordinate and {'{studies}'} for the study list. These placeholders are filled automatically before calling the model.
+        Use {'{coord}'} for the coordinate. This placeholder is filled automatically before calling the model.
       </p>
     </div>
   );
@@ -954,7 +1053,8 @@ const fields = {
   promptTypeField: PromptTypeField,
   customPromptField: CustomPromptField,
   outputFormatField: OutputFormatField,
-  apiKeyField: ApiKeyField
+  apiKeyField: ApiKeyField,
+  imageModelField: ImageModelField
 };
 
 const parseCoordinateText = (value: string): ParsedCoordinates => {
@@ -1029,6 +1129,13 @@ const ConfigBuilder = () => {
     if (!defaults.atlas_names) {
       defaults.atlas_names = ['harvard-oxford', 'juelich'];
     }
+    // Image generation defaults
+    (defaults as any).image_backend = typeof (defaults as any).image_backend === 'string' && (defaults as any).image_backend
+      ? (defaults as any).image_backend
+      : 'ai';
+    (defaults as any).image_model = typeof (defaults as any).image_model === 'string' && (defaults as any).image_model
+      ? (defaults as any).image_model
+      : 'stabilityai/stable-diffusion-2';
     defaults.sources = Array.isArray((defaults as any).sources)
       ? (defaults as any).sources
       : [];
@@ -1094,6 +1201,12 @@ const ConfigBuilder = () => {
   const promptType = typeof formData.prompt_type === 'string' && formData.prompt_type
     ? (formData.prompt_type as string)
     : 'summary';
+  const outputsSelected = Array.isArray(formData.outputs) ? (formData.outputs as string[]) : [];
+  const enableImages = outputsSelected.includes('images');
+  const imageBackendVal = typeof (formData as any).image_backend === 'string' && (formData as any).image_backend
+    ? (formData as any).image_backend as string
+    : 'ai';
+  const showImageModel = enableImages && (imageBackendVal === 'ai' || imageBackendVal === 'both');
 
   // Get required API keys based on selected models
   const selectedModels = Array.isArray(formData.summary_models) 
@@ -1136,6 +1249,10 @@ const ConfigBuilder = () => {
       atlas_names: {
         'ui:widget': 'atlasMultiSelect'
       },
+      image_backend: enableImages ? {} : { 'ui:widget': 'hidden' },
+      image_model: showImageModel
+        ? { 'ui:field': 'imageModelField', 'ui:options': { label: false }, 'ui:emptyValue': '' }
+        : { 'ui:widget': 'hidden' },
       output_format: {
         'ui:field': 'outputFormatField',
         'ui:emptyValue': null
@@ -1148,8 +1265,6 @@ const ConfigBuilder = () => {
         'ui:placeholder': 'name@example.com',
         'ui:emptyValue': ''
       },
-      studies: enableStudy ? {} : { 'ui:widget': 'hidden' },
-      study_sources: enableStudy ? {} : { 'ui:widget': 'hidden' },
       study_search_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
       region_search_radius: {
         'ui:widget': 'text',
@@ -1217,7 +1332,7 @@ const ConfigBuilder = () => {
         : { 'ui:widget': 'hidden' },
       input_type: { 'ui:widget': 'hidden' },
     }),
-    [enableStudy, enableSummary, promptType, requiredProviders]
+    [enableStudy, enableSummary, promptType, requiredProviders, enableImages, showImageModel]
   );
 
   const handleInputModeChange = (nextMode: InputMode) => {
@@ -1268,11 +1383,7 @@ const ConfigBuilder = () => {
       setFormData((current) => {
         const updated = { ...current };
         if (!next) {
-          updated.studies = null;
-          updated.study_sources = null;
           updated.study_search_radius = null;
-        } else {
-          updated.studies = updated.studies ?? [];
         }
         return updated;
       });
@@ -1307,6 +1418,29 @@ const ConfigBuilder = () => {
     });
   };
 
+  const toggleImages = () => {
+    setFormData((current) => {
+      const updated: any = { ...current };
+      const outputs = Array.isArray(updated.outputs) ? (updated.outputs as string[]) : [];
+      const next = new Set(outputs);
+      if (next.has('images')) {
+        next.delete('images');
+        updated.image_backend = null;
+        updated.image_model = null;
+      } else {
+        next.add('images');
+        if (typeof updated.image_backend !== 'string' || !updated.image_backend) {
+          updated.image_backend = 'ai';
+        }
+        if (typeof updated.image_model !== 'string' || !updated.image_model) {
+          updated.image_model = 'stabilityai/stable-diffusion-2';
+        }
+      }
+      updated.outputs = Array.from(next);
+      return updated;
+    });
+  };
+
   const configData = useMemo(() => {
     const payload: Record<string, unknown> = {
       ...formData
@@ -1325,8 +1459,6 @@ const ConfigBuilder = () => {
     }
 
     if (!enableStudy) {
-      payload.studies = null;
-      payload.study_sources = null;
       payload.study_search_radius = null;
     }
 
@@ -1351,6 +1483,14 @@ const ConfigBuilder = () => {
       if (payload.prompt_type !== 'custom') {
         payload.custom_prompt = null;
       }
+    }
+
+    // If images are not requested, drop image configuration keys
+    const outputsArr = Array.isArray(payload.outputs) ? (payload.outputs as string[]) : [];
+    const wantsImages = outputsArr.includes('images');
+    if (!wantsImages) {
+      payload.image_backend = null;
+      payload.image_model = null;
     }
 
     const summaryTokenValue = payload.summary_max_tokens;
@@ -1562,6 +1702,19 @@ const ConfigBuilder = () => {
           </div>
           <button type="button" className={clsx('toggle', enableSummary && 'toggle--active')} onClick={toggleSummary}>
             {enableSummary ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+        <div className="card card--inline">
+          <div>
+            <h4>Images</h4>
+            <p>Create images using AI and/or nilearn backends. Toggle to include images in Outputs.</p>
+          </div>
+          <button
+            type="button"
+            className={clsx('toggle', enableImages && 'toggle--active')}
+            onClick={toggleImages}
+          >
+            {enableImages ? 'Enabled' : 'Disabled'}
           </button>
         </div>
       </div>
