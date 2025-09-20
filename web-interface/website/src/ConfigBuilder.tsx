@@ -1247,7 +1247,11 @@ const ConfigBuilder = () => {
         'ui:widget': 'checkboxes'
       },
       atlas_names: {
-        'ui:widget': 'atlasMultiSelect'
+        'ui:widget': 'atlasMultiSelect',
+        // When using region-to-* CLI, exactly one atlas is required
+        ...(inputMode === 'region_names'
+          ? { 'ui:help': 'When using Region names, select exactly one atlas.' }
+          : {})
       },
       image_backend: enableImages ? {} : { 'ui:widget': 'hidden' },
       image_model: showImageModel
@@ -1332,7 +1336,7 @@ const ConfigBuilder = () => {
         : { 'ui:widget': 'hidden' },
       input_type: { 'ui:widget': 'hidden' },
     }),
-    [enableStudy, enableSummary, promptType, requiredProviders, enableImages, showImageModel]
+    [enableStudy, enableSummary, promptType, requiredProviders, enableImages, showImageModel, inputMode]
   );
 
   const handleInputModeChange = (nextMode: InputMode) => {
@@ -1462,6 +1466,28 @@ const ConfigBuilder = () => {
       payload.study_search_radius = null;
     }
 
+    // Normalize outputs to match CLI subcommands
+    const imagesSelected = Array.isArray(formData.outputs)
+      ? (formData.outputs as string[]).includes('images')
+      : false;
+    const outputsNormalized: string[] = [];
+    if (inputMode === 'coords') {
+      outputsNormalized.push('region_labels');
+    } else {
+      outputsNormalized.push('mni_coordinates');
+    }
+    if (enableSummary) {
+      outputsNormalized.push('summaries');
+    }
+    if (imagesSelected) {
+      outputsNormalized.push('images');
+    }
+    // Include raw_studies whenever summaries or images or study toggle is active
+    if (enableStudy || enableSummary || imagesSelected) {
+      outputsNormalized.push('raw_studies');
+    }
+    payload.outputs = outputsNormalized;
+
     if (!enableSummary) {
       payload.prompt_type = null;
       payload.summary_models = null;
@@ -1486,7 +1512,7 @@ const ConfigBuilder = () => {
     }
 
     // If images are not requested, drop image configuration keys
-    const outputsArr = Array.isArray(payload.outputs) ? (payload.outputs as string[]) : [];
+    const outputsArr = outputsNormalized;
     const wantsImages = outputsArr.includes('images');
     if (!wantsImages) {
       payload.image_backend = null;
