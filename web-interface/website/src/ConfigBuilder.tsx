@@ -13,6 +13,10 @@ import clsx from 'clsx';
 import schemaSource from '../../../docs/static/schema.json';
 import './configBuilder.css';
 
+type ConfigBuilderProps = {
+  showHeaderNav?: boolean;
+};
+
 type InputMode = 'coords' | 'region_names';
 
 type CoordEntryMode = 'paste' | 'file';
@@ -1120,7 +1124,7 @@ const sanitizeValue = (value: unknown): unknown => {
   return value;
 };
 
-const ConfigBuilder = () => {
+const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
   const initialState = useMemo(() => {
     const defaults = deriveDefaults(builderKeys);
     if (!defaults.outputs) {
@@ -1196,6 +1200,7 @@ const ConfigBuilder = () => {
   const [enableSummary, setEnableSummary] = useState(true);
   const [yamlCopied, setYamlCopied] = useState<'idle' | 'copied' | 'error'>('idle');
   const [cliCopied, setCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [viewMode, setViewMode] = useState<'builder' | 'about' | 'cloud'>('builder');
 
   const [formData, setFormData] = useState<FormState>(() => initialState.defaults);
   const promptType = typeof formData.prompt_type === 'string' && formData.prompt_type
@@ -1604,8 +1609,56 @@ const ConfigBuilder = () => {
     URL.revokeObjectURL(url);
   };
 
+  const githubUrl = 'https://github.com/BabaSanfour/Coord2Region';
+  const docsUrl = 'https://coord2region.readthedocs.io/en/latest/';
+
   return (
-    <section className="config-builder">
+    <>
+      {props.showHeaderNav !== false && (
+      <header className="site-header" role="banner">
+        <h1 className="site-title">
+          Coord2Region:  Coordinates <em className="into">into</em> Insights
+        </h1>
+        <p className="site-subtitle">
+          Transform brain coordinates into region names, related studies, AI summaries, and AI‑generated images — with optional region‑based workflows too.
+        </p>
+        <nav className="site-nav" aria-label="Primary">
+          <div className="nav-buttons">
+            <button type="button" className={clsx('nav-btn', viewMode === 'about' && 'nav-btn--active')} onClick={() => setViewMode('about')}>About</button>
+            <button type="button" className={clsx('nav-btn', viewMode === 'builder' && 'nav-btn--active')} onClick={() => setViewMode('builder')}>Config Builder</button>
+            <button type="button" className={clsx('nav-btn', viewMode === 'cloud' && 'nav-btn--active')} onClick={() => setViewMode('cloud')}>Cloud Runner</button>
+            <a className="nav-link" href={docsUrl} target="_blank" rel="noreferrer">Documentation</a>
+            <a className="nav-link" href={githubUrl} target="_blank" rel="noreferrer">View on GitHub</a>
+          </div>
+        </nav>
+      </header>
+      )}
+
+      {props.showHeaderNav !== false && viewMode === 'about' && (
+        <section className="about-section card" role="region" aria-label="About Coord2Region">
+          <h4>About</h4>
+          <p>
+            Coord2Region turns MNI coordinates and atlas region names into actionable insights. It maps coordinates to atlas labels,
+            finds related studies from open neuro datasets, generates concise AI‑powered summaries, and optionally produces
+            reproducible images. This website provides a guided Config Builder to export a YAML you can run locally, along with links
+            to docs and the code.
+          </p>
+          <p>
+            Typical use cases include: annotating peaks in fMRI results, localizing iEEG/MEG sources, cross‑referencing coordinates with
+            literature, and packaging results for sharing and reproducibility.
+          </p>
+        </section>
+      )}
+
+      {props.showHeaderNav !== false && viewMode === 'cloud' && (
+        <section className="cloud-section card" role="region" aria-label="Cloud Runner">
+          <h4>Cloud Runner</h4>
+          <p>(Phase 2 under construction)</p>
+        </section>
+      )}
+
+      {(props.showHeaderNav === false || viewMode === 'builder') && (
+        <section className="config-builder">
       <div className="config-section">
         <h4>Input Type</h4>
         <div className="mode-toggle" role="radiogroup" aria-label="Select input type">
@@ -1804,7 +1857,9 @@ const ConfigBuilder = () => {
           {cliCopied === 'error' && <p className="status status--error">Unable to copy command.</p>}
         </div>
       </aside>
-    </section>
+        </section>
+      )}
+    </>
   );
 };
 

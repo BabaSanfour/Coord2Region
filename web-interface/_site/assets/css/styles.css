@@ -48,6 +48,12 @@ body {
   font-weight: 700;
 }
 
+.hero h1 .into {
+  font-style: italic;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
 .hero__tagline {
   margin: 0;
   font-size: 1.1rem;

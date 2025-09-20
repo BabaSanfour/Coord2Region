@@ -8,9 +8,9 @@ if (mountNode) {
   const root = createRoot(mountNode);
   root.render(
     <React.StrictMode>
-      <ConfigBuilder />
+      <ConfigBuilder showHeaderNav={mountNode.id !== 'coord2region-root'} />
     </React.StrictMode>
   );
-} else if (import.meta.env.DEV) {
+} else if ((import.meta as any)?.env?.DEV) {
   console.warn('Coord2Region root element not found.');
 }

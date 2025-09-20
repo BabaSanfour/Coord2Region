@@ -1,7 +1,7 @@
 ---
 layout: default
-hero_title: "Coord2Region Coordinates → Insights"
-hero_tagline: "Translate brain coordinate datasets into reproducible atlases, summary statistics, and CLI-ready configs with a guided assistant."
+hero_title: "Coord2Region: Coordinates <em class=\"into\">into</em> Insights"
+hero_tagline: "Transform brain coordinates into region names, related studies, AI summaries, and AI‑generated images — with optional region‑based workflows too."
 title: "Coord2Region Config Builder"
 description: "Landing page and interactive configuration builder for the Coord2Region project."
 ---
@@ -19,26 +19,21 @@ description: "Landing page and interactive configuration builder for the Coord2R
   </div>
   <div>
     <h3>Try the prototype</h3>
-    <p>The interactive builder below is wired to the live JSON schema that powers the CLI. Fill in coordinates manually or upload a file, choose atlases to query, and instantly preview the YAML config you can run with <code>coord2region</code>.</p>
+  <p>Open the <a href="{{ '/builder/' | relative_url }}">Config Builder</a> to generate a YAML config you can run with <code>coord2region</code>.</p>
   </div>
 </section>
 
-<section id="config-builder" class="section-card">
-  <div class="card-title">
-    <h2>Interactive Config Builder</h2>
-    <span>Powered by JSON Schema-driven forms</span>
-  </div>
-  <div class="config-builder-wrapper responsive-frame">
-    <div id="coord2region-root"></div>
-    <aside>
-      <h3>How it works</h3>
-      <ul>
-        <li>Toggle between manual coordinate entry and file uploads.</li>
-        <li>Select one or more atlases for reverse inference lookups.</li>
-        <li>Enable study review or summarization flows in one click.</li>
-        <li>Copy the generated YAML or CLI command for automation.</li>
-      </ul>
-      <p>Feedback welcome while we build out the full Phase 2 experience.</p>
-    </aside>
-  </div>
+<section class="section-card">
+  <h2>About</h2>
+  <p>
+    Coord2Region turns MNI coordinates and atlas region names into actionable insights. It maps coordinates to atlas labels,
+    finds related studies from open neuro datasets, generates concise AI‑powered summaries, and optionally produces
+    reproducible images.
+  </p>
+  <p>
+  Documentation: <a href="https://coord2region.readthedocs.io/en/latest/" target="_blank" rel="noopener">Read the Docs</a>.
+  </p>
+  <p>
+  Ready to experiment? Visit the <a href="{{ '/builder/' | relative_url }}">Config Builder</a> or learn about our plans for the <a href="{{ '/cloud/' | relative_url }}">Cloud Runner</a>.
+  </p>
 </section>
