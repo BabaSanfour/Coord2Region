@@ -354,6 +354,7 @@ def test_main_coords_to_image_backend(mock_run, mock_print):
     )
     args, kwargs = mock_run.call_args
     assert args[0] == [[0.0, 0.0, 0.0]]
+    assert args[2] == ["region_labels", "raw_studies", "images"]
     assert kwargs["image_backend"] == "both"
     assert kwargs["config"]["image_model"] == "custom"
 
@@ -361,13 +362,97 @@ def test_main_coords_to_image_backend(mock_run, mock_print):
 @pytest.mark.unit
 @patch("coord2region.cli._print_results")
 @patch("coord2region.cli.run_pipeline", return_value=[])
+def test_main_coords_to_study(mock_run, mock_print):
+    main([
+        "coords-to-study",
+        "0",
+        "0",
+        "0",
+        "--sources",
+        "neurosynth",
+    ])
+    args, kwargs = mock_run.call_args
+    assert args[2] == ["region_labels", "raw_studies"]
+    assert kwargs["config"]["sources"] == ["neurosynth"]
+
+
+@pytest.mark.unit
+@patch("coord2region.cli._print_results")
+@patch("coord2region.cli.run_pipeline", return_value=[])
+def test_main_coords_to_insights(mock_run, mock_print):
+    main(
+        [
+            "coords-to-insights",
+            "1",
+            "2",
+            "3",
+            "--atlas",
+            "aal",
+            "--huggingface-api-key",
+            "HF",
+            "--gemini-api-key",
+            "G",
+        ]
+    )
+    args, kwargs = mock_run.call_args
+    assert args[2] == [
+        "region_labels",
+        "raw_studies",
+        "summaries",
+        "images",
+    ]
+    assert kwargs["config"]["huggingface_api_key"] == "HF"
+    assert kwargs["config"]["gemini_api_key"] == "G"
+
+
+@pytest.mark.unit
+@patch("coord2region.cli._print_results")
+@patch("coord2region.cli.run_pipeline", return_value=[])
 def test_main_region_to_coords_batches(mock_run, mock_print):
-    main(["region-to-coords", "Region A", "Region B", "--batch-size", "1"])
+    main([
+        "region-to-coords",
+        "Region A",
+        "Region B",
+        "--batch-size",
+        "1",
+        "--atlas",
+        "aal",
+    ])
     calls = mock_run.call_args_list
     assert len(calls) == 2
     assert calls[0][0][0] == ["Region A"]
     assert calls[0][0][1] == "region_names"
     assert calls[1][0][0] == ["Region B"]
+
+
+@pytest.mark.unit
+def test_region_to_coords_requires_single_atlas():
+    with pytest.raises(SystemExit):
+        main([
+            "region-to-coords",
+            "Region A",
+            "--atlas",
+            "aal",
+            "--atlas",
+            "juelich",
+        ])
+
+
+@pytest.mark.unit
+@patch("coord2region.cli._print_results")
+@patch("coord2region.cli.run_pipeline", return_value=[])
+def test_region_to_study_outputs(mock_run, mock_print):
+    main([
+        "region-to-study",
+        "Region A",
+        "--atlas",
+        "aal",
+        "--sources",
+        "neurosynth",
+    ])
+    args, kwargs = mock_run.call_args
+    assert args[2] == ["mni_coordinates", "raw_studies"]
+    assert kwargs["config"]["atlas_names"] == ["aal"]
 
 
 @pytest.mark.unit
@@ -418,7 +503,7 @@ inputs:
   - [1, 2, 3]
   - [4, 5, 6]
 input_type: coords
-outputs: [region_labels, summaries]
+outputs: [region_labels, raw_studies, summaries]
 config:
   atlas_names: [aal, juelich]
   working_directory: /tmp/data
@@ -429,6 +514,5 @@ config:
     run_from_config(str(cfg), dry_run=True)
     out = capsys.readouterr().out.strip().splitlines()
     assert out == [
-        "coord2region coords-to-atlas 1 2 3 4 5 6 --working-directory /tmp/data --atlas aal --atlas juelich",
         "coord2region coords-to-summary 1 2 3 4 5 6 --working-directory /tmp/data --atlas aal --atlas juelich",
     ]

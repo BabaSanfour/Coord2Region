@@ -35,8 +35,17 @@ Command line
 
 .. code-block:: bash
 
-   # Generate a short text summary for a coordinate
-   coord2region coords-to-summary 30 -22 50
+   # Map a coordinate to atlas labels
+   coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
+
+   # Retrieve studies and summaries for the same coordinate
+   coord2region coords-to-summary 30 -22 50 --atlas harvard-oxford
+
+   # Produce a report with text and image outputs
+   coord2region coords-to-insights 30 -22 50 --atlas harvard-oxford --image-backend nilearn
+
+   # Start from a region name in a specific atlas
+   coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford
 
 Explore More
 ------------

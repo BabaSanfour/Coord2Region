@@ -55,8 +55,15 @@ coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
 
 Other use cases:
 
-- `coord2region coords-to-summary 30 -22 50` → text summary from related studies
-- `coord2region coords-to-image 30 -22 50` → AI-generated region image
+- `coord2region coords-to-study 30 -22 50` → atlas labels and related studies
+- `coord2region coords-to-summary 30 -22 50` → labels, studies and an AI summary
+- `coord2region coords-to-image 30 -22 50 --image-backend nilearn` → labels, studies and a rendered image
+- `coord2region coords-to-insights 30 -22 50 --atlas harvard-oxford` → full report with labels, studies, summary and image
+
+Region-driven workflows:
+
+- `coord2region region-to-coords "Left Amygdala" --atlas harvard-oxford` → retrieve the atlas coordinate
+- `coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford` → coordinates, studies, summary and image for that region
 
 Full usage instructions and API details are available in the [documentation](https://coord2region.readthedocs.io/en/latest/).
 

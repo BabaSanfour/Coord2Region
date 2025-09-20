@@ -66,47 +66,47 @@ via ``--coords-file``.
 
 .. note::
    The examples below are shell commands. Run them in your terminal (bash/zsh/PowerShell),
-   not inside a Python session. For example, to summarize a coordinate:
+   not inside a Python session. For example, to retrieve studies and labels:
 
-   ``coord2region coords-to-summary 30 -22 50``
+   ``coord2region coords-to-study 30 -22 50``
 
 .. code-block:: bash
-
-    # Generate a text summary for a coordinate (all styles equivalent)
-    coord2region coords-to-summary 30,-22,50
-    coord2region coords-to-summary "30 -22 50"
-    coord2region coords-to-summary 30 -22 50
 
     # Map a coordinate to specific atlas labels
     coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
 
-    # Use multiple atlases (repeat --atlas or comma-separate)
-    coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford --atlas juelich
-    coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford,juelich,aal
+    # Retrieve studies (includes atlas labels)
+    coord2region coords-to-study 30 -22 50 --atlas harvard-oxford
 
-    # Produce an image for a coordinate with chosen backend
+    # Generate a text summary (labels + studies)
+    coord2region coords-to-summary 30 -22 50 --atlas harvard-oxford
+
+    # Produce an image for a coordinate with the nilearn backend
     coord2region coords-to-image 30 -22 50 --image-backend nilearn
-    coord2region coords-to-image 30 -22 50 --image-backend both
+
+    # Create a full report with summary and image outputs
+    coord2region coords-to-insights 30 -22 50 --atlas harvard-oxford --image-backend nilearn
 
     # Load many coordinates from a file
-    coord2region coords-to-atlas --coords-file path/to/coords.csv --output-format csv --output-path results.csv
+    coord2region coords-to-study --coords-file path/to/coords.csv --output-format csv --output-name results.csv
 
-    # Convert a region name to an example coordinate (field 'mni_coordinates')
-    coord2region region-to-coords "Amygdala"
+    # Convert a region name to insights (atlas must be explicit)
+    coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford
 
 Common options:
 
 - ``--atlas``: Select atlas name(s). Repeat the flag or pass a comma-separated list.
-  Defaults to ``harvard-oxford,juelich,aal``.
+  Region-based commands require exactly one atlas.
 - ``--coords-file``: Load coordinates from CSV/XLSX (first three columns are used).
-- ``--output-format`` and ``--output-path``: Export results as JSON, pickle,
-  CSV, PDF or a directory of files.
-- ``--data-dir``: Base directory for caches, generated images and results.
-- ``--image-backend`` (``coords-to-image``): Choose between ``ai``, ``nilearn``
-  or ``both``.
-- Provider keys (if using AI summaries/images): ``--gemini-api-key``,
-  ``--openrouter-api-key``, ``--openai-api-key``, ``--anthropic-api-key``,
-  ``--huggingface-api-key``.
+- ``--output-format`` and ``--output-name``: Export results as JSON, pickle,
+  CSV, PDF or a directory. The name is created inside the working directory.
+- ``--working-directory``: Base directory for caches, generated images and results.
+- ``--sources`` and ``--email-for-abstracts``: Control dataset selection and
+  contact email when searching studies. Available on commands that retrieve studies.
+- ``--image-backend`` (image-producing commands): Choose between ``ai``,
+  ``nilearn`` or ``both``. The CLI defaults to ``nilearn`` for offline usage.
+- Provider keys for AI features: ``--gemini-api-key``, ``--openrouter-api-key``,
+  ``--openai-api-key``, ``--anthropic-api-key`` and ``--huggingface-api-key``.
 
 Configuration files
 -------------------
@@ -118,7 +118,7 @@ Complex runs can be described in YAML and executed with ``--config``:
     inputs:
       - [30, -22, 50]
     input_type: coords
-    outputs: [region_labels, summaries, images]
+    outputs: [region_labels, raw_studies, summaries, images]
     output_format: pdf
     output_name: results.pdf
 
