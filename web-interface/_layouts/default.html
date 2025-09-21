@@ -7,8 +7,11 @@
         <h1>{{ page.hero_title | default: site.title }}</h1>
         <p class="hero__tagline">{{ page.hero_tagline | default: site.description }}</p>
       <div class="hero__cta">
-       <a class="btn {% if page.url == '/about/' or page.url == '/' %}btn-primary{% else %}btn-secondary{% endif %}"
-         {% if page.url == '/about/' or page.url == '/' %}aria-current="page"{% endif %}
+       <a class="btn {% if page.url == '/' %}btn-primary{% else %}btn-secondary{% endif %}"
+         {% if page.url == '/' %}aria-current="page"{% endif %}
+         href="{{ '/' | relative_url }}">Home</a>
+       <a class="btn {% if page.url == '/about/' %}btn-primary{% else %}btn-secondary{% endif %}"
+         {% if page.url == '/about/' %}aria-current="page"{% endif %}
          href="{{ '/about/' | relative_url }}">About</a>
        <a class="btn {% if page.url == '/builder/' %}btn-primary{% else %}btn-secondary{% endif %}"
          {% if page.url == '/builder/' %}aria-current="page"{% endif %}
