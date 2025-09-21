@@ -33,8 +33,9 @@ jobs:
         run: npm run build
         working-directory: web-interface
 
-      - name: Install Playwright Browsers
-        uses: microsoft/playwright-github-action@v1
+      - name: Install Playwright browsers and system deps
+        run: npx playwright install --with-deps
+        working-directory: web-interface
 
       - name: Run UI tests (Playwright)
         run: npm run test:ui

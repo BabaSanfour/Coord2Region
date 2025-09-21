@@ -38,6 +38,10 @@ jobs:
         run: npm run build
         working-directory: web-interface
 
+      - name: Install Playwright browsers and system deps (optional)
+        run: npx playwright install --with-deps
+        working-directory: web-interface
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
