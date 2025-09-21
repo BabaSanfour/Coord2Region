@@ -19,9 +19,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web-interface
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,21 +32,37 @@ jobs:
 
       - name: Install Node dependencies
         run: npm ci
+        working-directory: web-interface
 
       - name: Build web assets (Vite)
         run: npm run build
+        working-directory: web-interface
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true
-          working-directory: web-interface
+          bundler-cache: false
+
+      - name: Configure bundler path
+        run: bundle config set path vendor/bundle
+        working-directory: web-interface
+
+      - name: Ensure Linux platform in lockfile
+        run: bundle lock --add-platform x86_64-linux
+        working-directory: web-interface
+
+      - name: Install Ruby gems
+        env:
+          BUNDLE_FORCE_RUBY_PLATFORM: 'true'
+        run: bundle install --jobs 4
+        working-directory: web-interface
 
       - name: Build Jekyll site
         env:
           JEKYLL_ENV: production
         run: bundle exec jekyll build
+        working-directory: web-interface
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
