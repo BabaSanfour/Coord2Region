@@ -1,0 +1,53 @@
+name: Web Interface CI
+
+on:
+  pull_request:
+    paths:
+      - 'web-interface/**'
+      - '!web-interface/_site/**'
+  push:
+    branches: [ web, main ]
+    paths:
+      - 'web-interface/**'
+      - '!web-interface/_site/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-interface
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-interface/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build web assets (Vite)
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        uses: microsoft/playwright-github-action@v1
+
+      - name: Run UI tests (Playwright)
+        run: npm run test:ui
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: web-interface
+
+      - name: Build Jekyll site
+        env:
+          JEKYLL_ENV: production
+        run: bundle exec jekyll build
