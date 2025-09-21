@@ -3,8 +3,6 @@ name: Web Interface Pages
 on:
   push:
     branches: [ main, web ]
-    paths:
-      - 'web-interface/**'
   workflow_dispatch:
 
 permissions:
@@ -38,9 +36,6 @@ jobs:
         run: npm run build
         working-directory: web-interface
 
-      - name: Install Playwright browsers and system deps (optional)
-        run: npx playwright install --with-deps
-        working-directory: web-interface
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
