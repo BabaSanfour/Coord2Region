@@ -176,14 +176,9 @@ def run_pipeline(
         Required when ``output_format`` is specified.
     image_backend : {"ai", "nilearn", "both"}, optional
         Backend used to generate images when ``"images"`` is requested.
-                        prompt_template=(
-                            image_custom_prompt
-                            if image_prompt_type == "custom"
-                            else None
-                        ),
-        enable or disable AI providers, supply a ``providers`` dictionary mapping
-        provider names to keyword arguments understood by
-        :meth:`AIModelInterface.register_provider`.
+    prompt_template : str, optional
+        Template to use for AI image generation prompts. One of: "
+        'anatomical', 'functional', 'schematic', 'artistic', or 'custom'.
     async_mode : bool, optional
         When ``True``, processing occurs concurrently using asyncio and summaries
         are generated with :func:`generate_summary_async`.
