@@ -51,9 +51,11 @@ jobs:
         run: bundle lock --add-platform x86_64-linux
         working-directory: web-interface
 
+      - name: Resolve Linux-native gems
+        run: bundle update --conservative sass-embedded google-protobuf ffi
+        working-directory: web-interface
+
       - name: Install Ruby gems
-        env:
-          BUNDLE_FORCE_RUBY_PLATFORM: 'true'
         run: bundle install --jobs 4
         working-directory: web-interface
 
