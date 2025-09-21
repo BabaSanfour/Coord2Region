@@ -117,6 +117,10 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
         kwargs["huggingface_api_key"] = args.huggingface_api_key
     if getattr(args, "image_model", None):
         kwargs["image_model"] = args.image_model
+    if getattr(args, "image_prompt_type", None):
+        kwargs["image_prompt_type"] = args.image_prompt_type
+    if getattr(args, "image_custom_prompt", None):
+        kwargs["image_custom_prompt"] = args.image_custom_prompt
     if getattr(args, "working_directory", None):
         kwargs["working_directory"] = args.working_directory
     if getattr(args, "email_for_abstracts", None):
@@ -305,6 +309,15 @@ def _add_image_options(
         choices=["ai", "nilearn", "both"],
         default=default_backend,
         help="Image generation backend",
+    )
+    p.add_argument(
+        "--image-prompt-type",
+        choices=["anatomical", "functional", "schematic", "artistic", "custom"],
+        help="Prompt template to use for AI image generation",
+    )
+    p.add_argument(
+        "--image-custom-prompt",
+        help="Custom image prompt template (use with --image-prompt-type custom)",
     )
 
 
@@ -519,6 +532,13 @@ def _commands_from_config(cfg: dict) -> List[str]:
         image_backend = cfg.get("image_backend")
         if capabilities["include_image"] and image_backend:
             tokens.extend(["--image-backend", str(image_backend)])
+        if capabilities["include_image"]:
+            image_prompt_type = config_section.get("image_prompt_type")
+            if image_prompt_type:
+                tokens.extend(["--image-prompt-type", str(image_prompt_type)])
+            image_custom_prompt = config_section.get("image_custom_prompt")
+            if image_custom_prompt:
+                tokens.extend(["--image-custom-prompt", str(image_custom_prompt)])
 
         commands.append(_format_cli_tokens(tokens))
         return commands
@@ -559,6 +579,13 @@ def _commands_from_config(cfg: dict) -> List[str]:
         image_backend = cfg.get("image_backend")
         if capabilities["include_image"] and image_backend:
             tokens.extend(["--image-backend", str(image_backend)])
+        if capabilities["include_image"]:
+            image_prompt_type = config_section.get("image_prompt_type")
+            if image_prompt_type:
+                tokens.extend(["--image-prompt-type", str(image_prompt_type)])
+            image_custom_prompt = config_section.get("image_custom_prompt")
+            if image_custom_prompt:
+                tokens.extend(["--image-custom-prompt", str(image_custom_prompt)])
 
         commands.append(_format_cli_tokens(tokens))
         return commands

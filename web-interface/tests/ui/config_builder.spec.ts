@@ -48,6 +48,16 @@ test.describe('Coord2Region Config Builder', () => {
   test('supports coordinate and file flows with YAML + CLI helpers', async ({ page }) => {
     await loadPreview(page);
 
+    // No residual RJSF root title/description or duplicated blocks
+    await expect(page.getByText('Coord2RegionConfig').first()).toHaveCount(0);
+    await expect(page.getByText('Pydantic model capturing all CLI-facing configuration options.').first()).toHaveCount(0);
+  // The app has a custom Outputs mini-section; ensure the default RJSF Outputs field is not rendered.
+  // We check there is no default RJSF form group labeled 'Outputs Type: array'.
+  const defaultOutputsGroup = page.locator('text=Outputs Type: array');
+  await expect(defaultOutputsGroup).toHaveCount(0);
+  // No default RJSF number field for study_search_radius (we render a custom one elsewhere)
+  await expect(page.locator('text=Study Search Radius Type: number')).toHaveCount(0);
+
     const coordinateTextarea = page.locator('#coord-textarea');
     await coordinateTextarea.fill('30, -22, 50\n12 34 56');
 
@@ -55,56 +65,68 @@ test.describe('Coord2Region Config Builder', () => {
     await expect(yamlOutput).toContainText('coordinates:');
     await expect(yamlOutput).toContainText('- 30');
 
-    const atlasField = page.locator('#root_atlas_names');
+    // New atlas selection UI lives under .atlas-section with friendly labels
+    const atlasSection = page.locator('.atlas-section');
 
-    const checkboxFor = (name: string) =>
-      atlasField.locator('label', { hasText: name }).locator('input[type="checkbox"]');
+    const checkboxForLabel = async (labelText: string) => {
+      const item = atlasSection.locator('.atlas-select__item', { hasText: labelText });
+      await item.waitFor();
+      return item.locator('input[type="checkbox"]');
+    };
 
-    const juelichCheckbox = checkboxFor('juelich');
-    await juelichCheckbox.waitFor();
+    // Toggle Jülich off if selected, ensure Harvard–Oxford on, then add AAL
+    const juelichCheckbox = await checkboxForLabel('Jülich');
     if (await juelichCheckbox.isChecked()) {
       await juelichCheckbox.uncheck();
     }
 
-    const harvardCheckbox = checkboxFor('harvard-oxford');
+    const harvardCheckbox = await checkboxForLabel('Harvard–Oxford');
     if (!(await harvardCheckbox.isChecked())) {
       await harvardCheckbox.check();
     }
 
-    const aalCheckbox = checkboxFor('aal');
+    const aalCheckbox = await checkboxForLabel('AAL');
     await aalCheckbox.check();
     await expect(yamlOutput).toContainText('harvard-oxford');
     await expect(yamlOutput).toContainText('aal');
-    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 2 atlases.');
 
-    const customAtlasInput = atlasField.locator('.atlas-widget__form input[name="customAtlas"]');
-    await customAtlasInput.fill('https://example.com/custom.nii.gz');
-    await customAtlasInput.press('Enter');
-    await expect(yamlOutput).toContainText('https://example.com/custom.nii.gz');
-    await expect(yamlOutput).toContainText('atlas_configs:');
-    await expect(yamlOutput).toContainText('atlas_url: https://example.com/custom.nii.gz');
-    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 3 atlases.');
-
-    const volumetricGroup = atlasField.locator('.atlas-group', { hasText: 'Volumetric (nilearn)' });
-    const selectAllVolumetric = volumetricGroup.locator('.atlas-group__action');
+    // Select all in Volumetric group and verify the group meta shows 10/10
+    const volumetricGroup = atlasSection.locator('.atlas-select__group', { hasText: 'Volumetric (nilearn)' });
+    const selectAllVolumetric = volumetricGroup.locator('.atlas-select__toggle');
     await selectAllVolumetric.click();
     await expect(selectAllVolumetric).toHaveText(/Clear all/);
-    await expect(atlasField.locator('.atlas-summary').first()).toHaveText('Selected 11 atlases.');
-    const studyCardButton = page.locator('.card', { hasText: 'Study review' }).locator('button');
-    await studyCardButton.click();
-    await expect(studyCardButton).toHaveClass(/toggle--active/);
+    await expect(volumetricGroup.locator('.atlas-select__meta')).toHaveText('10/10');
 
-    const summaryCardButton = page
-      .locator('.card.card--inline', {
-        has: page.getByRole('heading', { name: 'Summaries' })
-      })
-      .locator('button');
-    await summaryCardButton.click();
-    await expect(summaryCardButton).not.toHaveClass(/toggle--active/);
+    // Switch to Studies tab and enable Studies via the new switch UI
+    const studiesPill = page.getByRole('button', { name: 'Studies' });
+    await studiesPill.click();
+    const studySwitch = page.locator('.card.card--inline', { has: page.getByRole('heading', { name: 'Studies' }) }).locator('.switch');
+    await studySwitch.waitFor();
+    let studiesPressed = await studySwitch.getAttribute('aria-pressed');
+    if (studiesPressed !== 'true') {
+      await studySwitch.click();
+    }
+    await expect(studySwitch).toHaveAttribute('aria-pressed', 'true');
+
+    // Show Summaries tab to reveal its switch
+    const summariesPill = page.getByRole('button', { name: 'Summaries' });
+    await summariesPill.click();
+    const summarySwitch = page
+        .locator('.card.card--inline', {
+          has: page.getByRole('heading', { name: 'Summaries' })
+        })
+        .locator('.switch');
+    await summarySwitch.waitFor();
+    // Toggle summaries off then back on, asserting aria-pressed
+    let summariesPressed = await summarySwitch.getAttribute('aria-pressed');
+    if (summariesPressed === 'true') {
+      await summarySwitch.click();
+    }
+    await expect(summarySwitch).toHaveAttribute('aria-pressed', 'false');
     await expect(yamlOutput).not.toContainText('summary_model');
 
-    await summaryCardButton.click();
-    await expect(summaryCardButton).toHaveClass(/toggle--active/);
+    await summarySwitch.click();
+    await expect(summarySwitch).toHaveAttribute('aria-pressed', 'true');
     await expect(yamlOutput).not.toContainText('summary_model');
     await expect(yamlOutput).toContainText('prompt_type: summary');
 
@@ -131,54 +153,57 @@ test.describe('Coord2Region Config Builder', () => {
     await loadPreview(page);
 
     // Enable studies first (summaries depend on studies)
-    const studyCardButton = page.locator('.card', { hasText: 'Study review' }).locator('button');
-    await studyCardButton.click();
-    await expect(studyCardButton).toHaveClass(/toggle--active/);
+    const studiesPill = page.getByRole('button', { name: 'Studies' });
+    await studiesPill.click();
+    const studySwitch = page.locator('.card.card--inline', { has: page.getByRole('heading', { name: 'Studies' }) }).locator('.switch');
+    await studySwitch.waitFor();
+    let studiesPressed = await studySwitch.getAttribute('aria-pressed');
+    if (studiesPressed !== 'true') {
+      await studySwitch.click();
+    }
+    await expect(studySwitch).toHaveAttribute('aria-pressed', 'true');
 
     // Enable summaries
-    const summaryCardButton = page
-      .locator('.card.card--inline', {
-        has: page.getByRole('heading', { name: 'Summaries' })
-      })
-      .locator('button');
-    
-    // Click twice to ensure it's enabled (following the pattern from the existing test)
-    await summaryCardButton.click();
-    await summaryCardButton.click();
-    await expect(summaryCardButton).toHaveClass(/toggle--active/);
+    // Reveal Summaries tab
+    const summariesPill2 = page.getByRole('button', { name: 'Summaries' });
+    await summariesPill2.click();
+    const summarySwitch = page
+        .locator('.card.card--inline', {
+          has: page.getByRole('heading', { name: 'Summaries' })
+        })
+        .locator('.switch');
+    await summarySwitch.waitFor();
+    // Ensure it's enabled
+    let summariesPressed2 = await summarySwitch.getAttribute('aria-pressed');
+    if (summariesPressed2 !== 'true') {
+      await summarySwitch.click();
+    } else {
+      // toggle off and back on to ensure UI updates
+      await summarySwitch.click();
+      await summarySwitch.click();
+    }
+    await expect(summarySwitch).toHaveAttribute('aria-pressed', 'true');
 
     // Wait for the form to update and check if summary models field appears
     await page.waitForTimeout(3000);
 
     // Check if the summary models field exists (it might be hidden initially)
-    const summaryModelsFieldExists = await page.locator('#root_summary_models').count();
-    console.log('Summary models field exists:', summaryModelsFieldExists > 0);
-
-    // If the field exists, test the functionality
-    if (summaryModelsFieldExists > 0) {
-      const summaryModelsField = page.locator('#root_summary_models');
-      await expect(summaryModelsField).toBeVisible();
-
-      // Add first model via text input
-      const modelInput = summaryModelsField.locator('input[type="text"]');
-      await modelInput.fill('gemini-2.0-flash');
-      await modelInput.press('Enter');
-      
-      // Verify model was added
-      await expect(summaryModelsField.locator('.selected-item')).toContainText('gemini-2.0-flash');
+    // Add a summary model via the custom UI in Summaries section
+    const summaryModelsContainer = page.locator('.summaries-section .form-field', { hasText: 'Summary Models' });
+    const modelInput = summaryModelsContainer.locator('input[type="text"]');
+    await modelInput.fill('gemini-2.0-flash');
+    await modelInput.press('Enter');
+  
+    // Verify model chip was added
+    await expect(summaryModelsContainer.locator('.selected-item')).toContainText('gemini-2.0-flash');
 
       // Check YAML output contains the model
       const yamlOutput = page.locator('.yaml-output code');
       await expect(yamlOutput).toContainText('summary_models:');
       await expect(yamlOutput).toContainText('- gemini-2.0-flash');
 
-      // Test API key field appears
-      const geminiApiKeyField = page.locator('#root_gemini_api_key');
-      await expect(geminiApiKeyField).toBeVisible();
-    } else {
-      // If the field doesn't exist, just verify the toggle is working
-      console.log('Summary models field not found, but toggle is working');
-      await expect(summaryCardButton).toHaveClass(/toggle--active/);
-    }
+    // Test API key field appears in custom inputs
+    const geminiApiKeyField = page.locator('#gemini-key');
+    await expect(geminiApiKeyField).toBeVisible();
   });
 });

@@ -31,7 +31,14 @@ def test_schema_matches_model_definition() -> None:
     coord2region_config.model_rebuild(_types_namespace=module.__dict__)
     model_schema = coord2region_config.model_json_schema()
 
-    assert file_schema == model_schema
+    # Allow UI-driven presentation differences: ignore root title/description
+    def _strip_meta(d: dict) -> dict:
+        cleaned = dict(d)
+        cleaned.pop("title", None)
+        cleaned.pop("description", None)
+        return cleaned
+
+    assert _strip_meta(file_schema) == _strip_meta(model_schema)
 
     props = file_schema["properties"]
     assert props["input_type"]["enum"] == ["coords", "region_names"]

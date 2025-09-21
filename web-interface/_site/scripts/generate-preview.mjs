@@ -51,6 +51,15 @@ const html = `<!DOCTYPE html>
     </header>
     <main class="content container">
 ${content.trim()}
+      <section id="config-builder" class="section-card">
+        <div class="card-title">
+          <h2>Interactive Config Builder (Test Preview)</h2>
+          <span>Injected for automated UI tests</span>
+        </div>
+        <div class="responsive-frame">
+          <div id="coord2region-root"></div>
+        </div>
+      </section>
     </main>
     <footer class="site-footer">
       <div class="container">

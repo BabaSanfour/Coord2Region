@@ -343,6 +343,99 @@ def test_pipeline_async_both_backends(tmp_path):
 
 
 @pytest.mark.unit
+@patch("coord2region.pipeline.generate_region_image", return_value=b"PNGDATA")
+@patch("coord2region.pipeline.MultiAtlasMapper")
+@patch("coord2region.pipeline.AIModelInterface")
+def test_pipeline_image_prompt_custom_sync(
+    mock_ai, mock_multi, mock_gen, tmp_path
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
+
+    res = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["images"],
+        image_backend="ai",
+        config={
+            "use_cached_dataset": False,
+            "working_directory": str(tmp_path),
+            "gemini_api_key": "k",
+            "image_model": "my-model",
+            "image_prompt_type": "custom",
+            "image_custom_prompt": "Custom prompt for {coordinate} :: {atlas_context}",
+        },
+    )
+    assert res and res[0].images.get("ai")
+    args, kwargs = mock_gen.call_args
+    assert kwargs["image_type"] == "custom"
+    assert kwargs["model"] == "my-model"
+    assert kwargs["prompt_template"] == "Custom prompt for {coordinate} :: {atlas_context}"
+    assert kwargs.get("watermark", False) is True
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_region_image", return_value=b"PNGDATA")
+@patch("coord2region.pipeline.MultiAtlasMapper")
+@patch("coord2region.pipeline.AIModelInterface")
+def test_pipeline_image_prompt_noncustom_sync(
+    mock_ai, mock_multi, mock_gen, tmp_path
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
+
+    _ = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["images"],
+        image_backend="ai",
+        config={
+            "use_cached_dataset": False,
+            "working_directory": str(tmp_path),
+            "gemini_api_key": "k",
+            "image_model": "another-model",
+            "image_prompt_type": "functional",
+        },
+    )
+    args, kwargs = mock_gen.call_args
+    assert kwargs["image_type"] == "functional"
+    assert kwargs["model"] == "another-model"
+    assert kwargs.get("prompt_template") is None
+
+
+@pytest.mark.unit
+@patch("coord2region.pipeline.generate_region_image", return_value=b"PNGDATA")
+@patch("coord2region.pipeline.MultiAtlasMapper")
+@patch("coord2region.pipeline.AIModelInterface")
+def test_pipeline_image_prompt_custom_async(
+    mock_ai, mock_multi, mock_gen, tmp_path
+):
+    mock_multi.return_value.batch_mni_to_region_names.return_value = {}
+    mock_multi.return_value.batch_region_name_to_mni.return_value = {}
+
+    res = run_pipeline(
+        inputs=[[0, 0, 0]],
+        input_type="coords",
+        outputs=["images"],
+        image_backend="ai",
+        async_mode=True,
+        config={
+            "use_cached_dataset": False,
+            "working_directory": str(tmp_path),
+            "gemini_api_key": "k",
+            "image_model": "async-model",
+            "image_prompt_type": "custom",
+            "image_custom_prompt": "Async custom {coordinate}",
+        },
+    )
+    assert res and res[0].images.get("ai")
+    args, kwargs = mock_gen.call_args
+    assert kwargs["image_type"] == "custom"
+    assert kwargs["model"] == "async-model"
+    assert kwargs["prompt_template"] == "Async custom {coordinate}"
+
+
+@pytest.mark.unit
 def test_export_results_invalid_format(tmp_path):
     with pytest.raises(ValueError):
         _export_results([PipelineResult()], "xml", str(tmp_path / "out"))

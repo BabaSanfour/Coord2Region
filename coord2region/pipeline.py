@@ -176,9 +176,11 @@ def run_pipeline(
         Required when ``output_format`` is specified.
     image_backend : {"ai", "nilearn", "both"}, optional
         Backend used to generate images when ``"images"`` is requested.
-        Defaults to ``"ai"``.
-    config : dict, optional
-        Additional configuration for datasets, atlases and model providers. To
+                        prompt_template=(
+                            image_custom_prompt
+                            if image_prompt_type == "custom"
+                            else None
+                        ),
         enable or disable AI providers, supply a ``providers`` dictionary mapping
         provider names to keyword arguments understood by
         :meth:`AIModelInterface.register_provider`.
@@ -276,6 +278,8 @@ def run_pipeline(
     anthropic_api_key = kwargs.get("anthropic_api_key")
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
+    image_prompt_type = kwargs.get("image_prompt_type") or "anatomical"
+    image_custom_prompt = kwargs.get("image_custom_prompt")
 
     dataset = (
         prepare_datasets(str(working_dir), sources=sources)
@@ -413,7 +417,17 @@ def run_pipeline(
                 }
                 try:
                     img_bytes = generate_region_image(
-                        ai, coord, region_info, model=image_model, watermark=True
+                        ai,
+                        coord,
+                        region_info,
+                        image_type=image_prompt_type,
+                        model=image_model,
+                        watermark=True,
+                        prompt_template=(
+                            image_custom_prompt
+                            if image_prompt_type == "custom"
+                            else None
+                        ),
                     )
                     img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:
@@ -502,6 +516,8 @@ async def _run_pipeline_async(
     anthropic_api_key = kwargs.get("anthropic_api_key")
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
+    image_prompt_type = kwargs.get("image_prompt_type") or "anatomical"
+    image_custom_prompt = kwargs.get("image_custom_prompt")
 
     dataset = (
         await asyncio.to_thread(prepare_datasets, str(working_dir), sources)
@@ -636,7 +652,17 @@ async def _run_pipeline_async(
 
                 def _save_ai_image() -> str:
                     img_bytes = generate_region_image(
-                        ai, coord, region_info, model=image_model, watermark=True
+                        ai,
+                        coord,
+                        region_info,
+                        image_type=image_prompt_type,
+                        model=image_model,
+                        watermark=True,
+                        prompt_template=(
+                            image_custom_prompt
+                            if image_prompt_type == "custom"
+                            else None
+                        ),
                     )
                     img_path = img_dir / f"image_{len(list(img_dir.iterdir())) + 1}.png"
                     with open(img_path, "wb") as f:

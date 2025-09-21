@@ -1,4 +1,4 @@
-import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardEvent, useCallback, useEffect, useMemo, useState, ChangeEvent } from 'react';
 import Form, { IChangeEvent } from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import {
@@ -124,6 +124,47 @@ const atlasGroups: AtlasOptionGroup[] = [
 
 const knownAtlases = new Set<string>(atlasGroups.flatMap((group) => group.options));
 
+// Friendly display names for atlas values
+const atlasDisplayNames: Record<string, string> = {
+  // Volumetric (nilearn)
+  'aal': 'AAL',
+  'basc': 'BASC',
+  'brodmann': 'Brodmann',
+  'destrieux': 'Destrieux',
+  'harvard-oxford': 'Harvard–Oxford',
+  'juelich': 'Jülich',
+  'pauli': 'Pauli',
+  'schaefer': 'Schaefer',
+  'talairach': 'Talairach',
+  'yeo': 'Yeo',
+  // Surface (mne)
+  'aparc': 'aparc (Desikan–Killiany)',
+  'aparc.a2005s': 'aparc a2005s',
+  'aparc.a2009s': 'aparc a2009s',
+  'aparc_sub': 'aparc_sub',
+  'human-connectum project': 'Human Connectome Project',
+  'oasis.chubs': 'OASIS CHUBS',
+  'pals_b12_lobes': 'PALS-B12 Lobes',
+  'pals_b12_orbitofrontal': 'PALS-B12 Orbitofrontal',
+  'pals_b12_visuotopic': 'PALS-B12 Visuotopic',
+  'yeo2011': 'Yeo (2011)',
+  // Coordinates (mne)
+  'dosenbach': 'Dosenbach',
+  'power': 'Power',
+  'seitzman': 'Seitzman'
+};
+
+const humanizeAtlas = (value: string): string => {
+  // Fallback humanization: replace separators with spaces and capitalize words
+  return value
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+};
+
+const displayAtlas = (value: string): string => atlasDisplayNames[value] || humanizeAtlas(value);
+
 const deepClone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const datasetSourceOptions = ["neurosynth", "neuroquery", "nidm_pain"] as const;
@@ -140,6 +181,15 @@ const summaryModelOptions: ReadonlyArray<SelectOption> = [
   { value: 'deepseek-chat-v3-0324', label: 'DeepSeek Chat v3 (OpenRouter)' },
   { value: 'gpt-4', label: 'GPT-4 (OpenAI)' },
   { value: 'distilgpt2', label: 'distilgpt2 (Hugging Face)' }
+];
+
+// Image prompt type options
+const imagePromptTypeOptions: ReadonlyArray<SelectOption> = [
+  { value: 'anatomical', label: 'Anatomical' },
+  { value: 'functional', label: 'Functional' },
+  { value: 'schematic', label: 'Schematic' },
+  { value: 'artistic', label: 'Artistic' },
+  { value: 'custom', label: 'Custom prompt' }
 ];
 
 // Map models to their API key providers
@@ -192,6 +242,19 @@ const imageModelProperty: RJSFSchema = {
   type: 'string',
   default: 'stabilityai/stable-diffusion-2',
   title: 'Image model'
+};
+
+const imagePromptTypeProperty: RJSFSchema = {
+  type: 'string',
+  enum: imagePromptTypeOptions.map((o) => o.value),
+  default: 'anatomical',
+  title: 'Image prompt type'
+};
+
+const imageCustomPromptProperty: RJSFSchema = {
+  type: 'string',
+  default: '',
+  title: 'Custom image prompt'
 };
 
 
@@ -438,6 +501,8 @@ const builderKeys: string[] = [
   'outputs',
   'image_backend',
   'image_model',
+  'image_prompt_type',
+  'image_custom_prompt',
   'output_format',
   'output_name',
   'study_search_radius',
@@ -557,6 +622,8 @@ if (builderSchema.properties?.huggingface_api_key && huggingfaceApiKeyProperty) 
 builderSchema.properties = builderSchema.properties || {};
 builderSchema.properties.image_backend = imageBackendProperty;
 builderSchema.properties.image_model = imageModelProperty;
+builderSchema.properties.image_prompt_type = imagePromptTypeProperty;
+builderSchema.properties.image_custom_prompt = imageCustomPromptProperty;
 
 const tooltipFromSchema = (key: string): string | undefined => {
   const property = (schema.properties ?? {})[key] as SchemaProperty | undefined;
@@ -646,6 +713,10 @@ const FieldTemplate = (props: FieldTemplateProps) => {
     </div>
   );
 };
+
+// Suppress default schema title/description that RJSF renders at the root
+const TitleFieldTemplate = () => null;
+const DescriptionFieldTemplate = () => null;
 
 const AtlasMultiSelect = (props: WidgetProps) => {
   const { id, value, disabled, readonly, onChange } = props;
@@ -793,6 +864,116 @@ const AtlasMultiSelect = (props: WidgetProps) => {
         Selected {selected.length} atlas{selected.length === 1 ? '' : 'es'}.
       </p>
       {selected.length === 0 && <p className="atlas-widget__hint">Select one or more atlases to query.</p>}
+    </div>
+  );
+};
+
+type AtlasSelectionProps = {
+  selected: string[];
+  onChange: (next: string[]) => void;
+  enforceSingle?: boolean; // when true, allow selecting only one atlas at a time
+};
+
+const AtlasSelection = ({ selected, onChange, enforceSingle = false }: AtlasSelectionProps) => {
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    'volumetric-nilearn': true,
+    'surface-mne': false,
+    'coordinates-mne': false
+  });
+  const [filters, setFilters] = useState<Record<string, string>>({});
+
+  const toggleOpen = (id: string) => setOpen((s) => ({ ...s, [id]: !s[id] }));
+
+  const commit = (next: Iterable<string>) => {
+    let unique = Array.from(new Set(Array.from(next))).sort((a, b) => a.localeCompare(b));
+    if (enforceSingle && unique.length > 1) {
+      // Keep only the last chosen item when single selection is enforced
+      unique = [unique[unique.length - 1]];
+    }
+    onChange(unique);
+  };
+
+  const toggleAtlas = (name: string) => {
+    const set = new Set(selected);
+    if (enforceSingle) {
+      if (set.has(name)) {
+        set.delete(name);
+        commit(set);
+      } else {
+        commit([name]);
+      }
+    } else {
+      set.has(name) ? set.delete(name) : set.add(name);
+      commit(set);
+    }
+  };
+
+  const handleGroupToggle = (options: string[]) => {
+    if (enforceSingle) return; // Disable group toggle in single-select mode
+    const set = new Set(selected);
+    const hasMissing = options.some((opt) => !set.has(opt));
+    options.forEach((opt) => (hasMissing ? set.add(opt) : set.delete(opt)));
+    commit(set);
+  };
+
+  const groups = atlasGroups;
+
+  return (
+    <div className="atlas-select">
+      {groups.map((group) => {
+        const query = (filters[group.id] || '').toLowerCase();
+        const filtered = query
+          ? group.options.filter((opt) => opt.toLowerCase().includes(query))
+          : group.options;
+        const groupSelected = filtered.filter((opt) => selected.includes(opt));
+        const allSelected = filtered.length > 0 && groupSelected.length === filtered.length;
+        return (
+          <details key={group.id} className="atlas-select__group" open={!!open[group.id]}>
+            <summary className="atlas-select__summary" onClick={(e) => { e.preventDefault(); toggleOpen(group.id); }}>
+              <span className="atlas-select__chevron" aria-hidden="true" />
+              <span className="atlas-select__title">{group.label}</span>
+              <span className="atlas-select__meta" aria-label="selected count">{groupSelected.length}/{filtered.length || 0}</span>
+              <button
+                type="button"
+                className="atlas-select__toggle"
+                disabled={enforceSingle}
+                onClick={(e) => { e.preventDefault(); handleGroupToggle(filtered); }}
+              >
+                {allSelected ? `Clear all (${filtered.length})` : `Select all (${filtered.length})`}
+              </button>
+            </summary>
+            <div className="atlas-select__body">
+              <div className="atlas-select__toolbar">
+                <input
+                  type="text"
+                  className="atlas-select__search"
+                  placeholder="Filter atlas names..."
+                  value={filters[group.id] || ''}
+                  onChange={(e) => setFilters((m) => ({ ...m, [group.id]: e.target.value }))}
+                />
+              </div>
+              {filtered.length === 0 ? (
+                <p className="atlas-select__empty">No matching atlas.</p>
+              ) : (
+                <ul className="atlas-select__list">
+                  {filtered.map((opt) => (
+                    <li key={`${group.id}-${opt}`} className={clsx('atlas-select__item', selected.includes(opt) && 'is-selected')}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(opt)}
+                          onChange={() => toggleAtlas(opt)}
+                        />
+                        <span className="atlas-select__name">{displayAtlas(opt)}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+        );
+      })}
     </div>
   );
 };
@@ -1134,19 +1315,20 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
       defaults.atlas_names = ['harvard-oxford', 'juelich'];
     }
     // Image generation defaults
-    (defaults as any).image_backend = typeof (defaults as any).image_backend === 'string' && (defaults as any).image_backend
-      ? (defaults as any).image_backend
-      : 'ai';
-    (defaults as any).image_model = typeof (defaults as any).image_model === 'string' && (defaults as any).image_model
-      ? (defaults as any).image_model
-      : 'stabilityai/stable-diffusion-2';
+    (defaults as any).image_backend = typeof (defaults as any).image_backend === 'string' && (defaults as any).image_backend 
+      ? (defaults as any).image_backend 
+      : 'both'; // Changed default to 'both'
+    (defaults as any).image_model = typeof (defaults as any).image_model === 'string' && (defaults as any).image_model 
+      ? (defaults as any).image_model 
+      : 'runwayml/stable-diffusion-v1-5'; // Changed default model
     defaults.sources = Array.isArray((defaults as any).sources)
       ? (defaults as any).sources
       : [];
     defaults.working_directory = typeof defaults.working_directory === 'string' ? defaults.working_directory : '';
     defaults.output_name = typeof defaults.output_name === 'string' ? defaults.output_name : '';
     defaults.custom_prompt = typeof defaults.custom_prompt === 'string' ? defaults.custom_prompt : '';
-    defaults.summary_models = Array.isArray(defaults.summary_models) 
+    // Start with no summary models by default (since Summaries is off initially)
+    defaults.summary_models = Array.isArray(defaults.summary_models)
       ? defaults.summary_models
       : typeof defaults.summary_models === 'string' && defaults.summary_models
         ? [defaults.summary_models]
@@ -1184,23 +1366,53 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
 
     defaults.input_type = inferredInputType;
 
+    // If starting in region_names mode, enforce a single atlas selection
+    if (inferredInputType === 'region_names') {
+      const currentAtlases = Array.isArray((defaults as any).atlas_names) ? ((defaults as any).atlas_names as string[]) : [];
+      (defaults as any).atlas_names = currentAtlases.length > 0 ? [currentAtlases[0]] : ['harvard-oxford'];
+    }
+
     return {
       defaults,
       inputMode: inferredInputType,
-      regionNamesText: defaultRegionNames.join('\n')
+      regionNamesText: defaultRegionNames.length > 0
+        ? defaultRegionNames.join('\n')
+        : 'Amygdala\nHippocampus'
     };
   }, []);
 
   const [inputMode, setInputMode] = useState<InputMode>(initialState.inputMode);
   const [coordEntryMode, setCoordEntryMode] = useState<CoordEntryMode>('paste');
   const [coordinateText, setCoordinateText] = useState('30, -22, 50');
-  const [coordsFile, setCoordsFile] = useState('');
+  const [coordsFile, setCoordsFile] = useState('examples/toy_coordinates.csv');
   const [regionNamesText, setRegionNamesText] = useState(initialState.regionNamesText);
-  const [enableStudy, setEnableStudy] = useState(false);
-  const [enableSummary, setEnableSummary] = useState(true);
+  // Default outputs: Studies enabled by default; Summaries and Images disabled
+  const [enableStudy, setEnableStudy] = useState(true);
+  const [enableSummary, setEnableSummary] = useState(false);
   const [yamlCopied, setYamlCopied] = useState<'idle' | 'copied' | 'error'>('idle');
   const [cliCopied, setCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [directCliCopied, setDirectCliCopied] = useState<'idle' | 'copied' | 'error'>('idle');
   const [viewMode, setViewMode] = useState<'builder' | 'about' | 'cloud'>('builder');
+  const [outputDetail, setOutputDetail] = useState<'studies' | 'summaries' | 'images'>('studies');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [templateUndo, setTemplateUndo] = useState<null | {
+    inputMode: InputMode;
+    coordEntryMode: CoordEntryMode;
+    coordinateText: string;
+    coordsFile: string;
+    regionNamesText: string;
+    enableStudy: boolean;
+    enableSummary: boolean;
+    formData: any;
+  }>(null);
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [importMessage, setImportMessage] = useState<string>('');
+
+  // Helper to clear the 'images' flag from outputs
+  const withoutImages = (outputs: unknown) => {
+    const arr = Array.isArray(outputs) ? (outputs as string[]) : [];
+    return arr.filter((o) => o !== 'images');
+  };
 
   const [formData, setFormData] = useState<FormState>(() => initialState.defaults);
   const promptType = typeof formData.prompt_type === 'string' && formData.prompt_type
@@ -1211,7 +1423,39 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
   const imageBackendVal = typeof (formData as any).image_backend === 'string' && (formData as any).image_backend
     ? (formData as any).image_backend as string
     : 'ai';
-  const showImageModel = enableImages && (imageBackendVal === 'ai' || imageBackendVal === 'both');
+  const showImageAiOptions = enableImages && (imageBackendVal === 'ai' || imageBackendVal === 'both');
+
+  // Track which section is visible for quick-nav highlighting
+  const [activeSection, setActiveSection] = useState<string>('atlas-section');
+  useEffect(() => {
+    const ids = [
+      'atlas-section',
+      ...(enableStudy ? ['studies-section'] : []),
+      ...(enableSummary ? ['summaries-section'] : []),
+      ...(enableImages ? ['images-section'] : []),
+      'outputs-section'
+    ];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length > 0) {
+          setActiveSection((visible[0].target as HTMLElement).id);
+        }
+      },
+      {
+        root: null,
+        rootMargin: '0px 0px -60% 0px',
+        threshold: [0.15, 0.35, 0.5, 0.75]
+      }
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [enableStudy, enableSummary, enableImages]);
 
   // Get required API keys based on selected models
   const selectedModels = Array.isArray(formData.summary_models) 
@@ -1235,129 +1479,306 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
     [regionNamesText]
   );
 
+  // Require coords file path when using file-based coordinate input
+  const coordFileRequired = inputMode === 'coords' && coordEntryMode === 'file';
+  const coordFileError = useMemo(
+    () => coordFileRequired && (!coordsFile || coordsFile.trim().length === 0),
+    [coordFileRequired, coordsFile]
+  );
+
   const uiSchema: UiSchema = useMemo(
     () => ({
       'ui:order': builderKeys,
-      working_directory: {
-        'ui:widget': 'text',
-        'ui:emptyValue': null,
-        'ui:placeholder': '/path/to/working-directory'
-      },
-      output_name: {
-        'ui:widget': 'text',
-        'ui:emptyValue': null,
-        'ui:placeholder': 'results.json'
-      },
-      sources: {
-        'ui:widget': 'checkboxes'
-      },
-      atlas_names: {
-        'ui:widget': 'atlasMultiSelect',
-        // When using region-to-* CLI, exactly one atlas is required
-        ...(inputMode === 'region_names'
-          ? { 'ui:help': 'When using Region names, select exactly one atlas.' }
-          : {})
-      },
-      image_backend: enableImages ? {} : { 'ui:widget': 'hidden' },
-      image_model: showImageModel
-        ? { 'ui:field': 'imageModelField', 'ui:options': { label: false }, 'ui:emptyValue': '' }
-        : { 'ui:widget': 'hidden' },
-      output_format: {
-        'ui:field': 'outputFormatField',
-        'ui:emptyValue': null
-      },
-      outputs: {
-        'ui:widget': 'checkboxes'
-      },
-      email_for_abstracts: {
-        'ui:widget': 'text',
-        'ui:placeholder': 'name@example.com',
-        'ui:emptyValue': ''
-      },
-      study_search_radius: enableStudy ? {} : { 'ui:widget': 'hidden' },
+      'ui:title': '',
+      'ui:description': '',
+      working_directory: { 'ui:widget': 'hidden' },
+      output_name: { 'ui:widget': 'hidden' },
+      // Hide default RJSF sources; custom Studies section renders sources
+      sources: { 'ui:widget': 'hidden' },
+      atlas_names: { 'ui:widget': 'hidden' },
+      // Hide image fields in the default form; custom Images section renders them
+      image_backend: { 'ui:widget': 'hidden' },
+      image_model: { 'ui:widget': 'hidden' },
+      image_prompt_type: { 'ui:widget': 'hidden' },
+      image_custom_prompt: { 'ui:widget': 'hidden' },
+      output_format: { 'ui:widget': 'hidden' },
+      // Hide outputs entirely; we render a custom Outputs mini-section below
+      outputs: { 'ui:widget': 'hidden' },
+      // Hide default email; custom Studies section renders it
+      email_for_abstracts: { 'ui:widget': 'hidden' },
+      // Hide study_search_radius here; custom Studies section renders and manages it
+      study_search_radius: { 'ui:widget': 'hidden' },
       region_search_radius: {
-        'ui:widget': 'text',
-        'ui:options': { inputType: 'text' },
-        'ui:placeholder': '0.4',
-        'ui:emptyValue': ''
+        'ui:widget': 'hidden'
       },
-      prompt_type: enableSummary
-        ? { 'ui:field': 'promptTypeField' }
-        : { 'ui:widget': 'hidden' },
-      summary_models: enableSummary
-        ? { 'ui:field': 'summaryModelMultiSelect' }
-        : { 'ui:widget': 'hidden' },
-      summary_max_tokens: enableSummary
-        ? {
-            'ui:widget': 'text',
-            'ui:options': { inputType: 'text' },
-            'ui:placeholder': '1000',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
-      custom_prompt: enableSummary
-        ? { 'ui:field': 'customPromptField' }
-        : { 'ui:widget': 'hidden' },
-      // API Key fields - only show for required providers
-      anthropic_api_key: requiredProviders.includes('anthropic')
-        ? {
-            'ui:field': 'apiKeyField',
-            'ui:title': 'Anthropic API Key',
-            'ui:placeholder': 'Enter your Anthropic API key',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
-      openai_api_key: requiredProviders.includes('openai')
-        ? {
-            'ui:field': 'apiKeyField',
-            'ui:title': 'OpenAI API Key',
-            'ui:placeholder': 'Enter your OpenAI API key',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
-      openrouter_api_key: requiredProviders.includes('openrouter')
-        ? {
-            'ui:field': 'apiKeyField',
-            'ui:title': 'OpenRouter API Key',
-            'ui:placeholder': 'Enter your OpenRouter API key',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
-      gemini_api_key: requiredProviders.includes('gemini')
-        ? {
-            'ui:field': 'apiKeyField',
-            'ui:title': 'Google Gemini API Key',
-            'ui:placeholder': 'Enter your Google Gemini API key',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
-      huggingface_api_key: requiredProviders.includes('huggingface')
-        ? {
-            'ui:field': 'apiKeyField',
-            'ui:title': 'Hugging Face API Key',
-            'ui:placeholder': 'Enter your Hugging Face API key',
-            'ui:emptyValue': ''
-          }
-        : { 'ui:widget': 'hidden' },
+      // Hide Summary fields and API keys in RJSF; custom section renders these
+      prompt_type: { 'ui:widget': 'hidden' },
+      summary_models: { 'ui:widget': 'hidden' },
+      summary_max_tokens: { 'ui:widget': 'hidden' },
+      custom_prompt: { 'ui:widget': 'hidden' },
+      anthropic_api_key: { 'ui:widget': 'hidden' },
+      openai_api_key: { 'ui:widget': 'hidden' },
+      openrouter_api_key: { 'ui:widget': 'hidden' },
+      gemini_api_key: { 'ui:widget': 'hidden' },
+      huggingface_api_key: { 'ui:widget': 'hidden' },
       input_type: { 'ui:widget': 'hidden' },
     }),
-    [enableStudy, enableSummary, promptType, requiredProviders, enableImages, showImageModel, inputMode]
+    [enableStudy, enableSummary, promptType, requiredProviders, enableImages, inputMode]
   );
 
   const handleInputModeChange = (nextMode: InputMode) => {
     setInputMode(nextMode);
-    setFormData((current) => ({
-      ...current,
-      input_type: nextMode
-    }));
+    setFormData((current) => {
+      const updated: any = { ...current, input_type: nextMode };
+      if (nextMode === 'region_names') {
+        const arr = Array.isArray(updated.atlas_names) ? (updated.atlas_names as string[]) : [];
+        updated.atlas_names = arr.length > 0 ? [arr[0]] : ['harvard-oxford'];
+      }
+      return updated;
+    });
   };
 
   const handleCoordEntryModeChange = (nextMode: CoordEntryMode) => {
     setCoordEntryMode(nextMode);
+    if (nextMode === 'file' && (!coordsFile || coordsFile.trim().length === 0)) {
+      setCoordsFile('examples/toy_coordinates.csv');
+    }
   };
 
   const handleRegionNamesInput = (value: string) => {
     setRegionNamesText(value);
+  };
+
+  const applyYamlObject = (data: Record<string, any>) => {
+    try {
+      // Determine input type and fill inputs
+      const inputType = typeof data.input_type === 'string' ? data.input_type : (Array.isArray(data.region_names) ? 'region_names' : 'coords');
+      if (inputType === 'region_names') {
+        setInputMode('region_names');
+        const names = Array.isArray(data.region_names) ? data.region_names.filter((s: any) => typeof s === 'string' && s.trim()).join('\n') : '';
+        setRegionNamesText(names || '');
+      } else {
+        setInputMode('coords');
+        if (Array.isArray(data.coordinates) && data.coordinates.length > 0) {
+          const text = data.coordinates
+            .filter((t: any) => Array.isArray(t) && t.length === 3)
+            .map((t: any) => t.map((n: any) => String(n)).join(', '))
+            .join('\n');
+          setCoordEntryMode('paste');
+          setCoordinateText(text);
+          setCoordsFile('');
+        } else if (typeof data.coords_file === 'string' && data.coords_file.trim()) {
+          setCoordEntryMode('file');
+          setCoordsFile(data.coords_file.trim());
+        } else {
+          setCoordEntryMode('paste');
+        }
+      }
+
+      // Determine toggles from outputs
+      const outputs = Array.isArray(data.outputs) ? (data.outputs as string[]).map((s) => String(s)) : [];
+      const hasImages = outputs.includes('images');
+      const hasSummaries = outputs.includes('summaries');
+      const hasStudies = outputs.includes('raw_studies');
+      setEnableSummary(!!hasSummaries);
+      setEnableStudy(!!(hasStudies || hasSummaries));
+
+      // Build next formData
+      setFormData((curr) => {
+        const next: any = { ...curr };
+        next.input_type = inputType;
+        // Atlases & sources
+        if (Array.isArray(data.atlas_names)) next.atlas_names = data.atlas_names;
+        if (Array.isArray(data.sources)) next.sources = data.sources;
+        // Radii
+        if (data.region_search_radius !== undefined) next.region_search_radius = String(data.region_search_radius ?? '');
+        if (data.study_search_radius !== undefined) next.study_search_radius = String(data.study_search_radius ?? '');
+        // Save & export
+        if (typeof data.working_directory === 'string') next.working_directory = data.working_directory;
+        next.output_format = typeof data.output_format === 'string' ? data.output_format : '';
+        next.output_name = typeof data.output_name === 'string' ? data.output_name : '';
+        // Summaries
+        if (typeof data.prompt_type === 'string') next.prompt_type = data.prompt_type;
+        if (Array.isArray(data.summary_models)) next.summary_models = data.summary_models;
+        if (data.summary_max_tokens !== undefined && data.summary_max_tokens !== null) next.summary_max_tokens = String(data.summary_max_tokens);
+        if (typeof data.custom_prompt === 'string') next.custom_prompt = data.custom_prompt;
+        // API keys if present
+        ['anthropic_api_key','openai_api_key','openrouter_api_key','gemini_api_key','huggingface_api_key','email_for_abstracts'].forEach((k) => {
+          if (typeof data[k] === 'string') next[k] = data[k];
+        });
+        // Images
+        next.outputs = hasImages ? ['images'] : withoutImages(curr.outputs);
+        next.image_backend = typeof data.image_backend === 'string' ? data.image_backend : (hasImages ? (curr.image_backend || 'ai') : null);
+        next.image_model = typeof data.image_model === 'string' ? data.image_model : (hasImages ? (curr.image_model || 'stabilityai/stable-diffusion-2') : null);
+        next.image_prompt_type = typeof data.image_prompt_type === 'string' ? data.image_prompt_type : (hasImages ? (curr.image_prompt_type || 'anatomical') : null);
+        next.image_custom_prompt = typeof data.image_custom_prompt === 'string' ? data.image_custom_prompt : null;
+        return next;
+      });
+
+      setImportStatus('success');
+      setImportMessage('Config loaded from YAML.');
+      setTimeout(() => setImportStatus('idle'), 2500);
+    } catch (e) {
+      console.error('Failed to apply YAML config', e);
+      setImportStatus('error');
+      setImportMessage('Failed to load YAML. Please check the file format.');
+      setTimeout(() => setImportStatus('idle'), 3500);
+    }
+  };
+
+  const handleYamlFileInput = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '');
+        const obj = YAML.load(text) as Record<string, any>;
+        if (obj && typeof obj === 'object') {
+          applyYamlObject(obj);
+        } else {
+          throw new Error('Empty or invalid YAML');
+        }
+      } catch (err) {
+        console.error('YAML parse error', err);
+        setImportStatus('error');
+        setImportMessage('Unable to parse YAML file.');
+        setTimeout(() => setImportStatus('idle'), 3500);
+      }
+      // clear input
+      event.target.value = '';
+    };
+    reader.onerror = () => {
+      setImportStatus('error');
+      setImportMessage('Unable to read file.');
+      setTimeout(() => setImportStatus('idle'), 3500);
+    };
+    reader.readAsText(file);
+  };
+
+  const applyTemplate = (id: string) => {
+    // Save snapshot for Reset functionality (restore state before applying template)
+    setTemplateUndo({
+      inputMode,
+      coordEntryMode,
+      coordinateText,
+      coordsFile,
+      regionNamesText,
+      enableStudy,
+      enableSummary,
+      formData,
+    });
+
+    if (id === 'single-lookup') {
+      // Single coordinate, atlas lookup only
+      setInputMode('coords');
+      setCoordEntryMode('paste');
+      setCoordinateText('0, 24, 26'); // Anterior cingulate demo
+      setEnableSummary(false);
+      setEnableStudy(false);
+      setFormData((curr) => ({
+        ...curr,
+        input_type: 'coords',
+        atlas_names: ['harvard-oxford', 'juelich'],
+        sources: [],
+        working_directory: '',
+        output_format: '',
+        output_name: '',
+        region_search_radius: '0.4',
+        study_search_radius: '6',
+        prompt_type: 'summary',
+        summary_models: [],
+        summary_max_tokens: '',
+        custom_prompt: null,
+        outputs: withoutImages(curr.outputs),
+        image_backend: null,
+        image_model: null,
+        image_prompt_type: null,
+        image_custom_prompt: null
+      }));
+    } else if (id === 'multi-with-summaries') {
+      // Multiple coordinates with summaries
+      setInputMode('coords');
+      setCoordEntryMode('paste');
+      setCoordinateText('30, -22, 50\n-28, -20, 48');
+      setEnableStudy(true);
+      setEnableSummary(true);
+      setFormData((curr) => ({
+        ...curr,
+        input_type: 'coords',
+        atlas_names: ['harvard-oxford'],
+        sources: ['neurosynth', 'neuroquery'],
+        working_directory: '',
+        output_format: '',
+        output_name: '',
+        region_search_radius: '0.4',
+        study_search_radius: '6',
+        prompt_type: 'summary',
+        summary_models: ['gemini-2.0-flash'],
+        summary_max_tokens: '800',
+        custom_prompt: null,
+        outputs: withoutImages(curr.outputs),
+        image_backend: null,
+        image_model: null,
+        image_prompt_type: null,
+        image_custom_prompt: null
+      }));
+    } else if (id === 'regions-to-coords') {
+      // Region names to coordinates (single atlas enforced)
+      setInputMode('region_names');
+      setRegionNamesText('Anterior cingulate cortex\nSuperior frontal gyrus');
+      setEnableStudy(false);
+      setEnableSummary(false);
+      setFormData((curr) => ({
+        ...curr,
+        input_type: 'region_names',
+        atlas_names: ['harvard-oxford'],
+        sources: [],
+        working_directory: '',
+        output_format: '',
+        output_name: '',
+        region_search_radius: '0.4',
+        study_search_radius: '6',
+        prompt_type: 'summary',
+        summary_models: [],
+        summary_max_tokens: '',
+        custom_prompt: null,
+        outputs: withoutImages(curr.outputs),
+        image_backend: null,
+        image_model: null,
+        image_prompt_type: null,
+        image_custom_prompt: null
+      }));
+    } else if (id === 'coords-to-insights') {
+      // Full insights: coords + studies + summaries + images
+      setInputMode('coords');
+      setCoordEntryMode('paste');
+      setCoordinateText('40, -50, 30\n-42, -46, 28');
+      setEnableStudy(true);
+      setEnableSummary(true);
+      setFormData((curr) => ({
+        ...curr,
+        input_type: 'coords',
+        atlas_names: ['harvard-oxford', 'schaefer'],
+        sources: ['neurosynth', 'neuroquery'],
+        working_directory: '',
+        output_format: 'json',
+        output_name: 'insights.json',
+        region_search_radius: '0.4',
+        study_search_radius: '6',
+        prompt_type: 'summary',
+        summary_models: Array.isArray(curr.summary_models) && (curr.summary_models as string[]).length
+          ? curr.summary_models as string[]
+          : ['gemini-2.0-flash', 'claude-3-haiku'],
+        summary_max_tokens: '1000',
+        custom_prompt: null,
+        outputs: ['images'], // enable images
+        image_backend: typeof curr.image_backend === 'string' && curr.image_backend ? (curr.image_backend as string) : 'ai',
+        image_model: typeof curr.image_model === 'string' && curr.image_model ? (curr.image_model as string) : 'stabilityai/stable-diffusion-2',
+        image_prompt_type: typeof curr.image_prompt_type === 'string' && curr.image_prompt_type ? (curr.image_prompt_type as string) : 'anatomical',
+        image_custom_prompt: null
+      }));
+    }
   };
 
   const handleFormChange = useCallback(
@@ -1403,6 +1824,10 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
   const toggleSummary = () => {
     setEnableSummary((prev) => {
       const next = !prev;
+      // When enabling summaries, also enable studies automatically
+      if (next) {
+        setEnableStudy(true);
+      }
       setFormData((current) => {
         const updated = { ...current };
         if (!next) {
@@ -1436,6 +1861,8 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
         next.delete('images');
         updated.image_backend = null;
         updated.image_model = null;
+        updated.image_prompt_type = null;
+        updated.image_custom_prompt = null;
       } else {
         next.add('images');
         if (typeof updated.image_backend !== 'string' || !updated.image_backend) {
@@ -1443,6 +1870,12 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
         }
         if (typeof updated.image_model !== 'string' || !updated.image_model) {
           updated.image_model = 'stabilityai/stable-diffusion-2';
+        }
+        if (typeof updated.image_prompt_type !== 'string' || !updated.image_prompt_type) {
+          updated.image_prompt_type = 'anatomical';
+        }
+        if (updated.image_prompt_type !== 'custom') {
+          updated.image_custom_prompt = null;
         }
       }
       updated.outputs = Array.from(next);
@@ -1458,7 +1891,8 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
     if (inputMode === 'coords') {
       payload.input_type = 'coords';
       payload.coordinates = coordEntryMode === 'paste' ? (coords.length ? coords : null) : null;
-      payload.coords_file = coordEntryMode === 'file' ? (coordsFile || null) : null;
+      // Require non-empty coords_file when in file mode
+      payload.coords_file = coordEntryMode === 'file' ? (coordsFile && coordsFile.trim().length > 0 ? coordsFile : null) : null;
       payload.region_names = null;
     } else {
       payload.input_type = 'region_names';
@@ -1522,6 +1956,29 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
     if (!wantsImages) {
       payload.image_backend = null;
       payload.image_model = null;
+      payload.image_prompt_type = null;
+      payload.image_custom_prompt = null;
+    } else {
+      // When using nilearn-only backend, drop AI-specific fields
+      const backend = typeof payload.image_backend === 'string' ? (payload.image_backend as string) : 'ai';
+      if (backend === 'nilearn') {
+        payload.image_model = null;
+        payload.image_prompt_type = null;
+        payload.image_custom_prompt = null;
+      } else {
+        // Ensure defaults and consistency
+        const ipt = typeof payload.image_prompt_type === 'string' && (payload.image_prompt_type as string)
+          ? (payload.image_prompt_type as string)
+          : 'anatomical';
+        payload.image_prompt_type = ipt;
+        if (ipt !== 'custom') {
+          payload.image_custom_prompt = null;
+        }
+        // normalize image_model to string or null
+        if (typeof payload.image_model !== 'string') {
+          payload.image_model = null;
+        }
+      }
     }
 
     const summaryTokenValue = payload.summary_max_tokens;
@@ -1567,7 +2024,47 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
 
   const yamlPreview = useMemo(() => {
     try {
-      return YAML.dump(configData, { lineWidth: 120 });
+      // Reorder keys so outputs is listed directly after inputs
+      const data = configData as Record<string, unknown>;
+      const ordered: Record<string, unknown> = {};
+      const saveExportKeys = ['working_directory', 'output_format', 'output_name'];
+      const addIf = (key: string) => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          ordered[key] = data[key];
+        }
+      };
+
+      // Inputs section
+      addIf('input_type');
+      if (data['input_type'] === 'coords') {
+        // Show coordinates if present, otherwise coords_file if present
+        addIf('coordinates');
+        addIf('coords_file');
+      } else if (data['input_type'] === 'region_names') {
+        addIf('region_names');
+      }
+
+      // Outputs immediately after inputs
+      addIf('outputs');
+
+      // Append the rest in their existing order
+      Object.keys(data).forEach((key) => {
+        if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+          // Defer Save & Export section keys to the very end
+          if (!saveExportKeys.includes(key)) {
+            ordered[key] = data[key];
+          }
+        }
+      });
+
+      // Finally append Save & Export keys at the very bottom, in this order
+      saveExportKeys.forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          ordered[key] = data[key];
+        }
+      });
+
+      return YAML.dump(ordered, { lineWidth: 120 });
     } catch (error) {
       console.error('Unable to render YAML preview', error);
       return '# Unable to render YAML preview';
@@ -1575,6 +2072,136 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
   }, [configData]);
 
   const cliCommand = 'coord2region --config coord2region-config.yaml';
+
+  // Simple shell escaping suitable for zsh: wrap in single quotes and escape existing ones
+  const shellEscape = (val: unknown): string => {
+    const s = String(val ?? '');
+    if (s === '') return "''";
+    // If it's a safe token (alphanumerics, underscore, dash, slash, dot, colon), no quotes
+    if (/^[A-Za-z0-9_:\/.\-]+$/.test(s)) return s;
+    return `'${s.replace(/'/g, "'\\''")}'`;
+  };
+
+  // Generate direct CLI command(s) mirroring coord2region subcommands from current selections
+  const directCliCommands = useMemo(() => {
+    try {
+      const outputs = Array.isArray((configData as any).outputs) ? ((configData as any).outputs as string[]) : [];
+      const outputKey = new Set(outputs.map((o) => String(o).toLowerCase()));
+      const inputType = String((configData as any).input_type || 'coords').toLowerCase();
+      // Determine subcommand name and required capability flags
+      type Caps = { include_api: boolean; include_sources: boolean; include_image: boolean };
+      let command = '';
+      let caps: Caps = { include_api: false, include_sources: false, include_image: false };
+      const keyStr = Array.from(outputKey).sort().join(',');
+      const match = (arr: string[]) => arr.length === outputKey.size && arr.every((x) => outputKey.has(x));
+      if (inputType === 'coords') {
+        if (match(['region_labels'])) {
+          command = 'coords-to-atlas'; caps = { include_api: false, include_sources: false, include_image: false };
+        } else if (match(['region_labels', 'raw_studies'])) {
+          command = 'coords-to-study'; caps = { include_api: false, include_sources: true, include_image: false };
+        } else if (match(['region_labels', 'raw_studies', 'summaries'])) {
+          command = 'coords-to-summary'; caps = { include_api: true, include_sources: true, include_image: false };
+        } else if (match(['region_labels', 'raw_studies', 'images'])) {
+          command = 'coords-to-image'; caps = { include_api: false, include_sources: true, include_image: true };
+        } else if (match(['region_labels', 'raw_studies', 'summaries', 'images'])) {
+          command = 'coords-to-insights'; caps = { include_api: true, include_sources: true, include_image: true };
+        } else {
+          // Unsupported combination
+          return [] as string[];
+        }
+      } else if (inputType === 'region_names') {
+        if (match(['mni_coordinates'])) {
+          command = 'region-to-coords'; caps = { include_api: false, include_sources: false, include_image: false };
+        } else if (match(['mni_coordinates', 'raw_studies'])) {
+          command = 'region-to-study'; caps = { include_api: false, include_sources: true, include_image: false };
+        } else if (match(['mni_coordinates', 'raw_studies', 'summaries'])) {
+          command = 'region-to-summary'; caps = { include_api: true, include_sources: true, include_image: false };
+        } else if (match(['mni_coordinates', 'raw_studies', 'images'])) {
+          command = 'region-to-image'; caps = { include_api: false, include_sources: true, include_image: true };
+        } else if (match(['mni_coordinates', 'raw_studies', 'summaries', 'images'])) {
+          command = 'region-to-insights'; caps = { include_api: true, include_sources: true, include_image: true };
+        } else {
+          return [] as string[];
+        }
+      } else {
+        return [] as string[];
+      }
+
+      const tokens: string[] = ['coord2region', command];
+
+      // Inputs
+      if (inputType === 'coords') {
+        if (coordEntryMode === 'file' && coordsFile && coordsFile.trim()) {
+          tokens.push('--coords-file', shellEscape(coordsFile.trim()));
+        } else {
+          for (const triplet of coords) {
+            for (const num of triplet) tokens.push(String(num));
+          }
+        }
+      } else {
+        // region_names
+        for (const name of regionNameList) tokens.push(shellEscape(name));
+      }
+
+      const cfg: any = configData as any;
+      // Common flags: working dir
+      if (cfg.working_directory) {
+        tokens.push('--working-directory', shellEscape(cfg.working_directory));
+      }
+
+      // API keys when summaries included
+      if (caps.include_api) {
+        const apiMap: Record<string, string> = {
+          gemini_api_key: '--gemini-api-key',
+          openrouter_api_key: '--openrouter-api-key',
+          openai_api_key: '--openai-api-key',
+          anthropic_api_key: '--anthropic-api-key',
+          huggingface_api_key: '--huggingface-api-key',
+        };
+        for (const [key, flag] of Object.entries(apiMap)) {
+          if (cfg[key]) tokens.push(flag, shellEscape(cfg[key]));
+        }
+      } else if (caps.include_image) {
+        // Images may still rely on Hugging Face key
+        if (cfg.huggingface_api_key) {
+          tokens.push('--huggingface-api-key', shellEscape(cfg.huggingface_api_key));
+        }
+      }
+
+      // Study sources and email
+      if (caps.include_sources) {
+        const sources = Array.isArray(cfg.sources) ? (cfg.sources as string[]) : [];
+        if (sources.length) tokens.push('--sources', shellEscape(sources.join(',')));
+        if (cfg.email_for_abstracts) tokens.push('--email-for-abstracts', shellEscape(cfg.email_for_abstracts));
+      }
+
+      // Atlas names
+      const atlasNames = Array.isArray(cfg.atlas_names) ? (cfg.atlas_names as string[]) : [];
+      for (const name of atlasNames) tokens.push('--atlas', shellEscape(name));
+      const atlasConfigs = (cfg.atlas_configs || {}) as Record<string, Record<string, string>>;
+      for (const [name, conf] of Object.entries(atlasConfigs)) {
+        if (typeof conf !== 'object' || !conf) continue;
+        if (conf.atlas_url && conf.atlas_url !== name) tokens.push('--atlas-url', shellEscape(`${name}=${conf.atlas_url}`));
+        if (conf.atlas_file && conf.atlas_file !== name) tokens.push('--atlas-file', shellEscape(`${name}=${conf.atlas_file}`));
+      }
+
+      // Output/export flags
+      if (cfg.output_format) tokens.push('--output-format', shellEscape(cfg.output_format));
+      if (cfg.output_name) tokens.push('--output-name', shellEscape(cfg.output_name));
+
+      // Image options
+      if (caps.include_image) {
+        if (cfg.image_backend) tokens.push('--image-backend', shellEscape(cfg.image_backend));
+        if (cfg.image_model) tokens.push('--image-model', shellEscape(cfg.image_model));
+        if (cfg.image_prompt_type) tokens.push('--image-prompt-type', shellEscape(cfg.image_prompt_type));
+        if (cfg.image_custom_prompt) tokens.push('--image-custom-prompt', shellEscape(cfg.image_custom_prompt));
+      }
+
+      return [tokens.join(' ')];
+    } catch {
+      return [] as string[];
+    }
+  }, [configData, coords, coordEntryMode, coordsFile, regionNameList]);
 
   const copyToClipboard = useCallback(async (value: string, onComplete: (state: 'idle' | 'copied' | 'error') => void) => {
     try {
@@ -1659,204 +2286,800 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
 
       {(props.showHeaderNav === false || viewMode === 'builder') && (
         <section className="config-builder">
-      <div className="config-section">
-        <h4>Input Type</h4>
-        <div className="mode-toggle" role="radiogroup" aria-label="Select input type">
-          <button
-            type="button"
-            className={clsx('toggle', inputMode === 'coords' && 'toggle--active')}
-            onClick={() => handleInputModeChange('coords')}
-            aria-checked={inputMode === 'coords'}
-            role="radio"
-          >
-            Coordinates
-          </button>
-          <button
-            type="button"
-            className={clsx('toggle', inputMode === 'region_names' && 'toggle--active')}
-            onClick={() => handleInputModeChange('region_names')}
-            aria-checked={inputMode === 'region_names'}
-            role="radio"
-          >
-            Region names
-          </button>
-        </div>
+          {/* Row 1: Input (left) and Output (right) */}
+          {/* Input panel */}
+          <div className="card card--panel">
+              <div className="card-header">
+                <h4>Input</h4>
+                <p className="helper">Choose how you want to provide data for mapping.</p>
+              </div>
+              {/* Atlas selection moved to Coord2RegionConfig section */}
+              <div className="mode-toggle" role="radiogroup" aria-label="Select input type">
+                <button
+                  type="button"
+                  className={clsx('toggle', inputMode === 'coords' && 'toggle--active')}
+                  onClick={() => handleInputModeChange('coords')}
+                  aria-checked={inputMode === 'coords'}
+                  role="radio"
+                >
+                  Coordinates
+                </button>
+                <button
+                  type="button"
+                  className={clsx('toggle', inputMode === 'region_names' && 'toggle--active')}
+                  onClick={() => handleInputModeChange('region_names')}
+                  aria-checked={inputMode === 'region_names'}
+                  role="radio"
+                >
+                  Region names
+                </button>
+              </div>
 
-        {inputMode === 'coords' ? (
-          <>
-            <div className="mode-toggle" role="radiogroup" aria-label="Coordinate input mode">
-              <button
-                type="button"
-                className={clsx('toggle', coordEntryMode === 'paste' && 'toggle--active')}
-                onClick={() => handleCoordEntryModeChange('paste')}
-                aria-checked={coordEntryMode === 'paste'}
-                role="radio"
-              >
-                Paste coordinates
-              </button>
-              <button
-                type="button"
-                className={clsx('toggle', coordEntryMode === 'file' && 'toggle--active')}
-                onClick={() => handleCoordEntryModeChange('file')}
-                aria-checked={coordEntryMode === 'file'}
-                role="radio"
-              >
-                Use coordinate file
-              </button>
+              {inputMode === 'coords' ? (
+                <>
+                  <div className="mode-toggle" role="radiogroup" aria-label="Coordinate input mode">
+                    <button
+                      type="button"
+                      className={clsx('toggle', coordEntryMode === 'paste' && 'toggle--active')}
+                      onClick={() => handleCoordEntryModeChange('paste')}
+                      aria-checked={coordEntryMode === 'paste'}
+                      role="radio"
+                    >
+                      Paste coordinates
+                    </button>
+                    <button
+                      type="button"
+                      className={clsx('toggle', coordEntryMode === 'file' && 'toggle--active')}
+                      onClick={() => handleCoordEntryModeChange('file')}
+                      aria-checked={coordEntryMode === 'file'}
+                      role="radio"
+                    >
+                      Use coordinate file
+                    </button>
+                  </div>
+
+                  {coordEntryMode === 'paste' ? (
+                    <div className="form-field">
+                      <label htmlFor="coord-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('coordinates')}>
+                        {schema.properties?.coordinates && typeof schema.properties.coordinates === 'object'
+                          ? (schema.properties.coordinates as SchemaProperty).title || 'Coordinates'
+                          : 'Coordinates'}
+                      </label>
+                      <textarea
+                        id="coord-textarea"
+                        className="coord-textarea"
+                        value={coordinateText}
+                        onChange={(event) => setCoordinateText(event.target.value)}
+                        placeholder="30, -22, 50"
+                        rows={5}
+                      />
+                      {coordErrors.length > 0 ? (
+                        <ul className="form-errors">
+                          {coordErrors.map((message) => (
+                            <li key={message}>{message}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="helper">Parsed {coords.length} coordinate triplet{coords.length === 1 ? '' : 's'}.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="form-field">
+                      <label htmlFor="coord-file" className="field-label tooltip" data-tooltip={tooltipFromSchema('coords_file')}>
+                        Coordinate file path
+                      </label>
+                      <input
+                        id="coord-file"
+                        type="text"
+                        className="coord-input"
+                        value={coordsFile}
+                        onChange={(event) => setCoordsFile(event.target.value)}
+                        placeholder="/path/to/coordinates.tsv"
+                      />
+                      {coordFileError ? (
+                        <ul className="form-errors"><li>Path is required when using a coordinate file.</li></ul>
+                      ) : (
+                        <p className="helper">Provide a local path to a CSV/TSV/XLSX file.</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="form-field">
+                  <label htmlFor="region-names-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('region_names')}>
+                    Region names
+                  </label>
+                  <textarea
+                    id="region-names-textarea"
+                    className="coord-textarea"
+                    value={regionNamesText}
+                    onChange={(event) => handleRegionNamesInput(event.target.value)}
+                    placeholder={"Amygdala\nHippocampus"}
+                    rows={5}
+                  />
+                  <p className="helper">
+                    Enter one region per line. Parsed {regionNameList.length} region name{regionNameList.length === 1 ? '' : 's'}.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {coordEntryMode === 'paste' ? (
-              <div className="card">
-                <label htmlFor="coord-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('coordinates')}>
-                  {schema.properties?.coordinates && typeof schema.properties.coordinates === 'object'
-                    ? (schema.properties.coordinates as SchemaProperty).title || 'Coordinates'
-                    : 'Coordinates'}
-                </label>
-                <textarea
-                  id="coord-textarea"
-                  value={coordinateText}
-                  onChange={(event) => setCoordinateText(event.target.value)}
-                  placeholder="30, -22, 50"
-                  rows={6}
-                />
-                {coordErrors.length > 0 ? (
-                  <ul className="form-errors">
-                    {coordErrors.map((message) => (
-                      <li key={message}>{message}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="helper">Parsed {coords.length} coordinate triplet{coords.length === 1 ? '' : 's'}.</p>
-                )}
+          {/* Output panel */}
+          <div className="card card--panel">
+              <div className="card-header">
+                <h4>Output</h4>
+                <p className="helper">Baseline is added automatically based on the selected input.</p>
               </div>
-            ) : (
-              <div className="card">
-                <label htmlFor="coord-file" className="field-label tooltip" data-tooltip={tooltipFromSchema('coords_file')}>
-                  Coordinate file path
-                </label>
-                <input
-                  id="coord-file"
-                  type="text"
-                  value={coordsFile}
-                  onChange={(event) => setCoordsFile(event.target.value)}
-                  placeholder="/path/to/coordinates.tsv"
-                />
-                <p className="helper">Provide a local path to a CSV/TSV/XLSX file.</p>
+              <div className="output-pills" role="tablist" aria-label="Output options">
+                <span className="pill pill--locked pill--active" aria-disabled="true" aria-selected="true">
+                  {inputMode === 'coords' ? 'Region names' : 'Coordinates'}
+                </span>
+                <button
+                  type="button"
+                  className={clsx('pill', outputDetail === 'studies' && 'pill--active')}
+                  aria-pressed={outputDetail === 'studies'}
+                  aria-selected={outputDetail === 'studies'}
+                  onClick={() => setOutputDetail('studies')}
+                >
+                  Studies
+                </button>
+                <button
+                  type="button"
+                  className={clsx('pill', outputDetail === 'summaries' && 'pill--active')}
+                  aria-pressed={outputDetail === 'summaries'}
+                  aria-selected={outputDetail === 'summaries'}
+                  onClick={() => setOutputDetail('summaries')}
+                >
+                  Summaries
+                </button>
+                <button
+                  type="button"
+                  className={clsx('pill', outputDetail === 'images' && 'pill--active')}
+                  aria-pressed={outputDetail === 'images'}
+                  aria-selected={outputDetail === 'images'}
+                  onClick={() => setOutputDetail('images')}
+                >
+                  Images
+                </button>
+              </div>
+
+              {(() => {
+                let title = 'Summaries';
+                let desc = 'Generate concise AI‑powered summaries using your configured models.';
+                let isOn = enableSummary;
+                let toggle = toggleSummary;
+                if (outputDetail === 'studies') {
+                  title = 'Studies';
+                  desc = 'Include related papers for each coordinate/region from selected sources.';
+                  isOn = enableStudy;
+                  toggle = toggleStudy;
+                } else if (outputDetail === 'images') {
+                  title = 'Images';
+                  desc = 'Create images using AI and/or nilearn backends.';
+                  isOn = enableImages;
+                  toggle = toggleImages;
+                }
+                return (
+                  <div className="card card--inline">
+                    <div>
+                      <h5>{title}</h5>
+                      <p>{desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={clsx('switch', isOn && 'switch--on')}
+                      aria-pressed={isOn}
+                      onClick={toggle}
+                    >
+                      <span className="switch__knob" />
+                      <span className="switch__label">{isOn ? 'Enabled' : 'Disabled'}</span>
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+
+          {/* Row 2: Left config card and right preview */}
+          <div className="card">
+            {/* Quick section navigation */}
+            <nav className="section-nav" id="config-nav" aria-label="Configuration sections">
+              <a href="#atlas-section" className={clsx('section-nav__link', activeSection === 'atlas-section' && 'section-nav__link--active')}>🗺️ <span>Atlas</span></a>
+              {enableStudy && (
+                <a href="#studies-section" className={clsx('section-nav__link', activeSection === 'studies-section' && 'section-nav__link--active')}>📚 <span>Studies</span></a>
+              )}
+              {enableSummary && (
+                <a href="#summaries-section" className={clsx('section-nav__link', activeSection === 'summaries-section' && 'section-nav__link--active')}>✨ <span>Summaries</span></a>
+              )}
+              {enableImages && (
+                <a href="#images-section" className={clsx('section-nav__link', activeSection === 'images-section' && 'section-nav__link--active')}>🖼️ <span>Images</span></a>
+              )}
+              <a href="#outputs-section" className={clsx('section-nav__link', activeSection === 'outputs-section' && 'section-nav__link--active')}>💾 <span>Outputs</span></a>
+            </nav>
+              <div className="atlas-section" id="atlas-section" role="group" aria-label="Atlas selection">
+              <div className="atlas-section__header">
+                <h5><span className="section-icon" aria-hidden>🗺️</span> Atlas selection</h5>
+                <p className="helper">Choose the atlas libraries you want to query. You can also add custom names, URLs, or local paths.</p>
+                {inputMode === 'region_names' && (
+                  <p className="helper">When using Region names, select exactly one atlas.</p>
+                )}
+                {inputMode === 'region_names' && (() => {
+                  const count = Array.isArray(formData.atlas_names) ? (formData.atlas_names as string[]).length : 0;
+                  if (count === 0) {
+                    return <p className="status status--error" role="alert">Select exactly one atlas for Region names input.</p>;
+                  }
+                  if (count > 1) {
+                    return <p className="status status--error" role="alert">Multiple atlases selected. Region names differ across atlases—pick just one.</p>;
+                  }
+                  return null;
+                })()}
+              </div>
+              <div className="atlas-section__controls">
+                <div className="form-field form-field--inline">
+                  <label
+                    htmlFor="region-search-radius"
+                    className="field-label tooltip"
+                    data-tooltip={tooltipFromSchema('region_search_radius')}
+                  >
+                    Region search radius
+                  </label>
+                  <input
+                    id="region-search-radius"
+                    type="text"
+                    value={(formData.region_search_radius as string) || ''}
+                    onChange={(e) => setFormData(curr => ({ ...curr, region_search_radius: e.target.value }))}
+                    placeholder="0.4"
+                  />
+                </div>
+              </div>
+              <AtlasSelection
+                selected={Array.isArray(formData.atlas_names) ? (formData.atlas_names as string[]) : []}
+                onChange={(next) => setFormData((curr) => ({ ...curr, atlas_names: next }))}
+                enforceSingle={inputMode === 'region_names'}
+              />
+              <div className="section-footer"><a className="back-to-top" href="#config-nav">Back to top ↑</a></div>
+            </div>
+
+            {/* Studies Search section (visible only when Studies are enabled) */}
+            {enableStudy && (
+              <div className="studies-section" id="studies-section" role="group" aria-label="Studies search">
+                <div className="studies-section__header">
+                  <h5><span className="section-icon" aria-hidden>📚</span> Studies Search</h5>
+                  <p className="helper">Select the literature sources to query and set search options. All fields are required when Studies are enabled.</p>
+                </div>
+                <div className="studies-sources">
+                  <details className="studies-group" open>
+                    <summary className="studies-group__summary">
+                      <span className="studies-group__title">Sources</span>
+                      <span className="studies-group__chips">
+                        {(Array.isArray(formData.sources) ? (formData.sources as string[]) : []).slice(0,3).map((s) => (
+                          <span key={s} className="chip">{s}</span>
+                        ))}
+                        {Array.isArray(formData.sources) && (formData.sources as string[]).length > 3 && (
+                          <span className="chip chip--more">+{(formData.sources as string[]).length - 3}</span>
+                        )}
+                      </span>
+                      <span className="studies-group__meta">{Array.isArray(formData.sources) ? (formData.sources as string[]).length : 0}/{datasetSourceOptions.length}</span>
+                      <button
+                        type="button"
+                        className="studies-group__toggle"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFormData(curr => {
+                            const current = Array.isArray(curr.sources) ? (curr.sources as string[]) : [];
+                            const hasMissing = datasetSourceOptions.some(opt => !current.includes(opt));
+                            const next = hasMissing ? [...datasetSourceOptions] : [];
+                            return { ...curr, sources: next };
+                          });
+                        }}
+                      >
+                        {(() => {
+                          const count = Array.isArray(formData.sources) ? (formData.sources as string[]).length : 0;
+                          const all = count === datasetSourceOptions.length;
+                          return all ? `Clear all (${datasetSourceOptions.length})` : `Select all (${datasetSourceOptions.length})`;
+                        })()}
+                      </button>
+                    </summary>
+                    <div className="studies-cards">
+                      {datasetSourceOptions.map((opt) => {
+                        const checked = Array.isArray(formData.sources) ? (formData.sources as string[]).includes(opt) : false;
+                        return (
+                          <label key={opt} className={clsx('study-card', checked && 'is-selected')}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setFormData(curr => {
+                                  const current = new Set(Array.isArray(curr.sources) ? (curr.sources as string[]) : []);
+                                  current.has(opt) ? current.delete(opt) : current.add(opt);
+                                  return { ...curr, sources: Array.from(current) };
+                                });
+                              }}
+                            />
+                            <span className="study-card__name">{opt}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {Array.isArray(formData.sources) && (formData.sources as string[]).length === 0 && (
+                      <p className="form-errors" role="alert">Select at least one source.</p>
+                    )}
+                  </details>
+                </div>
+
+                <div className="studies-options mini-grid">
+                  <div className="form-field">
+                    <label className="field-label tooltip" htmlFor="study-search-radius" data-tooltip={tooltipFromSchema('study_search_radius')}>Study search radius</label>
+                    <input
+                      id="study-search-radius"
+                      type="text"
+                      value={typeof formData.study_search_radius === 'string' ? (formData.study_search_radius as string) : (typeof formData.study_search_radius === 'number' ? String(formData.study_search_radius) : '')}
+                      onChange={(e) => setFormData(curr => ({ ...curr, study_search_radius: e.target.value }))}
+                      placeholder={String((schema.properties?.study_search_radius as any)?.default ?? '6')}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label className="field-label tooltip" htmlFor="email-for-abstracts" data-tooltip={tooltipFromSchema('email_for_abstracts')}>Email for abstracts</label>
+                    <input
+                      id="email-for-abstracts"
+                      type="text"
+                      value={typeof formData.email_for_abstracts === 'string' ? (formData.email_for_abstracts as string) : ''}
+                      onChange={(e) => setFormData(curr => ({ ...curr, email_for_abstracts: e.target.value }))}
+                      placeholder="name@example.com"
+                    />
+                  </div>
+                </div>
+                <div className="section-footer"><a className="back-to-top" href="#config-nav">Back to top ↑</a></div>
               </div>
             )}
-          </>
-        ) : (
-          <div className="card">
-            <label htmlFor="region-names-textarea" className="field-label tooltip" data-tooltip={tooltipFromSchema('region_names')}>
-              Region names
-            </label>
-            <textarea
-              id="region-names-textarea"
-              value={regionNamesText}
-              onChange={(event) => handleRegionNamesInput(event.target.value)}
-              placeholder="Amygdala\nHippocampus"
-              rows={6}
-            />
-            <p className="helper">
-              Enter one region per line. Parsed {regionNameList.length} region name{regionNameList.length === 1 ? '' : 's'}.
-            </p>
-          </div>
-        )}
-      </div>
 
-      <div className="config-section">
-        <div className="card card--inline">
-          <div>
-            <h4>Study review</h4>
-            <p>Control which papers to inspect when running region lookups.</p>
-          </div>
-          <button type="button" className={clsx('toggle', enableStudy && 'toggle--active')} onClick={toggleStudy}>
-            {enableStudy ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-        <div className="card card--inline">
-          <div>
-            <h4>Summaries</h4>
-            <p>Generate natural language outputs via configured providers.</p>
-          </div>
-          <button type="button" className={clsx('toggle', enableSummary && 'toggle--active')} onClick={toggleSummary}>
-            {enableSummary ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-        <div className="card card--inline">
-          <div>
-            <h4>Images</h4>
-            <p>Create images using AI and/or nilearn backends. Toggle to include images in Outputs.</p>
-          </div>
-          <button
-            type="button"
-            className={clsx('toggle', enableImages && 'toggle--active')}
-            onClick={toggleImages}
-          >
-            {enableImages ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-      </div>
+            {/* Generate Summaries section */}
+            {enableSummary && (
+              <div className="summaries-section" id="summaries-section" role="group" aria-label="Generate summaries">
+                <div className="summaries-section__header">
+                  <h5><span className="section-icon" aria-hidden>✨</span> Generate Summaries</h5>
+                  <p className="helper">Choose a prompt type, add one or more models, and set the max tokens. API keys will appear when required by selected models.</p>
+                </div>
+                <div className="mini-grid">
+                  <div className="form-field">
+                    <label className="field-label tooltip" htmlFor="prompt-type" data-tooltip={tooltipFromSchema('prompt_type') || undefined}>Prompt Type</label>
+                    <div className="select-wrap">
+                      <select
+                        id="prompt-type"
+                        className="select select--compact"
+                        value={typeof formData.prompt_type === 'string' && formData.prompt_type ? (formData.prompt_type as string) : 'summary'}
+                        onChange={(e) => setFormData(curr => ({ ...curr, prompt_type: e.target.value }))}
+                      >
+                        {promptTypeOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="helper">Select a template; choose “Custom prompt” to write yours.</p>
+                  </div>
 
-      <div className="config-section">
-        <div className="card">
-          <Form
-            schema={builderSchema}
-            formData={formData}
-            onChange={handleFormChange}
-            validator={validator as unknown as any}
-            uiSchema={uiSchema as unknown as UiSchema<FormState>}
-            widgets={widgets}
-            fields={fields}
-            templates={{ FieldTemplate } as any}
-            formContext={{ promptType }}
-            liveValidate={false}
-            noHtml5Validate
-          >
-            <div className="form-footer">
-              <small>Updates apply immediately to the YAML preview.</small>
-            </div>
-          </Form>
-        </div>
-      </div>
+                  <div className="form-field">
+                    <label className="field-label tooltip" htmlFor="summary-max-tokens" data-tooltip={tooltipFromSchema('summary_max_tokens') || undefined}>Max tokens</label>
+                    <input
+                      id="summary-max-tokens"
+                      type="text"
+                      value={typeof formData.summary_max_tokens === 'string' ? (formData.summary_max_tokens as string) : (typeof formData.summary_max_tokens === 'number' ? String(formData.summary_max_tokens) : '')}
+                      onChange={(e) => setFormData(curr => ({ ...curr, summary_max_tokens: e.target.value }))}
+                      placeholder="1000"
+                    />
+                    <p className="helper">Optional. Leave blank to use the provider default.</p>
+                    <p className="helper helper--spacer" aria-hidden="true"></p>
+                  </div>
 
-      <aside className="config-preview">
-        <div className="card">
-          <div className="preview-header">
-            <h4>YAML preview</h4>
-            <div className="config-actions">
-              <button
-                type="button"
-                onClick={() => copyToClipboard(yamlPreview, setYamlCopied)}
-              >
-                Copy YAML
-              </button>
-              <button type="button" onClick={handleDownload}>Download YAML</button>
-            </div>
+                  <div className="form-field mini-span-2">
+                    <label className="field-label" htmlFor="summary-models">Summary Models</label>
+                    <div id="summary-models">
+                      {/* Chips for selected models */}
+                      {Array.isArray(formData.summary_models) && (formData.summary_models as string[]).length > 0 && (
+                        <div className="selected-items" style={{ marginBottom: 6 }}>
+                          {(formData.summary_models as string[]).map((m) => (
+                            <span key={m} className="selected-item">
+                              {m}
+                              <button type="button" className="remove-item" onClick={() => setFormData(curr => ({ ...curr, summary_models: (curr.summary_models as string[]).filter(x => x !== m) }))} aria-label={`Remove ${m}`}>×</button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {/* Input with datalist suggestions */}
+                      <input
+                        type="text"
+                        list="summary-model-options"
+                        placeholder="Type model name and press Enter to add"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const value = (e.target as HTMLInputElement).value.trim();
+                            if (!value) return;
+                            setFormData(curr => {
+                              const arr = Array.isArray(curr.summary_models) ? (curr.summary_models as string[]) : [];
+                              return { ...curr, summary_models: arr.includes(value) ? arr : [...arr, value] };
+                            });
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                      />
+                      <datalist id="summary-model-options">
+                        {summaryModelOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </datalist>
+                      <p className="helper">Press Enter to add a model. You can use any identifier supported by your providers.</p>
+                      {(!Array.isArray(formData.summary_models) || (formData.summary_models as string[]).length === 0) && (
+                        <p className="form-errors" role="alert">Select at least one model to generate summaries.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {typeof formData.prompt_type === 'string' && formData.prompt_type === 'custom' && (
+                    <div className="form-field mini-span-2">
+                      <label className="field-label" htmlFor="custom-prompt">Custom prompt template</label>
+                      <textarea
+                        id="custom-prompt"
+                        rows={5}
+                        value={typeof formData.custom_prompt === 'string' ? (formData.custom_prompt as string) : ''}
+                        onChange={(e) => setFormData(curr => ({ ...curr, custom_prompt: e.target.value }))}
+                        placeholder="You are an expert neuroscientist..."
+                      />
+                      <p className="helper">Use {`{coord}`} for the coordinate if needed.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* API keys based on required providers */}
+                {Array.isArray(formData.summary_models) && (formData.summary_models as string[]).length > 0 && (
+                  <div className="mini-grid">
+                    {(() => {
+                      const models = (formData.summary_models as string[]);
+                      const providers = Array.from(new Set(models.map((m) => modelToProvider[m]).filter(Boolean)));
+                      const missing: string[] = [];
+                      if (providers.includes('anthropic') && !(typeof formData.anthropic_api_key === 'string' && formData.anthropic_api_key.trim())) missing.push('Anthropic');
+                      if (providers.includes('openai') && !(typeof formData.openai_api_key === 'string' && formData.openai_api_key.trim())) missing.push('OpenAI');
+                      if (providers.includes('openrouter') && !(typeof formData.openrouter_api_key === 'string' && formData.openrouter_api_key.trim())) missing.push('OpenRouter');
+                      if (providers.includes('gemini') && !(typeof formData.gemini_api_key === 'string' && formData.gemini_api_key.trim())) missing.push('Google Gemini');
+                      if (providers.includes('huggingface') && !(typeof formData.huggingface_api_key === 'string' && formData.huggingface_api_key.trim())) missing.push('Hugging Face');
+                      return (
+                        <>
+                          {providers.includes('anthropic') && (
+                            <div className="form-field">
+                              <label className="field-label" htmlFor="anthropic-key">Anthropic API Key</label>
+                              <input id="anthropic-key" type="text" value={typeof formData.anthropic_api_key === 'string' ? (formData.anthropic_api_key as string) : ''} onChange={(e) => setFormData(curr => ({ ...curr, anthropic_api_key: e.target.value }))} placeholder="Enter your Anthropic API key" />
+                            </div>
+                          )}
+                          {providers.includes('openai') && (
+                            <div className="form-field">
+                              <label className="field-label" htmlFor="openai-key">OpenAI API Key</label>
+                              <input id="openai-key" type="text" value={typeof formData.openai_api_key === 'string' ? (formData.openai_api_key as string) : ''} onChange={(e) => setFormData(curr => ({ ...curr, openai_api_key: e.target.value }))} placeholder="Enter your OpenAI API key" />
+                            </div>
+                          )}
+                          {providers.includes('openrouter') && (
+                            <div className="form-field">
+                              <label className="field-label" htmlFor="openrouter-key">OpenRouter API Key</label>
+                              <input id="openrouter-key" type="text" value={typeof formData.openrouter_api_key === 'string' ? (formData.openrouter_api_key as string) : ''} onChange={(e) => setFormData(curr => ({ ...curr, openrouter_api_key: e.target.value }))} placeholder="Enter your OpenRouter API key" />
+                            </div>
+                          )}
+                          {providers.includes('gemini') && (
+                            <div className="form-field">
+                              <label className="field-label" htmlFor="gemini-key">Google Gemini API Key</label>
+                              <input id="gemini-key" type="text" value={typeof formData.gemini_api_key === 'string' ? (formData.gemini_api_key as string) : ''} onChange={(e) => setFormData(curr => ({ ...curr, gemini_api_key: e.target.value }))} placeholder="Enter your Google Gemini API key" />
+                            </div>
+                          )}
+                          {providers.includes('huggingface') && (
+                            <div className="form-field">
+                              <label className="field-label" htmlFor="hf-key">Hugging Face API Key</label>
+                              <input id="hf-key" type="text" value={typeof formData.huggingface_api_key === 'string' ? (formData.huggingface_api_key as string) : ''} onChange={(e) => setFormData(curr => ({ ...curr, huggingface_api_key: e.target.value }))} placeholder="Enter your Hugging Face API key" />
+                            </div>
+                          )}
+                          {missing.length > 0 && (
+                            <p className="form-errors" role="alert">Missing API key{missing.length > 1 ? 's' : ''}: {missing.join(', ')}.</p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                <div className="section-footer"><a className="back-to-top" href="#config-nav">Back to top ↑</a></div>
+              </div>
+            )}
+
+            {/* Generate Images section */}
+            {enableImages && (
+              <div className="images-section summaries-section" id="images-section" role="group" aria-label="Generate images">
+                <div className="summaries-section__header">
+                  <h5><span className="section-icon" aria-hidden>🖼️</span> Generate Images</h5>
+                  <p className="helper">Choose a backend, select a model (for AI), and pick a prompt template. Nilearn renders standard anatomical slices without prompts.</p>
+                </div>
+                <div className="mini-grid">
+                  {/* Backend occupies full width row to place Model + Prompt type on same level below */}
+                  <div className="form-field mini-span-2">
+                    <label className="field-label" htmlFor="image-backend">Image backend</label>
+                    <select
+                      id="image-backend"
+                      value={typeof formData.image_backend === 'string' && formData.image_backend ? (formData.image_backend as string) : 'ai'}
+                      onChange={(e) => setFormData(curr => ({ ...curr, image_backend: e.target.value }))}
+                    >
+                      <option value="ai">AI</option>
+                      <option value="nilearn">nilearn</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
+
+                  {showImageAiOptions && (
+                    <div className="form-field">
+                      <label className="field-label" htmlFor="image-model-input">Image Model</label>
+                      {/* Simple input with datalist suggestions */}
+                      <input
+                        id="image-model-input"
+                        type="text"
+                        defaultValue={typeof formData.image_model === 'string' ? (formData.image_model as string) : ''}
+                        onChange={(e) => setFormData(curr => ({ ...curr, image_model: e.target.value }))}
+                        list="image-model-options"
+                        placeholder="stabilityai/stable-diffusion-2"
+                      />
+                      <datalist id="image-model-options">
+                        {imageModelOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </datalist>
+                      <p className="helper">Type a model identifier or choose a suggestion.</p>
+                    </div>
+                  )}
+
+                  {showImageAiOptions && (
+                    <div className="form-field">
+                      <label className="field-label" htmlFor="image-prompt-type">Image prompt type</label>
+                      <div className="select-wrap">
+                        <select
+                          id="image-prompt-type"
+                          className="select select--compact"
+                          value={typeof formData.image_prompt_type === 'string' && formData.image_prompt_type ? (formData.image_prompt_type as string) : 'anatomical'}
+                          onChange={(e) => setFormData(curr => ({ ...curr, image_prompt_type: e.target.value }))}
+                        >
+                          {imagePromptTypeOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="helper">Select a template; choose “Custom prompt” to write yours.</p>
+                    </div>
+                  )}
+
+                  {showImageAiOptions && typeof formData.image_prompt_type === 'string' && formData.image_prompt_type === 'custom' && (
+                    <div className="form-field mini-span-2">
+                      <label className="field-label" htmlFor="image-custom-prompt">Custom image prompt template</label>
+                      <textarea
+                        id="image-custom-prompt"
+                        rows={4}
+                        value={typeof formData.image_custom_prompt === 'string' ? (formData.image_custom_prompt as string) : ''}
+                        onChange={(e) => setFormData(curr => ({ ...curr, image_custom_prompt: e.target.value }))}
+                        placeholder="Create a detailed anatomical illustration of the brain region at MNI coordinate {coordinate}..."
+                      />
+                      <p className="helper">Templates can use {'{coordinate}'}, {'{first_paragraph}'}, and {'{atlas_context}'} placeholders.</p>
+                    </div>
+                  )}
+                </div>
+                <div className="section-footer"><a className="back-to-top" href="#config-nav">Back to top ↑</a></div>
+              </div>
+            )}
+            {/* Outputs mini-section moved to the end (always last) */}
+            <Form
+              schema={builderSchema}
+              formData={formData}
+              onChange={handleFormChange}
+              validator={validator as unknown as any}
+              uiSchema={uiSchema as unknown as UiSchema<FormState>}
+              widgets={widgets}
+              fields={fields}
+              templates={{ FieldTemplate, TitleFieldTemplate, DescriptionFieldTemplate } as any}
+              formContext={{ promptType }}
+              liveValidate={false}
+              noHtml5Validate
+            >
+              {/* Outputs mini-section: Working directory (full row) + Output format & Output name (side-by-side) */}
+              <div className="mini-section" id="outputs-section">
+                <h5><span className="section-icon" aria-hidden>💾</span> Outputs</h5>
+                <p className="helper">Configure where datasets/atlases are saved and how exported files are named.</p>
+                <div className="mini-grid">
+                  <div className="form-field mini-span-2">
+                    <label className="field-label" htmlFor="mini-working-dir">Working directory</label>
+                    <input
+                      id="mini-working-dir"
+                      type="text"
+                      value={(formData.working_directory as string) || ''}
+                      onChange={(e) => setFormData(curr => ({ ...curr, working_directory: e.target.value || null }))}
+                      placeholder="/path/to/working-directory"
+                    />
+                    <p className="helper">Used for caches and downloads. Reuse this folder across runs to avoid recomputation and re‑downloads.</p>
+                  </div>
+                  <div className="form-field">
+                    <label className="field-label" htmlFor="mini-output-format">Output format</label>
+                    <select
+                      id="mini-output-format"
+                      value={(formData.output_format as string) || ''}
+                      onChange={(e) => setFormData(curr => ({ ...curr, output_format: e.target.value || null }))}
+                    >
+                      <option value="">No export</option>
+                      {outputFormatOptions.map((option) => (
+                        <option key={option} value={option}>{option.toUpperCase()}</option>
+                      ))}
+                    </select>
+                    <p className="helper">Leave empty to skip file export.</p>
+                  </div>
+                  <div className="form-field">
+                    <label className="field-label" htmlFor="mini-output-name">Output name</label>
+                    <input
+                      id="mini-output-name"
+                      type="text"
+                      value={(formData.output_name as string) || ''}
+                      onChange={(e) => setFormData(curr => ({ ...curr, output_name: e.target.value || null }))}
+                      placeholder="results.json"
+                    />
+                    <p className="helper">File name used for exports.</p>
+                  </div>
+                </div>
+                <div className="section-footer"><a className="back-to-top" href="#config-nav">Back to top ↑</a></div>
+              </div>
+              <div className="form-footer">
+                <small>Changes apply immediately to the YAML preview and CLI helpers.</small>
+              </div>
+            </Form>
           </div>
-          <pre className="yaml-output" aria-live="polite">
-            <code>{yamlPreview}</code>
-          </pre>
-          {yamlCopied === 'copied' && <p className="status status--success">YAML copied to clipboard.</p>}
-          {yamlCopied === 'error' && <p className="status status--error">Unable to copy YAML automatically.</p>}
-        </div>
-        <div className="card">
-          <div className="preview-header">
-            <h4>CLI command</h4>
-            <div className="config-actions">
-              <button
-                type="button"
-                onClick={() => copyToClipboard(cliCommand, setCliCopied)}
-              >
-                Copy command
-              </button>
+
+          <aside className="config-preview">
+            <div className="card">
+              <div className="preview-header">
+                <h4>YAML preview</h4>
+                <div className="config-actions">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(yamlPreview, setYamlCopied)}
+                    disabled={coordFileError}
+                    aria-disabled={coordFileError || undefined}
+                  >
+                    Copy YAML
+                  </button>
+                  <button type="button" onClick={handleDownload} disabled={coordFileError} aria-disabled={coordFileError || undefined}>Download YAML</button>
+                </div>
+              </div>
+              <p className="helper">Live YAML that updates as you edit. Save or copy to use with the CLI.</p>
+              <pre className="yaml-output" aria-live="polite">
+                <code>{yamlPreview}</code>
+              </pre>
+              {yamlCopied === 'copied' && <p className="status status--success">YAML copied to clipboard.</p>}
+              {yamlCopied === 'error' && <p className="status status--error">Unable to copy YAML automatically.</p>}
+              {coordFileError && (
+                <p className="status status--error">Coordinate file path is required when using file input.</p>
+              )}
             </div>
-          </div>
-          <code className="cli-command">{cliCommand}</code>
-          {cliCopied === 'copied' && <p className="status status--success">Command copied.</p>}
-          {cliCopied === 'error' && <p className="status status--error">Unable to copy command.</p>}
-        </div>
-      </aside>
+            <div className="card">
+              <div className="preview-header">
+                <h4>CLI command</h4>
+                <div className="config-actions">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(cliCommand, setCliCopied)}
+                    disabled={coordFileError}
+                    aria-disabled={coordFileError || undefined}
+                  >
+                    Copy command
+                  </button>
+                </div>
+              </div>
+              <p className="helper">Runs <code>coord2region</code> using a saved YAML file. Save or copy the YAML above, then run this command in your terminal.</p>
+              <code className="cli-command">{cliCommand}</code>
+              {cliCopied === 'copied' && <p className="status status--success">Command copied.</p>}
+              {cliCopied === 'error' && <p className="status status--error">Unable to copy command.</p>}
+            </div>
+            <div className="card">
+              <div className="preview-header">
+                <h4>Direct CLI command</h4>
+                <div className="config-actions">
+                  <button
+                    type="button"
+                    onClick={() => directCliCommands[0] && copyToClipboard(directCliCommands[0], setDirectCliCopied)}
+                    disabled={coordFileError || directCliCommands.length === 0}
+                    aria-disabled={coordFileError || directCliCommands.length === 0 || undefined}
+                  >
+                    Copy direct command
+                  </button>
+                </div>
+              </div>
+              <p className="helper">Generates a direct subcommand from your selections—no YAML file required.</p>
+              {directCliCommands.length === 0 ? (
+                <p className="helper">Enable an output to generate a direct command for your current configuration.</p>
+              ) : (
+                <code className="direct-cli">{directCliCommands[0]}</code>
+              )}
+              {directCliCopied === 'copied' && <p className="status status--success">Command copied.</p>}
+              {directCliCopied === 'error' && <p className="status status--error">Unable to copy command.</p>}
+            </div>
+            <div className="card">
+              <div className="card-header">
+                <h4>Templates & Import</h4>
+                <p className="helper">Load a complete example configuration, or import a local YAML to continue where you left off.</p>
+                <div className="template-toolbar" role="group" aria-label="Load example template or import YAML">
+                  <label htmlFor="template-select" className="sr-only">Select a template</label>
+                  <div className="select-wrap">
+                    <select
+                      id="template-select"
+                      className="select select--compact"
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                    >
+                      <option value="">Choose an example…</option>
+                      <optgroup label="Examples">
+                        <option value="single-lookup">📍 Single coordinate — atlas lookup</option>
+                        <option value="multi-with-summaries">📚 Multiple coordinates + summaries</option>
+                        <option value="regions-to-coords">🧠 Region names → coords</option>
+                        <option value="coords-to-insights">🖼️ Coords → studies, summaries, images</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div className="template-actions">
+                    <button
+                      type="button"
+                      className="template-btn template-btn--primary"
+                      onClick={() => selectedTemplate && applyTemplate(selectedTemplate)}
+                      disabled={!selectedTemplate}
+                    >
+                      <span aria-hidden>📦</span>
+                      <span>Load template</span>
+                    </button>
+                    {(
+                      <button
+                        type="button"
+                        className="template-btn template-btn--ghost"
+                        onClick={() => {
+                          if (templateUndo) {
+                            // Restore snapshot
+                            setInputMode(templateUndo.inputMode);
+                            setCoordEntryMode(templateUndo.coordEntryMode);
+                            setCoordinateText(templateUndo.coordinateText);
+                            setCoordsFile(templateUndo.coordsFile);
+                            setRegionNamesText(templateUndo.regionNamesText);
+                            setEnableStudy(templateUndo.enableStudy);
+                            setEnableSummary(templateUndo.enableSummary);
+                            setFormData(templateUndo.formData);
+                            setTemplateUndo(null);
+                          }
+                          setSelectedTemplate('');
+                        }}
+                        disabled={!templateUndo && !selectedTemplate}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                  {/* Separate row for YAML import */}
+                  <div className="template-yaml">
+                    <input
+                      id="yaml-file-input"
+                      type="file"
+                      accept=".yml,.yaml,text/yaml,text/x-yaml,application/x-yaml"
+                      onChange={handleYamlFileInput}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      className="template-btn template-btn--secondary"
+                      onClick={() => {
+                        const el = document.getElementById('yaml-file-input') as HTMLInputElement | null;
+                        el?.click();
+                      }}
+                    >
+                      Load YAML…
+                    </button>
+                    {importStatus === 'success' && <span className="status status--success">{importMessage}</span>}
+                    {importStatus === 'error' && <span className="status status--error">{importMessage}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
         </section>
       )}
     </>

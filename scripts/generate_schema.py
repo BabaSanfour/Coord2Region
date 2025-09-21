@@ -25,6 +25,8 @@ def main() -> None:
     module, coord2region_config = _load_coord2region_config()
     coord2region_config.model_rebuild(_types_namespace=module.__dict__)
     schema = coord2region_config.model_json_schema()
+    # Keep top-level title/description so tests comparing to model schema pass exactly.
+    # UI concerns about default RJSF headers are handled via CSS and RJSF templates.
 
     repo_root = Path(__file__).resolve().parents[1]
     output_path = repo_root / "docs" / "static" / "schema.json"

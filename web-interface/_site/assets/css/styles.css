@@ -1,14 +1,32 @@
 :root {
   color-scheme: light dark;
-  --bg: #0f172a;
-  --bg-alt: rgba(15, 23, 42, 0.85);
-  --fg: #e2e8f0;
-  --accent: #38bdf8;
-  --accent-strong: #0ea5e9;
-  --card-bg: rgba(15, 23, 42, 0.65);
-  --card-border: rgba(148, 163, 184, 0.25);
-  --surface: #1e293b;
+  /* Dark theme (default) — softer navy palette */
+  --bg: #0c111b; /* main background */
+  --bg-alt: rgba(14, 19, 31, 0.92); /* elevated background */
+  --fg: #e8eef7; /* primary text */
+  --accent: #60a5fa; /* friendly blue */
+  --accent-strong: #2563eb; /* strong blue */
+  --card-bg: rgba(12, 18, 30, 0.58); /* frosted card */
+  --card-border: rgba(148, 163, 184, 0.16);
+  --surface: #0f172a; /* code blocks / surfaces */
+  --hero-grad-1: rgba(96, 165, 250, 0.28); /* accent wash */
+  --hero-grad-2: rgba(99, 102, 241, 0.06); /* subtle indigo */
   --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Light theme variables */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --bg-alt: #ffffff;
+  --fg: #0f172a;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --card-bg: #ffffff;
+  --card-border: rgba(15, 23, 42, 0.08);
+  --surface: #f1f5f9;
+  --hero-grad-1: rgba(59, 130, 246, 0.18);
+  --hero-grad-2: rgba(14, 165, 233, 0.04);
 }
 
 * {
@@ -19,7 +37,7 @@ body {
   margin: 0;
   font-family: var(--font-body);
   background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent 45%),
-    radial-gradient(circle at bottom right, rgba(250, 204, 21, 0.1), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(250, 204, 21, 0.08), transparent 50%),
     var(--bg);
   color: var(--fg);
   min-height: 100vh;
@@ -32,14 +50,20 @@ body {
   margin: 0 auto;
 }
 
+/* Wider layout for the builder page only */
+body.builder-page .container.content,
+body.builder-page .content.container {
+  width: min(1280px, 95%);
+}
+
 .hero {
-  padding: 4.5rem 0;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(14, 165, 233, 0.05));
+  padding: 3rem 0; /* reduce header height */
+  background: linear-gradient(135deg, var(--hero-grad-1), var(--hero-grad-2));
 }
 
 .hero__content {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.1rem; /* slightly tighter */
 }
 
 .hero h1 {
@@ -50,7 +74,7 @@ body {
 
 .hero h1 .into {
   font-style: italic;
-  font-size: 0.85em;
+  font-size: 0.5em; /* twice smaller for strong emphasis */
   opacity: 0.9;
 }
 
@@ -65,6 +89,7 @@ body {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
+  justify-content: center; /* center buttons */
 }
 
 .btn {
@@ -78,12 +103,12 @@ body {
 .btn-primary {
   background: var(--accent);
   color: #020617;
-  box-shadow: 0 15px 40px rgba(8, 145, 178, 0.35);
+  box-shadow: 0 15px 40px rgba(96, 165, 250, 0.32);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 50px rgba(14, 165, 233, 0.45);
+  box-shadow: 0 18px 44px rgba(96, 165, 250, 0.42);
 }
 
 .btn-secondary {
@@ -97,6 +122,55 @@ body {
   color: var(--accent);
 }
 
+/* Light theme overrides for builder widgets without touching their source CSS */
+:root[data-theme='light'] #config-builder .responsive-frame {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme='light'] #config-builder .card,
+:root[data-theme='light'] .config-builder .card {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme='light'] #config-builder .card textarea,
+:root[data-theme='light'] #config-builder .card input,
+:root[data-theme='light'] #config-builder .atlas-widget__select,
+:root[data-theme='light'] #config-builder .form-field input,
+:root[data-theme='light'] #config-builder .form-field select,
+:root[data-theme='light'] #config-builder .form-field textarea,
+:root[data-theme='light'] .config-builder .form-field input,
+:root[data-theme='light'] .config-builder .form-field select,
+:root[data-theme='light'] .config-builder .form-field textarea {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
+:root[data-theme='light'] #config-builder .yaml-output,
+:root[data-theme='light'] #config-builder .cli-command {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='light'] #config-builder .mode-toggle {
+  background: #f1f5f9;
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='light'] #config-builder .toggle--active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #0f172a;
+}
+
+:root[data-theme='light'] #config-builder .selected-item {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #1e3a8a;
+}
+
 .content {
   flex: 1;
   padding: 3rem 0 5rem;
@@ -105,10 +179,10 @@ body {
 .section-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 1.25rem;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.3);
+  border-radius: 1.1rem;
+  padding: 1.5rem; /* tighter */
+  margin-bottom: 1.5rem; /* tighter */
+  box-shadow: 0 16px 44px rgba(8, 14, 26, 0.26);
   backdrop-filter: blur(16px);
 }
 
@@ -135,7 +209,7 @@ body {
 }
 
 #config-builder {
-  margin-top: 4rem;
+  margin-top: 0; /* align top spacing with About/Cloud */
 }
 
 #config-builder .card-title {
@@ -226,10 +300,10 @@ body {
 }
 
 .responsive-frame {
-  background: rgba(15, 23, 42, 0.35);
-  border-radius: 1.5rem;
+  background: rgba(12, 18, 30, 0.38);
+  border-radius: 1.25rem;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  padding: 2rem;
+  padding: 1.25rem; /* tighter */
   backdrop-filter: blur(12px);
 }
 
@@ -237,8 +311,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(59, 130, 246, 0.18);
-  color: rgba(191, 219, 254, 0.95);
+  background: rgba(96, 165, 250, 0.2);
+  color: rgba(219, 234, 254, 0.95);
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   font-size: 0.8rem;
@@ -250,8 +324,8 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+  background: #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.9);
 }
 
 a.card-link {
@@ -292,4 +366,47 @@ aside ul {
 
 aside li {
   margin-bottom: 0.45rem;
+}
+
+/* How it works accordion */
+details.howto {
+  margin-top: 0.75rem;
+}
+details.howto > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 600;
+}
+details.howto > summary::marker { display: none; }
+details.howto[open] > summary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+details.howto .howto__content {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.85rem 0.5rem;
+  border-left: 2px solid rgba(148, 163, 184, 0.2);
+}
+details.howto--inframe {
+  margin-bottom: 1.25rem; /* space before builder UI */
+}
+details.howto .howto__content ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+details.howto .howto__content li {
+  margin-bottom: 0.45rem;
+  color: rgba(226, 232, 240, 0.8);
+}
+details.howto .howto__content ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+details.howto .howto__content ol li {
+  margin-bottom: 0.6rem;
 }

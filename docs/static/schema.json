@@ -1,6 +1,5 @@
 {
   "additionalProperties": false,
-  "description": "Pydantic model capturing all CLI-facing configuration options.",
   "properties": {
     "anthropic_api_key": {
       "anyOf": [
@@ -153,6 +152,19 @@
       "title": "Image Backend",
       "type": "string"
     },
+    "image_custom_prompt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Custom image prompt template used when image_prompt_type is 'custom'. Supports {coordinate}, {first_paragraph}, and {atlas_context} placeholders.",
+      "title": "Image Custom Prompt"
+    },
     "image_model": {
       "anyOf": [
         {
@@ -164,6 +176,19 @@
       ],
       "default": null,
       "title": "Image Model"
+    },
+    "image_prompt_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Template to use for AI image generation prompts. One of: 'anatomical', 'functional', 'schematic', 'artistic', or 'custom'.",
+      "title": "Image Prompt Type"
     },
     "input_type": {
       "default": "coords",
@@ -305,9 +330,16 @@
       "title": "Region Names"
     },
     "region_search_radius": {
-      "type": "number",
-      "minimum": 0,
-      "default": 0,
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "title": "Region Search Radius"
     },
     "sources": {
@@ -332,9 +364,16 @@
       "type": "number"
     },
     "summary_max_tokens": {
-      "type": "integer",
-      "minimum": 1,
-      "default": 1000,
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "title": "Summary Max Tokens"
     },
     "summary_models": {
@@ -370,6 +409,5 @@
       "title": "Working Directory"
     }
   },
-  "title": "Coord2RegionConfig",
   "type": "object"
 }

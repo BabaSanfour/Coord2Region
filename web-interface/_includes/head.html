@@ -8,4 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   {% assign css_file = site.static_files | where: 'path', '/assets/css/styles.css' | first %}
   <link rel="stylesheet" href="{{ css_file.path | relative_url }}?v={{ css_file.modified_time | date: '%s' }}">
+  {% assign app_css = site.static_files | where: 'path', '/assets/css/main.css' | first %}
+  {% if app_css %}
+  <link rel="stylesheet" href="{{ app_css.path | relative_url }}?v={{ app_css.modified_time | date: '%s' }}">
+  {% endif %}
 </head>

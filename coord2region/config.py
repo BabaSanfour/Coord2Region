@@ -71,6 +71,23 @@ class Coord2RegionConfig(BaseModel):
 
     image_model: Optional[str] = None
 
+    # Image generation prompt customization
+    image_prompt_type: Optional[str] = Field(
+        default=None,
+        description=(
+            "Template to use for AI image generation prompts. One of: "
+            "'anatomical', 'functional', 'schematic', 'artistic', or 'custom'."
+        ),
+    )
+    image_custom_prompt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Custom image prompt template used when image_prompt_type is 'custom'. "
+            "Supports {coordinate}, {first_paragraph}, "
+            "and {atlas_context} placeholders."
+        ),
+    )
+
     gemini_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
@@ -387,6 +404,8 @@ class Coord2RegionConfig(BaseModel):
         override("sources")
         override("atlas_names")
         override("image_model")
+        override("image_prompt_type")
+        override("image_custom_prompt")
         override("providers")
 
         for key in (

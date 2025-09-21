@@ -350,6 +350,10 @@ def test_main_coords_to_image_backend(mock_run, mock_print):
             "both",
             "--image-model",
             "custom",
+            "--image-prompt-type",
+            "schematic",
+            "--image-custom-prompt",
+            "Draw networks",
         ]
     )
     args, kwargs = mock_run.call_args
@@ -357,6 +361,8 @@ def test_main_coords_to_image_backend(mock_run, mock_print):
     assert args[2] == ["region_labels", "raw_studies", "images"]
     assert kwargs["image_backend"] == "both"
     assert kwargs["config"]["image_model"] == "custom"
+    assert kwargs["config"]["image_prompt_type"] == "schematic"
+    assert kwargs["config"]["image_custom_prompt"] == "Draw networks"
 
 
 @pytest.mark.unit
@@ -516,3 +522,27 @@ config:
     assert out == [
         "coord2region coords-to-summary 1 2 3 4 5 6 --working-directory /tmp/data --atlas aal --atlas juelich",
     ]
+
+
+def test_run_from_config_dry_run_includes_image_prompt(tmp_path, capsys):
+    cfg = tmp_path / "cfg.yml"
+    cfg.write_text(
+        """
+        inputs:
+        - [1, 2, 3]
+        input_type: coords
+        outputs: [region_labels, raw_studies, images]
+        config:
+        atlas_names: [aal]
+        image_prompt_type: functional
+        image_custom_prompt: Draw atlas context
+        """,
+        encoding="utf8",
+    )
+
+    run_from_config(str(cfg), dry_run=True)
+    out = capsys.readouterr().out.strip().splitlines()
+    # Should be coords-to-image and include image flags
+    assert out and out[0].startswith("coord2region coords-to-image 1 2 3 ")
+    assert "--image-prompt-type functional" in out[0]
+    assert "--image-custom-prompt 'Draw atlas context'" in out[0] or "--image-custom-prompt Draw atlas context" in out[0]

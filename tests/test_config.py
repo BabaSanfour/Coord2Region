@@ -75,6 +75,22 @@ def test_config_summary_without_credentials_allowed():
     assert cfg.outputs == ["summaries"]
 
 
+def test_config_image_prompt_passthrough():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[0, 0, 0]],
+            "outputs": ["images"],
+            "image_prompt_type": "functional",
+            "image_custom_prompt": "Show activation at {coordinate}",
+        }
+    )
+    runtime = cfg.to_pipeline_runtime([[0, 0, 0]])
+    conf = runtime["config"]
+    assert conf["image_prompt_type"] == "functional"
+    assert conf["image_custom_prompt"] == "Show activation at {coordinate}"
+
+
 def test_config_atlas_limit_enforced():
     with pytest.raises(ValidationError):
         Coord2RegionConfig.model_validate(
