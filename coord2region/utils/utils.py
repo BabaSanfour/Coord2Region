@@ -5,6 +5,8 @@ and manage surface-based atlases using FreeSurfer annotations.
 """
 
 import os
+from pathlib import Path
+
 import numpy as np
 
 
@@ -169,10 +171,29 @@ def pack_surf_output(
     if subjects_dir is None:
         subjects_dir = mne.get_config("SUBJECTS_DIR", None)
         if subjects_dir is None:
-            import os
+            try:
+                from mne.datasets import sample as sample_module
+            except ImportError:
+                sample_module = None
 
-            subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
-    from pathlib import Path
+            if sample_module is not None:
+                subjects_dir = Path(sample_module.data_path()) / "subjects"
+            else:
+                fetch_fsaverage = getattr(mne.datasets, "fetch_fsaverage", None)
+                if fetch_fsaverage is None:
+                    raise RuntimeError(
+                        "Could not determine the FreeSurfer subjects directory. "
+                        "Set the MNE 'SUBJECTS_DIR' configuration value or pass "
+                        "`subjects_dir` explicitly."
+                    )
+                try:
+                    subjects_dir = Path(fetch_fsaverage(verbose=True)).parent
+                except Exception as err:
+                    raise RuntimeError(
+                        "Could not determine the FreeSurfer subjects directory. "
+                        "Set the MNE 'SUBJECTS_DIR' configuration value or pass "
+                        "`subjects_dir` explicitly."
+                    ) from err
 
     subjects_dir = Path(subjects_dir)
     if fetcher is None:
