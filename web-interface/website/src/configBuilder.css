@@ -1172,3 +1172,25 @@ html { scroll-behavior: smooth; }
 
 :root[data-theme='light'] .back-to-top { color: #0f172a; }
 :root[data-theme='light'] .back-to-top:hover { color: #1d4ed8; }
+
+/* ================================
+  Attribute-based Dark theme overrides
+  Ensure the site toggle (data-theme="dark") overrides OS light preference
+  ================================ */
+:root[data-theme='dark'] .card { background: rgba(15,23,42,0.4); border-color: rgba(148,163,184,0.25); }
+:root[data-theme='dark'] .card textarea,
+:root[data-theme='dark'] .card input,
+:root[data-theme='dark'] .atlas-widget__select,
+:root[data-theme='dark'] .form-field input,
+:root[data-theme='dark'] .form-field select,
+:root[data-theme='dark'] .form-field textarea,
+:root[data-theme='dark'] .atlas-select__search { background: rgba(15,23,42,0.7); color: #e2e8f0; border-color: rgba(148,163,184,0.3); }
+:root[data-theme='dark'] .template-toolbar select { background: rgba(15,23,42,0.6); color: #e2e8f0; border-color: rgba(148,163,184,0.3); }
+
+:root[data-theme='dark'] .yaml-output,
+:root[data-theme='dark'] .cli-command,
+:root[data-theme='dark'] .direct-cli { background: rgba(2,6,23,0.8); border-color: rgba(148,163,184,0.25); color: #e2e8f0; }
+
+:root[data-theme='dark'] .atlas-select__group { background: rgba(15,23,42,0.5); border-color: rgba(148,163,184,0.25); }
+:root[data-theme='dark'] .atlas-group,
+:root[data-theme='dark'] .studies-group { background: rgba(15,23,42,0.55); border-color: rgba(148,163,184,0.25); }
