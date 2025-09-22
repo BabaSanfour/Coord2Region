@@ -78,6 +78,13 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.subjects_dir = self.file_handler.subjects_dir
+        if self.subjects_dir is None:
+            default_subjects_dir = Path(self.data_dir) / "freesurfer_subjects"
+            default_subjects_dir.mkdir(parents=True, exist_ok=True)
+            self.subjects_dir = str(default_subjects_dir)
+            self.file_handler.subjects_dir = self.subjects_dir
+        else:
+            Path(self.subjects_dir).mkdir(parents=True, exist_ok=True)
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
@@ -369,6 +376,7 @@ class AtlasFetcher:
         this_kwargs = fetcher_mne["default_kwargs"].copy()
         this_kwargs.update(kwargs)
         atlas_name_mne = this_kwargs.pop("version", atlas_name)
+        this_kwargs.setdefault("subjects_dir", self.subjects_dir)
         fetched = pack_surf_output(
             atlas_name=atlas_name_mne, fetcher=fetcher_mne["fetcher"], **this_kwargs
         )
