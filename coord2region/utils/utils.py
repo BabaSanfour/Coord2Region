@@ -205,13 +205,65 @@ def pack_surf_output(
                 **kwargs,
             )
         except Exception:
-            mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
-            labels = mne.read_labels_from_annot(
-                subject,
-                atlas_name,
-                subjects_dir=subjects_dir,
-                **kwargs,
-            )
+            # Try other subjects_dir locations before any network fetch.
+            candidate_dirs = []
+            # 1) The provided subjects_dir (if any)
+            if subjects_dir is not None:
+                candidate_dirs.append(Path(subjects_dir))
+            # 2) MNE config SUBJECTS_DIR
+            cfg_dir = mne.get_config("SUBJECTS_DIR", None)
+            if cfg_dir:
+                candidate_dirs.append(Path(cfg_dir))
+            # 3) MNE sample dataset subjects
+            try:
+                from mne.datasets import sample as sample_module
+            except Exception:
+                sample_module = None
+            if sample_module is not None:
+                try:
+                    candidate_dirs.append(Path(sample_module.data_path()) / "subjects")
+                except Exception:
+                    pass
+
+            labels = None
+            for cand in candidate_dirs:
+                try:
+                    if cand and (cand / subject).exists():
+                        labels = mne.read_labels_from_annot(
+                            subject,
+                            atlas_name,
+                            subjects_dir=cand,
+                            **kwargs,
+                        )
+                        # Use the working subjects_dir going forward
+                        subjects_dir = cand
+                        break
+                except Exception:
+                    continue
+
+            if labels is None:
+                # Last resort: fetch fsaverage if available.
+                fetch_fsaverage = getattr(mne.datasets, "fetch_fsaverage", None)
+                if fetch_fsaverage is not None:
+                    # Keep under line-length limits
+                    fs_dir = str(subjects_dir) if subjects_dir else None
+                    fetch_fsaverage(subjects_dir=fs_dir, verbose=True)
+                    labels = mne.read_labels_from_annot(
+                        subject,
+                        atlas_name,
+                        subjects_dir=subjects_dir,
+                        **kwargs,
+                    )
+                else:
+                    raise RuntimeError(
+                        "Could not read labels for the requested surface atlas "
+                        "without a fetcher/callback, and automatic 'fsaverage' "
+                        "download is unavailable in this MNE version. Please "
+                        "ensure SUBJECTS_DIR points to a FreeSurfer subjects "
+                        "directory containing 'fsaverage' (e.g., "
+                        "mne.set_config('SUBJECTS_DIR', '/path/to/subjects')) or "
+                        "pass subjects_dir explicitly."
+                    )
     else:
         try:
             labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
