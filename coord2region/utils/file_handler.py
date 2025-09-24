@@ -18,7 +18,7 @@ from fpdf import FPDF
 
 import mne
 from .utils import fetch_labels, pack_vol_output
-from .paths import resolve_working_directory
+from .paths import resolve_working_directory, ensure_mne_data_directory
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,8 @@ class AtlasFileHandler:
         Path to the FreeSurfer subjects directory.
     nilearn_data : str
         Directory for caching Nilearn datasets.
+    mne_data_dir : str
+        Directory registered with MNE for dataset downloads.
 
     Examples
     --------
@@ -95,6 +97,7 @@ class AtlasFileHandler:
         self.generated_images_dir = os.path.join(self.data_dir, "generated_images")
         self.results_dir = os.path.join(self.data_dir, "results")
         self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
+        self.mne_data_dir = str(ensure_mne_data_directory(base_dir))
         fh_subjects_dir = mne.get_config("SUBJECTS_DIR", None)
         if fh_subjects_dir:
             self.subjects_dir = fh_subjects_dir
@@ -108,7 +111,7 @@ class AtlasFileHandler:
             if not self.subjects_dir:  # Hardcode the default subjects_dir
                 from pathlib import Path
 
-                cfg = str(Path(self.data_dir) / "MNE-sample-data" / "subjects")
+                cfg = str(Path(self.mne_data_dir) / "MNE-sample-data" / "subjects")
                 self.subjects_dir = Path(cfg).expanduser().resolve()
                 mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
 
@@ -117,6 +120,7 @@ class AtlasFileHandler:
             self.generated_images_dir,
             self.results_dir,
             self.nilearn_data,
+            self.mne_data_dir,
             self.subjects_dir,
         ):
             os.makedirs(path, exist_ok=True)
