@@ -6,6 +6,13 @@ lookups, study queries and optional generative AI to provide an end-to-end
 workflow.  It accepts different kinds of inputs and can produce multiple output
 types in a single call.
 
+.. figure:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/workflow.jpg
+  :alt: Pipeline workflow
+  :align: center
+  :width: 90%
+
+  Coord2Region pipeline overview.
+
 Supported use cases
 -------------------
 

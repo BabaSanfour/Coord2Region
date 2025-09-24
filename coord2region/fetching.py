@@ -571,3 +571,9 @@ def _ensure_hcp_license() -> None:
         "or create the file '~/.mne/hcpmmp-license.txt' after reading the terms."
     )
     raise RuntimeError(msg)
+
+
+if __name__ == "__main__":
+    atlas_fetcher = AtlasFetcher()
+    print("Available atlases:", atlas_fetcher.list_available_atlases())
+    print("Fetching atlas 'aparc':", atlas_fetcher.fetch_atlas("aparc"))

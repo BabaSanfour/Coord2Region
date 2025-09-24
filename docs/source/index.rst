@@ -5,6 +5,33 @@ Map neuroimaging coordinates to atlas regions, query studies near a
 coordinate, and optionally generate AI summaries and illustrative images.
 Built on NiMARE, nilearn and MNE.
 
+Overview
+--------
+
+.. figure:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/workflow.jpg
+   :alt: Coord2Region workflow overview
+   :align: center
+   :width: 90%
+
+   High-level workflow from inputs to outputs.
+
+Web interface previews
+----------------------
+
+.. |ui1| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png
+   :alt: Config Builder – inputs and atlas
+   :width: 31%
+
+.. |ui2| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png
+   :alt: Config Builder – outputs and providers
+   :width: 31%
+
+.. |ui3| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png
+   :alt: Runner preview
+   :width: 31%
+
+|ui1| |ui2| |ui3|
+
 Requirements
 ------------
 

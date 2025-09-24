@@ -32,3 +32,8 @@ From raw neuroimaging coordinates to atlas‑level labels, study retrieval, AI�
 3. Copy the generated YAML or CLI, then run locally
 
 Want details? See [About]({{ '/about/' | relative_url }}) or the [Docs](https://coord2region.readthedocs.io/en/latest/).
+
+### Web UI previews
+
+| ![Builder – inputs](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png){: width="280" } | ![Builder – outputs](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png){: width="280" } | ![Runner](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png){: width="280" } |
+| :--: | :--: | :--: |

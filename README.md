@@ -16,10 +16,20 @@
 - AI-generated region images
 - Command-line and Python interfaces
 
+## Workflow
+
+![Coord2Region workflow](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/workflow.jpg)
+
+## Web interface (previews)
+
+| ![Config Builder – inputs and atlas](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png) | ![Runner preview](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png) |
+| :--: | :--: | :--: |
+| Builder (inputs & atlas) | Builder (outputs & providers) | Runner |
+
 ## Web interface
 
 The interactive configuration builder is published at
-https://babasanfour.github.io/Coord2Region/. A dedicated GitHub Actions workflow
+[https://babasanfour.github.io/Coord2Region/](https://babasanfour.github.io/Coord2Region/). A dedicated GitHub Actions workflow
 builds the schema, compiles the Vite bundle, runs the Playwright UI checks, and
 deploys the Jekyll site to GitHub Pages whenever `main` is updated. To preview
 the site locally, install the `web-interface/` dependencies and run `npm run dev`
