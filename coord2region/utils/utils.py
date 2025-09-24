@@ -176,7 +176,16 @@ def pack_surf_output(
                 **kwargs,
             )
         except Exception:
-            mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
+            try:
+                fetch_fs = getattr(mne.datasets, "fetch_fsaverage", None)
+                if fetch_fs is None:
+                    raise RuntimeError(
+                        "mne.datasets.fetch_fsaverage is not "
+                        "available in this MNE version."
+                    )
+                fetch_fs(subjects_dir=subjects_dir, verbose=True)
+            except Exception as fetch_err:
+                raise RuntimeError(f"Failed to fetch fsaverage dataset: {fetch_err}")
             labels = mne.read_labels_from_annot(
                 subject,
                 atlas_name,
