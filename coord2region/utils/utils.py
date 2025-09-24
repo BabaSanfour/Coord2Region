@@ -5,7 +5,6 @@ and manage surface-based atlases using FreeSurfer annotations.
 """
 
 import os
-from pathlib import Path
 
 import numpy as np
 
@@ -168,14 +167,6 @@ def pack_surf_output(
     # Determine subjects_dir: use provided or from MNE config
     import mne
 
-    if subjects_dir is None:
-        subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-        if subjects_dir is None:
-            import os
-
-            subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
-
-    subjects_dir = Path(subjects_dir)
     if fetcher is None:
         try:
             labels = mne.read_labels_from_annot(
