@@ -18,11 +18,11 @@
 
 ## Workflow
 
-![Coord2Region workflow](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/_static/images/workflow.jpg)
+![Coord2Region workflow](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/workflow.jpg)
 
 ## Web interface (previews)
 
-| ![Config Builder – inputs and atlas](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/_static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/_static/images/web-interface-ui-builder2.png) | ![Runner preview](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/_static/images/web-interface-ui-runner.png) |
+| ![Config Builder – inputs and atlas](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png) | ![Runner preview](https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png) |
 | :--: | :--: | :--: |
 | Builder (inputs & atlas) | Builder (outputs & providers) | Runner |
 
