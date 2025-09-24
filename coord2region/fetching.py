@@ -78,13 +78,6 @@ class AtlasFetcher:
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
         self.subjects_dir = self.file_handler.subjects_dir
-        if self.subjects_dir is None:
-            default_subjects_dir = Path(self.data_dir) / "subjects"
-            default_subjects_dir.mkdir(parents=True, exist_ok=True)
-            self.subjects_dir = str(default_subjects_dir)
-            self.file_handler.subjects_dir = self.subjects_dir
-        else:
-            Path(self.subjects_dir).mkdir(parents=True, exist_ok=True)
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
@@ -571,9 +564,3 @@ def _ensure_hcp_license() -> None:
         "or create the file '~/.mne/hcpmmp-license.txt' after reading the terms."
     )
     raise RuntimeError(msg)
-
-
-if __name__ == "__main__":
-    atlas_fetcher = AtlasFetcher()
-    print("Available atlases:", atlas_fetcher.list_available_atlases())
-    print("Fetching atlas 'aparc':", atlas_fetcher.fetch_atlas("aparc"))

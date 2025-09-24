@@ -107,8 +107,12 @@ class AtlasFileHandler:
         if subjects_dir is not None:
             self.subjects_dir = subjects_dir
         else:
-            self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-            if self.subjects_dir is None:
+            cfg = mne.get_config("SUBJECTS_DIR", None)
+            if cfg is not None:
+                from pathlib import Path
+
+                self.subjects_dir = Path(cfg).expanduser()
+            else:
                 logger.warning(
                     "Please provide a subjects_dir or set MNE's SUBJECTS_DIR "
                     "in your environment."
