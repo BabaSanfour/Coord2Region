@@ -4,7 +4,10 @@ This module provides functions to parse label files, load atlas volumes,
 and manage surface-based atlases using FreeSurfer annotations.
 """
 
+import importlib
+import inspect
 import os
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -128,6 +131,48 @@ def pack_vol_output(file):
             raise ValueError("Unsupported type for pack_vol_output")
 
 
+def _resolve_fsaverage_fetcher() -> Optional[Callable]:
+    """Return the MNE fsaverage fetcher, accounting for API differences."""
+    import mne
+
+    datasets = getattr(mne, "datasets", None)
+    if datasets is not None:
+        fetcher = getattr(datasets, "fetch_fsaverage", None)
+        if callable(fetcher):
+            return fetcher
+    try:
+        from mne.datasets import fetch_fsaverage as fetcher  # type: ignore[attr-defined]
+    except ImportError:  # pragma: no cover - older MNE versions
+        fetcher = None
+    if callable(fetcher):
+        return fetcher
+    for module_name in ("mne.datasets._fsaverage", "mne.datasets.fsaverage"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:  # pragma: no cover - depends on MNE version
+            continue
+        fetcher = getattr(module, "fetch_fsaverage", None)
+        if callable(fetcher):
+            return fetcher
+    fetcher = getattr(mne, "fetch_fsaverage", None)
+    if callable(fetcher):
+        return fetcher
+    return None
+
+
+def _call_fetcher_with_subjects_dir(fetcher: Callable, subjects_dir):
+    """Invoke ``fetcher`` passing ``subjects_dir`` when supported."""
+    fetch_kwargs = {}
+    if subjects_dir is not None:
+        try:
+            parameters = inspect.signature(fetcher).parameters
+        except (TypeError, ValueError):  # pragma: no cover - built-in/partial funcs
+            parameters = {}
+        if "subjects_dir" in parameters:
+            fetch_kwargs["subjects_dir"] = str(subjects_dir)
+    fetcher(**fetch_kwargs)
+
+
 def pack_surf_output(
     atlas_name, fetcher, subject: str = "fsaverage", subjects_dir: str = None, **kwargs
 ):
@@ -175,8 +220,15 @@ def pack_surf_output(
                 subjects_dir=subjects_dir,
                 **kwargs,
             )
-        except Exception:
-            mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
+        except Exception as err:
+            fsaverage_fetcher = _resolve_fsaverage_fetcher()
+            if fsaverage_fetcher is None:
+                raise ValueError(
+                    "Unable to fetch the fsaverage subject automatically. "
+                    "Provide an existing subjects_dir or install an MNE version "
+                    "that exposes fetch_fsaverage."
+                ) from err
+            _call_fetcher_with_subjects_dir(fsaverage_fetcher, subjects_dir)
             labels = mne.read_labels_from_annot(
                 subject,
                 atlas_name,
