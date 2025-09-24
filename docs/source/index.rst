@@ -8,7 +8,7 @@ Built on NiMARE, nilearn and MNE.
 Overview
 --------
 
-.. figure:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/workflow.jpg
+.. figure:: ../static/images/workflow.jpg
    :alt: Coord2Region workflow overview
    :align: center
    :width: 90%
@@ -18,15 +18,15 @@ Overview
 Web interface previews
 ----------------------
 
-.. |ui1| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png
+.. |ui1| image:: ../static/images/web-interface-ui-builder1.png
    :alt: Config Builder – inputs and atlas
    :width: 31%
 
-.. |ui2| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png
+.. |ui2| image:: ../static/images/web-interface-ui-builder2.png
    :alt: Config Builder – outputs and providers
    :width: 31%
 
-.. |ui3| image:: https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png
+.. |ui3| image:: ../static/images/web-interface-ui-runner.png
    :alt: Runner preview
    :width: 31%
 
