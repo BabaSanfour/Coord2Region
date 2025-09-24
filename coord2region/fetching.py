@@ -77,7 +77,10 @@ class AtlasFetcher:
         self.file_handler = AtlasFileHandler(data_dir=data_dir)
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
-        self.subjects_dir = self.file_handler.subjects_dir
+        if self.file_handler.subjects_dir is not None:
+            self.subjects_dir = self.file_handler.subjects_dir
+        else:
+            self.subjects_dir = None
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
