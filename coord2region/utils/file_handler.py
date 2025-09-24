@@ -109,7 +109,7 @@ class AtlasFileHandler:
                 from pathlib import Path
 
                 cfg = str(Path(self.data_dir) / "MNE-sample-data" / "subjects")
-                self.subjects_dir = Path(cfg).expanduser()
+                self.subjects_dir = Path(cfg).expanduser().resolve()
                 mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
 
         for path in (
@@ -120,20 +120,6 @@ class AtlasFileHandler:
             self.subjects_dir,
         ):
             os.makedirs(path, exist_ok=True)
-
-        if subjects_dir is not None:
-            self.subjects_dir = subjects_dir
-        else:
-            cfg = mne.get_config("SUBJECTS_DIR", None)
-            if cfg is not None:
-                from pathlib import Path
-
-                self.subjects_dir = Path(cfg).expanduser()
-            else:
-                logger.warning(
-                    "Please provide a subjects_dir or set MNE's SUBJECTS_DIR "
-                    "in your environment."
-                )
 
     def save(self, obj, filename: str):
         """Save an object to the data directory using pickle.
