@@ -95,12 +95,29 @@ class AtlasFileHandler:
         self.generated_images_dir = os.path.join(self.data_dir, "generated_images")
         self.results_dir = os.path.join(self.data_dir, "results")
         self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
+        fh_subjects_dir = mne.get_config("SUBJECTS_DIR", None)
+        if fh_subjects_dir:
+            self.subjects_dir = fh_subjects_dir
+        else:
+            try:
+                self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
+            except Exception:  # pragma: no cover - defensive
+                self.subjects_dir = None
+            if not self.subjects_dir:
+                self.subjects_dir = os.environ.get("SUBJECTS_DIR")
+            if not self.subjects_dir:  # Hardcode the default subjects_dir
+                from pathlib import Path
+
+                cfg = str(Path(self.data_dir) / "MNE-sample-data" / "subjects")
+                self.subjects_dir = Path(cfg).expanduser()
+                mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
 
         for path in (
             self.cached_data_dir,
             self.generated_images_dir,
             self.results_dir,
             self.nilearn_data,
+            self.subjects_dir,
         ):
             os.makedirs(path, exist_ok=True)
 

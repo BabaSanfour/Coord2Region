@@ -11,8 +11,8 @@ import numpy as np
 import nilearn.datasets
 import mne
 from nibabel.nifti1 import Nifti1Image
-from .utils.file_handler import AtlasFileHandler
-from .utils import pack_vol_output, pack_surf_output
+from utils.file_handler import AtlasFileHandler
+from utils import pack_vol_output, pack_surf_output
 
 logger = logging.getLogger(__name__)
 
@@ -77,22 +77,7 @@ class AtlasFetcher:
         self.file_handler = AtlasFileHandler(data_dir=data_dir)
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
-        fh_subjects_dir = getattr(self.file_handler, "subjects_dir", None)
-        if fh_subjects_dir:
-            self.subjects_dir = fh_subjects_dir
-        else:
-            try:
-                self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-            except Exception:  # pragma: no cover - defensive
-                self.subjects_dir = None
-            if not self.subjects_dir:
-                self.subjects_dir = os.environ.get("SUBJECTS_DIR")
-            if not self.subjects_dir:  # Hardcode the default subjects_dir
-                from pathlib import Path
-
-                cfg = str(Path(self.data_dir) / "MNE-sample-data" / "subjects")
-                self.subjects_dir = Path(cfg).expanduser()
-                mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
+        self.subjects_dir = self.file_handler.subjects_dir
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
