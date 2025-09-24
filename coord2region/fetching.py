@@ -77,10 +77,18 @@ class AtlasFetcher:
         self.file_handler = AtlasFileHandler(data_dir=data_dir)
         self.data_dir = self.file_handler.data_dir
         self.nilearn_data = self.file_handler.nilearn_data
-        if self.file_handler.subjects_dir is not None:
-            self.subjects_dir = self.file_handler.subjects_dir
+        fh_subjects_dir = getattr(self.file_handler, "subjects_dir", None)
+        if fh_subjects_dir:
+            self.subjects_dir = fh_subjects_dir
         else:
-            self.subjects_dir = None
+            try:
+                self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
+            except Exception:  # pragma: no cover - defensive
+                self.subjects_dir = None
+            if not self.subjects_dir:
+                self.subjects_dir = os.environ.get("SUBJECTS_DIR")
+            if not self.subjects_dir:
+                self.subjects_dir = None
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
