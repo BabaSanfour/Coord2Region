@@ -87,8 +87,11 @@ class AtlasFetcher:
                 self.subjects_dir = None
             if not self.subjects_dir:
                 self.subjects_dir = os.environ.get("SUBJECTS_DIR")
-            if not self.subjects_dir:
-                self.subjects_dir = None
+            if not self.subjects_dir:  # Hardcode the default subjects_dir
+                self.subjects_dir = str(
+                    Path(self.data_dir) / "MNE-sample-data" / "subjects"
+                )
+                mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
 
         from nilearn.datasets import (
             fetch_atlas_destrieux_2009,
