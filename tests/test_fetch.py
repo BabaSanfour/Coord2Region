@@ -4,6 +4,7 @@ import zipfile
 import tarfile
 import gzip
 import requests
+import urllib.error
 import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
@@ -64,8 +65,11 @@ def test_fetch_nilearn_atlases(atlas_name):
             f"Atlas '{atlas_name}' is not available in the current version of Nilearn. Skipping test."
         )
         pytest.skip(f"Skipping atlas '{atlas_name}'")
-    atlas = af.fetch_atlas(atlas_name)
-    
+    try:
+        atlas = af.fetch_atlas(atlas_name)
+    except (requests.exceptions.HTTPError, urllib.error.HTTPError) as exc:
+        pytest.skip(f"Remote server error while fetching atlas '{atlas_name}': {exc}")
+
     for key in ["vol", "hdr", "labels"]:
         assert key in atlas, f"Key '{key}' missing in atlas '{atlas_name}' output."
         assert atlas[key] is not None, f"Key '{key}' is None in atlas '{atlas_name}' output."
@@ -132,8 +136,11 @@ MNE_ATLASES = [
 def test_fetch_mne_atlases(atlas_name):
     """Test fetching of MNE-based atlases using AtlasFetcher."""
     af = AtlasFetcher()
-    atlas = af.fetch_atlas(atlas_name)
-    
+    try:
+        atlas = af.fetch_atlas(atlas_name)
+    except (requests.exceptions.HTTPError, urllib.error.HTTPError) as exc:
+        pytest.skip(f"Remote server error while fetching MNE atlas '{atlas_name}': {exc}")
+
     for key in ["vol", "labels", "indexes"]:
         assert key in atlas, f"Key '{key}' missing in MNE atlas output for atlas '{atlas_name}'."
         assert atlas[key] is not None, f"Key '{key}' is None in MNE atlas output for atlas '{atlas_name}'."
