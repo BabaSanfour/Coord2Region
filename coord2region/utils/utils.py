@@ -9,6 +9,18 @@ import os
 import numpy as np
 
 
+def _get_fetch_fsaverage():
+    try:
+        from mne.datasets import fetch_fsaverage  # public fast-path
+
+        return fetch_fsaverage
+    except Exception:
+        import importlib
+
+        mod = importlib.import_module("mne.datasets._fsaverage.base")
+        return getattr(mod, "fetch_fsaverage")
+
+
 def fetch_labels(labels):
     """Parse a labels input.
 
@@ -168,7 +180,7 @@ def pack_surf_output(
     import mne
 
     if fetcher is None:
-        mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
+        _get_fetch_fsaverage()(subjects_dir=subjects_dir, verbose=True)
         labels = mne.read_labels_from_annot(
             subject,
             atlas_name,
