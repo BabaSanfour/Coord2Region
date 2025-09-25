@@ -10,7 +10,13 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from coord2region.pipeline import PipelineResult, _export_results, run_pipeline
+from coord2region.pipeline import (
+    PipelineResult,
+    _export_results,
+    _get_summary_models,
+    _normalize_model_list,
+    run_pipeline,
+)
 
 
 @pytest.mark.unit
@@ -491,6 +497,19 @@ def test_run_pipeline_missing_output_name():
 def test_run_pipeline_invalid_image_backend():
     with pytest.raises(ValueError):
         run_pipeline([[0, 0, 0]], "coords", ["images"], image_backend="wrong")
+
+
+def test_normalize_model_list_variants():
+    assert _normalize_model_list(None) == []
+    assert _normalize_model_list("model") == ["model"]
+    assert _normalize_model_list(["a", "A", "", None]) == ["a", "A"]
+    assert _normalize_model_list(123) == ["123"]
+
+
+def test_get_summary_models_defaults():
+    assert _get_summary_models({}, "fallback") == ["fallback"]
+    assert _get_summary_models({"summary_models": "one"}, "fallback") == ["one"]
+    assert _get_summary_models({"summary_models": []}, "fallback") == ["fallback"]
 
 
 @pytest.mark.unit

@@ -16,6 +16,7 @@ from coord2region.cli import (
     _load_coords_file,
     _batch,
     _collect_kwargs,
+    _atlas_source_from_value,
     run_from_config,
     main,
 )
@@ -197,6 +198,92 @@ print(json.dumps(captured['config'].get('atlas_configs', {}).get('https://exampl
     assert "https://example.com/custom.nii.gz" in atlas_names
     assert atlas_config.get("atlas_url") == "https://example.com/custom.nii.gz"
 
+
+def test_collect_kwargs_comprehensive(tmp_path):
+    ns = argparse.Namespace(
+        gemini_api_key="G",
+        openrouter_api_key="R",
+        openai_api_key="O",
+        anthropic_api_key="A",
+        huggingface_api_key="H",
+        image_model="vision",
+        image_prompt_type="custom",
+        image_custom_prompt="Prompt",
+        working_directory=str(tmp_path / "work"),
+        email_for_abstracts="user@example.com",
+        sources=["SourceA", "SourceA,SourceB", "sourceb"],
+        atlas_names=[
+            "aal",
+            "~/relative/path.nii.gz",
+            "https://example.com/custom-atlas.nii.gz",
+        ],
+        atlas_urls=["aal=https://mirror.example.com/aal.nii.gz"],
+        atlas_files=["aal=/tmp/atlas.nii.gz", "custom=/data/atlas2.nii.gz"],
+    )
+
+    kwargs = _collect_kwargs(ns)
+
+    assert kwargs["gemini_api_key"] == "G"
+    assert kwargs["openrouter_api_key"] == "R"
+    assert kwargs["openai_api_key"] == "O"
+    assert kwargs["anthropic_api_key"] == "A"
+    assert kwargs["huggingface_api_key"] == "H"
+    assert kwargs["image_model"] == "vision"
+    assert kwargs["image_prompt_type"] == "custom"
+    assert kwargs["image_custom_prompt"] == "Prompt"
+    assert kwargs["working_directory"] == str(tmp_path / "work")
+    assert kwargs["email_for_abstracts"] == "user@example.com"
+
+    # Sources are de-duplicated but retain order
+    assert kwargs["sources"] == ["SourceA", "SourceB", "sourceb"]
+
+    atlas_names = kwargs["atlas_names"]
+    assert "aal" in atlas_names
+    assert "~/relative/path.nii.gz" in atlas_names
+    assert "https://example.com/custom-atlas.nii.gz" in atlas_names
+
+    configs = kwargs["atlas_configs"]
+    assert configs["aal"]["atlas_url"] == "https://mirror.example.com/aal.nii.gz"
+    assert configs["aal"]["atlas_file"] == "/tmp/atlas.nii.gz"
+    assert configs["custom"]["atlas_file"] == "/data/atlas2.nii.gz"
+    assert configs["https://example.com/custom-atlas.nii.gz"]["atlas_url"] == (
+        "https://example.com/custom-atlas.nii.gz"
+    )
+    assert configs["~/relative/path.nii.gz"]["atlas_file"] == "~/relative/path.nii.gz"
+
+
+def test_collect_kwargs_atlas_url_validation():
+    ns = argparse.Namespace(atlas_urls=["invalid"], atlas_names=None, atlas_files=None)
+    with pytest.raises(argparse.ArgumentTypeError):
+        _collect_kwargs(ns)
+
+
+def test_collect_kwargs_atlas_file_validation():
+    ns = argparse.Namespace(atlas_urls=None, atlas_names=None, atlas_files=["broken"])
+    with pytest.raises(argparse.ArgumentTypeError):
+        _collect_kwargs(ns)
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("", None),
+        ("https://example.com/atlas.nii.gz", {"atlas_url": "https://example.com/atlas.nii.gz"}),
+        ("~/atlas.nii.gz", {"atlas_file": "~/atlas.nii.gz"}),
+        ("relative/path.nii.gz", {"atlas_file": "relative/path.nii.gz"}),
+        ("C:/atlas.nii.gz", {"atlas_file": "C:/atlas.nii.gz"}),
+        ("aal", None),
+    ],
+)
+def test_atlas_source_from_value(value, expected):
+    assert _atlas_source_from_value(value) == expected
+
+
+def test_batch_handles_large_size():
+    seq = [1, 2, 3]
+    assert list(_batch(seq, 0)) == [seq]
+    assert list(_batch(seq, 5)) == [seq]
+    assert list(_batch(seq, 2)) == [[1, 2], [3]]
 
 
 

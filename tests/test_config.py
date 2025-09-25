@@ -208,3 +208,50 @@ def test_config_mni_coordinates_requires_region_names():
                 "outputs": ["mni_coordinates"],
             }
         )
+
+
+def test_config_has_llm_credentials_detection():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "input_type": "coords",
+            "coordinates": [[0, 0, 0]],
+            "outputs": ["summaries"],
+            "providers": {"echo": {}},
+        }
+    )
+    assert cfg._has_llm_credentials() is True
+
+
+def test_config_has_llm_credentials_from_legacy():
+    cfg = Coord2RegionConfig.model_validate(
+        {
+            "inputs": [[0, 0, 0]],
+            "outputs": ["summaries"],
+            "config": {"openai_api_key": "secret"},
+        }
+    )
+    assert cfg._has_llm_credentials() is True
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("", False),
+        ("~/atlas.nii.gz", True),
+        ("relative/path.nii.gz", True),
+        ("http://example.com/atlas", True),
+        ("C:/atlas.nii.gz", True),
+    ],
+)
+def test_config_looks_like_path(value, expected):
+    assert Coord2RegionConfig._looks_like_path(value) is expected
+
+
+def test_config_derive_atlas_config_variants():
+    url = Coord2RegionConfig._derive_atlas_config("https://example.com/atlas")
+    assert url == {"atlas_url": "https://example.com/atlas"}
+
+    path = Coord2RegionConfig._derive_atlas_config("~/atlas.nii.gz")
+    assert path == {"atlas_file": "~/atlas.nii.gz"}
+
+    assert Coord2RegionConfig._derive_atlas_config("aal") is None
