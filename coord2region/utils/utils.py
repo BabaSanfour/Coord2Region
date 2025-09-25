@@ -222,6 +222,10 @@ def pack_surf_output(
             labels = fetcher(subject=subject, subjects_dir=subjects_dir_arg, **kwargs)
         except Exception:
             _download_fsaverage_annotations()
+            try:
+                fetcher(subject=None, subjects_dir=subjects_dir_arg, **kwargs)
+            except Exception:
+                pass
             labels = _read_labels_from_annot()
 
     src = mne.setup_source_space(
