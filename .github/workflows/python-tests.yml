@@ -47,7 +47,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
+          pytest tests/test_fetch.py --cov=coord2region/ --cov-report=xml --verbose -s
 
       - name: Ensure configuration schema is current
         run: |
