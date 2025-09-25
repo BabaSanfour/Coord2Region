@@ -10,43 +10,6 @@ from pathlib import Path
 import numpy as np
 
 
-def _get_fetch_fsaverage():
-    import importlib
-    import mne
-
-    # 1) Public path
-    try:
-        from mne.datasets import fetch_fsaverage  # noqa: F401
-
-        return fetch_fsaverage
-    except Exception:
-        pass
-
-    # 2) Attribute on lazy module (works even if it's not a package)
-    ds = getattr(mne, "datasets", None)
-    fn = getattr(ds, "fetch_fsaverage", None) if ds is not None else None
-    if callable(fn):
-        return fn
-
-    # 3) Try the private module (works even if datasets is a lazy proxy)
-    try:
-        mod = importlib.import_module("mne.datasets._fsaverage.base")
-        fn = getattr(mod, "fetch_fsaverage", None)
-        if callable(fn):
-            return fn
-    except Exception:
-        pass
-
-    # 4) Nothing worked
-    import mne as _m
-
-    raise ImportError(
-        "Cannot locate mne.datasets.fetch_fsaverage. "
-        f"Installed MNE is {_m.__version__}; CI may have a lazy proxy"
-        "without package semantics."
-    )
-
-
 def fetch_labels(labels):
     """Parse a labels input.
 
@@ -213,8 +176,7 @@ def pack_surf_output(
         subjects_dir = Path(subjects_dir)
 
     if fetcher is None:
-        if subject is None or subject.lower() == "fsaverage":
-            _get_fetch_fsaverage()(subjects_dir=subjects_dir, verbose=True)
+        mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
         labels = mne.read_labels_from_annot(
             subject,
             atlas_name,
