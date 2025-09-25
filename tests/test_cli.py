@@ -23,9 +23,6 @@ from coord2region.cli import (
 
 import pytest
 
-sys.modules.setdefault('mne', types.ModuleType('mne'))
-sys.modules.setdefault('mne.datasets', types.ModuleType('mne.datasets'))
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -34,8 +31,14 @@ def _run(code: str):
         """
 import sys
 import types
-sys.modules.setdefault('mne', types.ModuleType('mne'))
-sys.modules.setdefault('mne.datasets', types.ModuleType('mne.datasets'))
+_mne_module = sys.modules.setdefault('mne', types.ModuleType('mne'))
+_datasets_module = sys.modules.setdefault('mne.datasets', types.ModuleType('mne.datasets'))
+if not hasattr(_mne_module, 'datasets'):
+    _mne_module.datasets = _datasets_module
+if not hasattr(_datasets_module, 'fetch_fsaverage'):
+    def _fetch_fsaverage_stub(*args, **kwargs):
+        return None
+    _datasets_module.fetch_fsaverage = _fetch_fsaverage_stub
 """
     )
     script = stub + textwrap.dedent(code)
