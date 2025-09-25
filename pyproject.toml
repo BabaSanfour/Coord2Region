@@ -37,6 +37,7 @@ dependencies = [
     "google-genai",
     "openai>=1.0.0",
     "transformers",
+    "pooch>=1.5",
 ]
 
 [project.optional-dependencies]

@@ -18,6 +18,12 @@ from coord2region.utils import fetch_labels, pack_vol_output, pack_surf_output
 # Tests for fetching atlases
 # --------------------------
 
+def test_mne_has_fetch_fsaverage():
+    import mne
+    assert hasattr(mne.datasets, "fetch_fsaverage"), (
+        f"Installed MNE ({mne.__version__}) lacks datasets.fetch_fsaverage"
+    )
+
 # List of Nilearn atlases to test (volumetric)
 NILEARN_ATLASES = [
     "yeo", "harvard-oxford", "juelich", "schaefer",
