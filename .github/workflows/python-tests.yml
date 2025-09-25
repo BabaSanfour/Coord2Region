@@ -56,21 +56,6 @@ jobs:
       - name: Run pre-commit
         run: pre-commit run --all-files
 
-      # Small diagnostic so failures are easier to debug
-      - name: Print MNE layout diagnostics
-        run: |
-          python - <<'PY'
-          import sys, importlib.util, os, platform
-          import mne
-          print("Python:", sys.version.split()[0])
-          print("Platform:", platform.platform())
-          print("mne:", mne.__version__, "file:", getattr(mne, "__file__", None))
-          import mne.datasets as ds
-          print("mne.datasets path:", getattr(ds, "__path__", None))
-          print("spec fsavg:", importlib.util.find_spec("mne.datasets._fsaverage.base"))
-          print("SUBJECTS_DIR env:", os.environ.get("SUBJECTS_DIR"))
-          PY
-
       - name: Test with pytest
         run: |
           pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s

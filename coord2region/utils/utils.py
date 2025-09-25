@@ -5,6 +5,7 @@ and manage surface-based atlases using FreeSurfer annotations.
 """
 
 import os
+from pathlib import Path
 
 import numpy as np
 
@@ -27,15 +28,14 @@ def _get_fetch_fsaverage():
     if callable(fn):
         return fn
 
-    # 3) Only if datasets is a real package, try the private module
-    if hasattr(ds, "__path__"):  # then it's a package, not just a proxy
-        try:
-            mod = importlib.import_module("mne.datasets._fsaverage.base")
-            fn = getattr(mod, "fetch_fsaverage", None)
-            if callable(fn):
-                return fn
-        except Exception:
-            pass
+    # 3) Try the private module (works even if datasets is a lazy proxy)
+    try:
+        mod = importlib.import_module("mne.datasets._fsaverage.base")
+        fn = getattr(mod, "fetch_fsaverage", None)
+        if callable(fn):
+            return fn
+    except Exception:
+        pass
 
     # 4) Nothing worked
     import mne as _m
@@ -167,7 +167,11 @@ def pack_vol_output(file):
 
 
 def pack_surf_output(
-    atlas_name, fetcher, subject: str = "fsaverage", subjects_dir: str = None, **kwargs
+    atlas_name,
+    fetcher,
+    subject: str = "fsaverage",
+    subjects_dir: str | os.PathLike | None = None,
+    **kwargs,
 ):
     """Load a surface-based atlas using FreeSurfer annotations.
 
@@ -179,7 +183,7 @@ def pack_surf_output(
         Function used to download the atlas if necessary.
     subject : str, optional
         Subject identifier, by default ``'fsaverage'``.
-    subjects_dir : str or None, optional
+    subjects_dir : path-like or None, optional
         FreeSurfer subjects directory, by default ``None``.
     **kwargs
         Additional keyword arguments passed to the fetcher.
@@ -205,8 +209,12 @@ def pack_surf_output(
     # Determine subjects_dir: use provided or from MNE config
     import mne
 
+    if subjects_dir is not None:
+        subjects_dir = Path(subjects_dir)
+
     if fetcher is None:
-        _get_fetch_fsaverage()(subjects_dir=subjects_dir, verbose=True)
+        if subject is None or subject.lower() == "fsaverage":
+            _get_fetch_fsaverage()(subjects_dir=subjects_dir, verbose=True)
         labels = mne.read_labels_from_annot(
             subject,
             atlas_name,

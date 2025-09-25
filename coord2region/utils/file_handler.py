@@ -12,6 +12,7 @@ import csv
 import json
 import shutil
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Optional, Union, List, Any, Sequence
 
 from fpdf import FPDF
@@ -98,22 +99,39 @@ class AtlasFileHandler:
         self.results_dir = os.path.join(self.data_dir, "results")
         self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
         self.mne_data_dir = str(ensure_mne_data_directory(base_dir))
-        fh_subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-        if fh_subjects_dir:
-            self.subjects_dir = fh_subjects_dir
-        else:
-            try:
-                self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-            except Exception:  # pragma: no cover - defensive
-                self.subjects_dir = None
-            if not self.subjects_dir:
-                self.subjects_dir = os.environ.get("SUBJECTS_DIR")
-            if not self.subjects_dir:  # Hardcode the default subjects_dir
-                from pathlib import Path
 
-                cfg = str(Path(self.mne_data_dir) / "MNE-sample-data" / "subjects")
-                self.subjects_dir = Path(cfg).expanduser().resolve()
-                mne.utils.set_config("SUBJECTS_DIR", self.subjects_dir, set_env=True)
+        subject_path: Optional[Path]
+        if subjects_dir is not None:
+            subject_path = Path(subjects_dir).expanduser()
+            if not subject_path.is_absolute():
+                subject_path = (base_dir / subject_path).resolve()
+        else:
+            subject_path = None
+            try:
+                config_subjects_dir = mne.get_config("SUBJECTS_DIR", None)
+            except Exception:  # pragma: no cover - defensive
+                config_subjects_dir = None
+
+            if config_subjects_dir:
+                candidate = Path(config_subjects_dir).expanduser()
+                if not candidate.is_absolute():
+                    candidate = (base_dir / candidate).resolve()
+                subject_path = candidate
+
+            if subject_path is None:
+                env_subjects_dir = os.environ.get("SUBJECTS_DIR")
+                if env_subjects_dir:
+                    candidate = Path(env_subjects_dir).expanduser()
+                    if not candidate.is_absolute():
+                        candidate = (base_dir / candidate).resolve()
+                    subject_path = candidate
+
+            if subject_path is None:
+                default_path = Path(self.mne_data_dir) / "MNE-sample-data" / "subjects"
+                subject_path = default_path.expanduser().resolve()
+                mne.utils.set_config("SUBJECTS_DIR", str(subject_path), set_env=True)
+
+        self.subjects_dir = str(subject_path) if subject_path is not None else None
 
         for path in (
             self.cached_data_dir,
@@ -123,7 +141,8 @@ class AtlasFileHandler:
             self.mne_data_dir,
             self.subjects_dir,
         ):
-            os.makedirs(path, exist_ok=True)
+            if path is not None:
+                os.makedirs(path, exist_ok=True)
 
     def save(self, obj, filename: str):
         """Save an object to the data directory using pickle.
