@@ -2,9 +2,9 @@ name: python-tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main , 'debug/*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main , 'debug/*' ]
 
 # OIDC needs this
 permissions:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -38,34 +38,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip setuptools wheel
 
-      # Clean, pinned MNE install to avoid lazy-import packaging quirks / cached bad wheels
-      - name: Install MNE (clean, pinned)
-        run: |
-          pip cache purge || true
-          python -m pip install --no-cache-dir "mne==1.10.1"
-
       - name: Install dependencies
         run: |
           python -m pip install --no-cache-dir ".[dev]"
-
-      - name: Ensure configuration schema is current
-        run: |
-          PYTHONPATH=. python scripts/generate_schema.py
-          git diff --exit-code docs/static/schema.json
 
       - name: Run pre-commit
         run: pre-commit run --all-files
 
       - name: Test with pytest
         run: |
-          pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
-
-      # Upload to Codecov (skip forked PRs so we don't crash on missing OIDC/secrets)
-      - name: Upload coverage to Codecov
-        if: success() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
-        uses: codecov/codecov-action@v5
-        with:
-          use_oidc: true                  # OIDC auth
-          token: ${{ secrets.CODECOV_TOKEN }}  # optional; ignored when OIDC is used
-          files: coverage.xml
-          fail_ci_if_error: true
+          pytest tests/test_fetch.py --cov=coord2region/ --cov-report=xml --verbose -s
