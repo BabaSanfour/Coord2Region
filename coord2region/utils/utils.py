@@ -10,15 +10,41 @@ import numpy as np
 
 
 def _get_fetch_fsaverage():
+    import importlib
+    import mne
+
+    # 1) Public path
     try:
-        from mne.datasets import fetch_fsaverage  # public fast-path
+        from mne.datasets import fetch_fsaverage  # noqa: F401
 
         return fetch_fsaverage
     except Exception:
-        import importlib
+        pass
 
-        mod = importlib.import_module("mne.datasets._fsaverage.base")
-        return getattr(mod, "fetch_fsaverage")
+    # 2) Attribute on lazy module (works even if it's not a package)
+    ds = getattr(mne, "datasets", None)
+    fn = getattr(ds, "fetch_fsaverage", None) if ds is not None else None
+    if callable(fn):
+        return fn
+
+    # 3) Only if datasets is a real package, try the private module
+    if hasattr(ds, "__path__"):  # then it's a package, not just a proxy
+        try:
+            mod = importlib.import_module("mne.datasets._fsaverage.base")
+            fn = getattr(mod, "fetch_fsaverage", None)
+            if callable(fn):
+                return fn
+        except Exception:
+            pass
+
+    # 4) Nothing worked
+    import mne as _m
+
+    raise ImportError(
+        "Cannot locate mne.datasets.fetch_fsaverage. "
+        f"Installed MNE is {_m.__version__}; CI may have a lazy proxy"
+        "without package semantics."
+    )
 
 
 def fetch_labels(labels):

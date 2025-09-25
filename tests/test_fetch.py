@@ -18,20 +18,35 @@ from coord2region.utils import fetch_labels, pack_vol_output, pack_surf_output
 # Tests for fetching atlases
 # --------------------------
 
-import importlib.util
+import importlib
+
+def _locate_fetch_fsaverage():
+    import mne
+    # 1) Public import
+    try:
+        from mne.datasets import fetch_fsaverage  # noqa: F401
+        return fetch_fsaverage
+    except Exception:
+        pass
+    # 2) Attribute on mne.datasets (lazy proxy safe)
+    ds = getattr(mne, "datasets", None)
+    fn = getattr(ds, "fetch_fsaverage", None) if ds is not None else None
+    if callable(fn):
+        return fn
+    # 3) Only if it's a real package, try private module
+    if hasattr(ds, "__path__"):
+        try:
+            mod = importlib.import_module("mne.datasets._fsaverage.base")
+            fn = getattr(mod, "fetch_fsaverage", None)
+            if callable(fn):
+                return fn
+        except Exception:
+            pass
+    return None
 
 def test_mne_has_fetch_fsaverage():
-    spec = importlib.util.find_spec("mne.datasets._fsaverage.base")
-    if spec is None:
-        import sys, mne
-        pytest.skip(
-            "mne.datasets._fsaverage.base not found in this env.\n"
-            f"mne: {mne.__version__}\n"
-            f"mne.__file__: {getattr(mne, '__file__', None)}\n"
-            f"sys.path[:3]: {sys.path[:3]}"
-        )
-    mod = importlib.import_module("mne.datasets._fsaverage.base")
-    assert hasattr(mod, "fetch_fsaverage")
+    fn = _locate_fetch_fsaverage()
+    assert callable(fn), "mne.datasets.fetch_fsaverage is not available in this environment"
 
 # List of Nilearn atlases to test (volumetric)
 NILEARN_ATLASES = [
