@@ -19,11 +19,19 @@ from coord2region.utils import fetch_labels, pack_vol_output, pack_surf_output
 # --------------------------
 
 def test_mne_has_fetch_fsaverage():
-    import mne
-    assert hasattr(mne.datasets, "fetch_fsaverage"), (
-        f"Installed MNE ({mne.__version__}) lacks datasets.fetch_fsaverage"
-    )
-
+    try:
+        # This is the canonical way MNE documents it
+        from mne.datasets import fetch_fsaverage  # noqa: F401
+    except Exception as e:
+        import mne
+        raise AssertionError(
+            f"Installed MNE ({mne.__version__}) does not provide "
+            f"`from mne.datasets import fetch_fsaverage`: {e!r}"
+        )
+def test_mne_has_fetch_fsaverage_attr():
+    import importlib, mne
+    importlib.import_module("mne.datasets._fsaverage.base")
+    assert hasattr(mne.datasets, "fetch_fsaverage")
 # List of Nilearn atlases to test (volumetric)
 NILEARN_ATLASES = [
     "yeo", "harvard-oxford", "juelich", "schaefer",
