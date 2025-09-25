@@ -127,7 +127,7 @@ class AtlasFileHandler:
                     subject_path = candidate
 
             if subject_path is None:
-                default_path = Path(self.mne_data_dir) / "MNE-sample-data" / "subjects"
+                default_path = os.path.join(mne.datasets.sample.data_path(), "subjects")
                 subject_path = default_path.expanduser().resolve()
                 mne.utils.set_config("SUBJECTS_DIR", str(subject_path), set_env=True)
 

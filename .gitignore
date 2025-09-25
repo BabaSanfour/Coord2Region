@@ -23,6 +23,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 .venv_coord2region
+.venv_test
 
 nimare_data/
 
