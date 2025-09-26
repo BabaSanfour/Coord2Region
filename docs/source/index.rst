@@ -5,6 +5,33 @@ Map neuroimaging coordinates to atlas regions, query studies near a
 coordinate, and optionally generate AI summaries and illustrative images.
 Built on NiMARE, nilearn and MNE.
 
+Overview
+--------
+
+.. figure:: ../static/images/workflow.jpg
+   :alt: Coord2Region workflow overview
+   :align: center
+   :width: 90%
+
+   High-level workflow from inputs to outputs.
+
+Web interface previews
+----------------------
+
+.. |ui1| image:: ../static/images/web-interface-ui-builder1.png
+   :alt: Config Builder – inputs and atlas
+   :width: 31%
+
+.. |ui2| image:: ../static/images/web-interface-ui-builder2.png
+   :alt: Config Builder – outputs and providers
+   :width: 31%
+
+.. |ui3| image:: ../static/images/web-interface-ui-runner.png
+   :alt: Runner preview
+   :width: 31%
+
+|ui1| |ui2| |ui3|
+
 Requirements
 ------------
 
@@ -35,8 +62,17 @@ Command line
 
 .. code-block:: bash
 
-   # Generate a short text summary for a coordinate
-   coord2region coords-to-summary 30 -22 50
+   # Map a coordinate to atlas labels
+   coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
+
+   # Retrieve studies and summaries for the same coordinate
+   coord2region coords-to-summary 30 -22 50 --atlas harvard-oxford
+
+   # Produce a report with text and image outputs
+   coord2region coords-to-insights 30 -22 50 --atlas harvard-oxford --image-backend nilearn
+
+   # Start from a region name in a specific atlas
+   coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford
 
 Explore More
 ------------

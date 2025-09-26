@@ -1,9 +1,7 @@
 """LLM utilities for prompt construction and summary generation.
 
-The summary generation helpers provide an in-memory LRU cache keyed by
-``(model, prompt)``. The cache size can be controlled with the
-``cache_size`` parameter on the public functions; setting it to ``0``
-disables caching.
+The summary helpers keep an in-memory LRU cache keyed by ``(model, prompt)``.
+The cache currently uses a fixed size controlled by :data:`SUMMARY_CACHE_SIZE`.
 """
 
 from collections import OrderedDict
@@ -11,6 +9,9 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .utils.image_utils import generate_mni152_image, add_watermark
 from .ai_model_interface import AIModelInterface
+
+
+SUMMARY_CACHE_SIZE = 128
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -137,6 +138,9 @@ def generate_llm_prompt(
         abstract_text = study.get("abstract", "No abstract available")
         study_lines.append(f"Abstract: {abstract_text}\n")
     studies_section = "".join(study_lines)
+
+    if prompt_type == "custom" and not prompt_template:
+        raise ValueError("prompt_template must be provided when prompt_type='custom'")
 
     # If a custom template is provided, use it.
     if prompt_template:
@@ -285,24 +289,31 @@ def generate_summary(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> str:
     """Generate a text summary for a coordinate based on studies.
 
-    Results are cached in an LRU cache keyed by ``(model, prompt)``. Use
-    ``cache_size=0`` to disable caching or increase the size if needed.
+    Parameters
+    ----------
+    prompt_type : str, optional
+        Key into :data:`LLM_PROMPT_TEMPLATES`. Use ``"custom"`` with
+        ``custom_prompt`` to supply your own template string.
+    custom_prompt : str, optional
+        Full template applied via ``str.format`` with ``coord`` and ``studies``
+        placeholders. Required when ``prompt_type == "custom"``.
+    max_tokens : int, optional
+        Maximum number of tokens requested from the language model.
     """
     # Build base prompt with study information
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     # Insert atlas label information when provided
@@ -321,7 +332,7 @@ def generate_summary(
     # Generate and return the summary using the AI interface with caching
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], str]" = generate_summary._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -329,10 +340,10 @@ def generate_summary(
 
     result = ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = result
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return result
@@ -343,11 +354,10 @@ def generate_batch_summaries(
     coord_studies_pairs: List[
         Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
     ],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> List[str]:
     """Generate summaries for multiple coordinates.
 
@@ -365,11 +375,10 @@ def generate_batch_summaries(
                 ai,
                 studies,
                 coord,
-                summary_type=summary_type,
+                prompt_type=prompt_type,
                 model=model,
-                prompt_template=prompt_template,
+                custom_prompt=custom_prompt,
                 max_tokens=max_tokens,
-                cache_size=cache_size,
             )
             for coord, studies in coord_studies_pairs
         ]
@@ -381,8 +390,8 @@ def generate_batch_summaries(
             generate_llm_prompt(
                 studies,
                 coord,
-                prompt_type=summary_type,
-                prompt_template=prompt_template,
+                prompt_type=prompt_type,
+                prompt_template=custom_prompt if prompt_type == "custom" else None,
             )
         )
 
@@ -394,7 +403,7 @@ def generate_batch_summaries(
 
     key = (model, combined_prompt)
     cache: "OrderedDict[Tuple[str, str], List[str]]" = generate_batch_summaries._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -405,10 +414,10 @@ def generate_batch_summaries(
     )
     results = [part.strip() for part in response.split(delimiter) if part.strip()]
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = results
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return results
@@ -418,22 +427,18 @@ async def generate_summary_async(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> str:
-    """Asynchronously generate a text summary for a coordinate.
-
-    Results are cached in an LRU cache keyed by ``(model, prompt)``.
-    """
+    """Asynchronously generate a text summary for a coordinate."""
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     if atlas_labels:
@@ -450,7 +455,7 @@ async def generate_summary_async(
 
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], str]" = generate_summary_async._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -460,10 +465,10 @@ async def generate_summary_async(
         model=model, prompt=prompt, max_tokens=max_tokens
     )
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = result
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return result
@@ -473,24 +478,18 @@ def stream_summary(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> Iterator[str]:
-    """Stream a text summary for a coordinate in chunks.
-
-    Responses are cached and subsequent calls with the same ``model`` and
-    ``prompt`` will yield cached chunks. Disable caching with
-    ``cache_size=0``.
-    """
+    """Stream a text summary for a coordinate in chunks."""
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     if atlas_labels:
@@ -507,7 +506,7 @@ def stream_summary(
 
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], List[str]]" = stream_summary._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached_chunks = cache.get(key)
         if cached_chunks is not None:
             cache.move_to_end(key)
@@ -523,10 +522,10 @@ def stream_summary(
             chunks.append(chunk)
             yield chunk
     finally:
-        if cache_size > 0 and chunks:
+        if SUMMARY_CACHE_SIZE > 0 and chunks:
             cache[key] = chunks
             cache.move_to_end(key)
-            while len(cache) > cache_size:
+            while len(cache) > SUMMARY_CACHE_SIZE:
                 cache.popitem(last=False)
 
 

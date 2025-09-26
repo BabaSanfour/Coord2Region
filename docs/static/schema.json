@@ -1,0 +1,413 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "anthropic_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Anthropic Api Key"
+    },
+    "atlas_configs": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Atlas Configs",
+      "type": "object"
+    },
+    "atlas_names": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Atlas Names"
+    },
+    "batch_size": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Batch Size",
+      "type": "integer"
+    },
+    "config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Config"
+    },
+    "coordinates": {
+      "anyOf": [
+        {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Input coordinates provided inline as triples (List[Tuple[float, float, float]]) or compatible sequences.",
+      "title": "Coordinates"
+    },
+    "coords_file": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Local filesystem path to tabular coordinates (e.g. CSV/TSV/XLSX). Remote URLs are not supported.",
+      "title": "Coords File"
+    },
+    "custom_prompt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Custom Prompt"
+    },
+    "email_for_abstracts": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Email For Abstracts"
+    },
+    "gemini_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Gemini Api Key"
+    },
+    "huggingface_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Huggingface Api Key"
+    },
+    "image_backend": {
+      "default": "ai",
+      "enum": [
+        "ai",
+        "nilearn",
+        "both"
+      ],
+      "title": "Image Backend",
+      "type": "string"
+    },
+    "image_custom_prompt": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Custom image prompt template used when image_prompt_type is 'custom'. Supports {coordinate}, {first_paragraph}, and {atlas_context} placeholders.",
+      "title": "Image Custom Prompt"
+    },
+    "image_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Image Model"
+    },
+    "image_prompt_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Template to use for AI image generation prompts. One of: 'anatomical', 'functional', 'schematic', 'artistic', or 'custom'.",
+      "title": "Image Prompt Type"
+    },
+    "input_type": {
+      "default": "coords",
+      "enum": [
+        "coords",
+        "region_names"
+      ],
+      "title": "Input Type",
+      "type": "string"
+    },
+    "inputs": {
+      "anyOf": [
+        {
+          "items": {},
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputs"
+    },
+    "max_atlases": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Atlases"
+    },
+    "openai_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Openai Api Key"
+    },
+    "openrouter_api_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Openrouter Api Key"
+    },
+    "output_format": {
+      "anyOf": [
+        {
+          "enum": [
+            "json",
+            "pickle",
+            "csv",
+            "pdf",
+            "directory"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Format"
+    },
+    "output_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Name"
+    },
+    "outputs": {
+      "items": {
+        "enum": [
+          "region_labels",
+          "summaries",
+          "images",
+          "raw_studies",
+          "mni_coordinates"
+        ],
+        "type": "string"
+      },
+      "title": "Outputs",
+      "type": "array"
+    },
+    "prompt_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prompt Type"
+    },
+    "providers": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Providers",
+      "type": "object"
+    },
+    "region_names": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Region Names"
+    },
+    "region_search_radius": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Region Search Radius"
+    },
+    "sources": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sources"
+    },
+    "study_search_radius": {
+      "default": 0.0,
+      "minimum": 0,
+      "title": "Study Search Radius",
+      "type": "number"
+    },
+    "summary_max_tokens": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary Max Tokens"
+    },
+    "summary_models": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary Models"
+    },
+    "use_cached_dataset": {
+      "default": true,
+      "title": "Use Cached Dataset",
+      "type": "boolean"
+    },
+    "working_directory": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Working Directory"
+    }
+  },
+  "type": "object"
+}

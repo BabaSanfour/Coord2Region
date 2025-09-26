@@ -12,13 +12,14 @@ import csv
 import json
 import shutil
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Optional, Union, List, Any, Sequence
 
 from fpdf import FPDF
 
 import mne
 from .utils import fetch_labels, pack_vol_output
-from .paths import resolve_data_dir
+from .paths import resolve_working_directory, ensure_mne_data_directory
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ class AtlasFileHandler:
         Path to the FreeSurfer subjects directory.
     nilearn_data : str
         Directory for caching Nilearn datasets.
+    mne_data_dir : str
+        Directory registered with MNE for dataset downloads.
 
     Examples
     --------
@@ -80,7 +83,7 @@ class AtlasFileHandler:
         --------
         >>> AtlasFileHandler()  # doctest: +SKIP
         """
-        base_dir = resolve_data_dir(data_dir)
+        base_dir = resolve_working_directory(data_dir)
         self.data_dir = str(base_dir)
 
         try:
@@ -95,24 +98,68 @@ class AtlasFileHandler:
         self.generated_images_dir = os.path.join(self.data_dir, "generated_images")
         self.results_dir = os.path.join(self.data_dir, "results")
         self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
+        self.mne_data_dir = str(ensure_mne_data_directory(base_dir))
+
+        subject_path: Optional[Path]
+        if subjects_dir is not None:
+            subject_path = Path(subjects_dir).expanduser()
+            if not subject_path.is_absolute():
+                subject_path = (base_dir / subject_path).resolve()
+        else:
+            subject_path = None
+            try:
+                config_subjects_dir = mne.get_config("SUBJECTS_DIR", None)
+            except Exception:  # pragma: no cover - defensive
+                config_subjects_dir = None
+
+            if config_subjects_dir:
+                candidate = Path(config_subjects_dir).expanduser()
+                if not candidate.is_absolute():
+                    candidate = (base_dir / candidate).resolve()
+                subject_path = candidate
+
+            if subject_path is None:
+                env_subjects_dir = os.environ.get("SUBJECTS_DIR")
+                if env_subjects_dir:
+                    candidate = Path(env_subjects_dir).expanduser()
+                    if not candidate.is_absolute():
+                        candidate = (base_dir / candidate).resolve()
+                    subject_path = candidate
+
+            if subject_path is None:
+                try:
+                    sample_root = Path(mne.datasets.sample.data_path(download=False))
+                except Exception:  # pragma: no cover - depends on mne internals
+                    logger.debug(
+                        "Unable to locate MNE sample dataset for default subjects_dir:",
+                        exc_info=True,
+                    )
+                else:
+                    default_root = sample_root.expanduser()
+                    default_path = default_root / "subjects"
+                    subject_path = default_path.resolve()
+                    try:
+                        mne.utils.set_config(
+                            "SUBJECTS_DIR", str(subject_path), set_env=True
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        logger.debug(
+                            "Failed to set MNE SUBJECTS_DIR configuration",
+                            exc_info=True,
+                        )
+
+        self.subjects_dir = str(subject_path) if subject_path is not None else None
 
         for path in (
             self.cached_data_dir,
             self.generated_images_dir,
             self.results_dir,
             self.nilearn_data,
+            self.mne_data_dir,
+            self.subjects_dir,
         ):
-            os.makedirs(path, exist_ok=True)
-
-        if subjects_dir is not None:
-            self.subjects_dir = subjects_dir
-        else:
-            self.subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-            if self.subjects_dir is None:
-                logger.warning(
-                    "Please provide a subjects_dir or set MNE's SUBJECTS_DIR "
-                    "in your environment."
-                )
+            if path is not None:
+                os.makedirs(path, exist_ok=True)
 
     def save(self, obj, filename: str):
         """Save an object to the data directory using pickle.

@@ -29,7 +29,7 @@ try:
         input_type="coords",
         outputs=["region_labels", "summaries", "images"],
         output_format="pdf",
-        output_path="example_pipeline.pdf",
+        output_name="example_pipeline.pdf",
         # Reuse the cached dataset to avoid repeated downloads or processing
         config={"use_cached_dataset": True},
     )

@@ -16,7 +16,7 @@ run_pipeline(
     input_type="coords",
     outputs=["region_labels"],
     output_format="csv",
-    output_path="results.csv",
+    output_name="results.csv",
     config={"use_cached_dataset": False},
 )
 
@@ -26,7 +26,7 @@ run_pipeline(
     input_type="coords",
     outputs=["region_labels"],
     output_format="pdf",
-    output_path="results.pdf",
+    output_name="results.pdf",
     config={"use_cached_dataset": False},
 )
 
@@ -36,6 +36,6 @@ run_pipeline(
     input_type="coords",
     outputs=["region_labels"],
     output_format="directory",
-    output_path="results_dir",
+    output_name="results_dir",
     config={"use_cached_dataset": False},
 )

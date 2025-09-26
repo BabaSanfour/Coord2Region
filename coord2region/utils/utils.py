@@ -5,6 +5,8 @@ and manage surface-based atlases using FreeSurfer annotations.
 """
 
 import os
+from pathlib import Path
+
 import numpy as np
 
 
@@ -128,7 +130,11 @@ def pack_vol_output(file):
 
 
 def pack_surf_output(
-    atlas_name, fetcher, subject: str = "fsaverage", subjects_dir: str = None, **kwargs
+    atlas_name,
+    fetcher,
+    subject: str = "fsaverage",
+    subjects_dir: str | os.PathLike | None = None,
+    **kwargs,
 ):
     """Load a surface-based atlas using FreeSurfer annotations.
 
@@ -140,7 +146,7 @@ def pack_surf_output(
         Function used to download the atlas if necessary.
     subject : str, optional
         Subject identifier, by default ``'fsaverage'``.
-    subjects_dir : str or None, optional
+    subjects_dir : path-like or None, optional
         FreeSurfer subjects directory, by default ``None``.
     **kwargs
         Additional keyword arguments passed to the fetcher.
@@ -166,47 +172,66 @@ def pack_surf_output(
     # Determine subjects_dir: use provided or from MNE config
     import mne
 
-    if subjects_dir is None:
-        subjects_dir = mne.get_config("SUBJECTS_DIR", None)
-        if subjects_dir is None:
-            import os
+    subjects_dir_path = Path(subjects_dir) if subjects_dir is not None else None
+    subjects_dir_arg = str(subjects_dir_path) if subjects_dir_path is not None else None
 
-            subjects_dir = os.path.join(mne.datasets.sample.data_path(), "subjects")
-    from pathlib import Path
+    def _download_fsaverage_annotations() -> None:
+        """Ensure fsaverage annotations are available locally."""
+        if str(subject).lower() != "fsaverage":
+            return
 
-    subjects_dir = Path(subjects_dir)
-    if fetcher is None:
+        resolved_subjects_dir = mne.utils.get_subjects_dir(
+            subjects_dir_arg, raise_error=False
+        )
+        resolved_subjects_path = (
+            Path(resolved_subjects_dir) if resolved_subjects_dir is not None else None
+        )
+        if resolved_subjects_path is not None:
+            annot_dir = resolved_subjects_path / subject / "label"
+            if annot_dir.exists():
+                return
+
+        fetch_kwargs = {}
+        if subjects_dir_arg is not None:
+            fetch_kwargs["subjects_dir"] = subjects_dir_arg
         try:
-            labels = mne.read_labels_from_annot(
-                subject,
-                atlas_name,
-                subjects_dir=subjects_dir,
-                **kwargs,
-            )
-        except Exception:
-            mne.datasets.fetch_fsaverage(subjects_dir=subjects_dir, verbose=True)
-            labels = mne.read_labels_from_annot(
-                subject,
-                atlas_name,
-                subjects_dir=subjects_dir,
-                **kwargs,
-            )
+            mne.datasets.fetch_fsaverage(verbose=False, **fetch_kwargs)
+        except TypeError:  # pragma: no cover - older MNE versions
+            if subjects_dir_arg is not None:
+                mne.datasets.fetch_fsaverage(subjects_dir_arg)
+            else:
+                mne.datasets.fetch_fsaverage()
+
+    def _read_labels_from_annot():
+        return mne.read_labels_from_annot(
+            subject,
+            atlas_name,
+            subjects_dir=subjects_dir_arg,
+            **kwargs,
+        )
+
+    if fetcher is None:
+        _download_fsaverage_annotations()
+        try:
+            labels = _read_labels_from_annot()
+        except (OSError, FileNotFoundError):
+            _download_fsaverage_annotations()
+            labels = _read_labels_from_annot()
     else:
         try:
-            labels = fetcher(subject=subject, subjects_dir=subjects_dir, **kwargs)
+            labels = fetcher(subject=subject, subjects_dir=subjects_dir_arg, **kwargs)
         except Exception:
-            fetcher(subjects_dir=subjects_dir, **kwargs)
-            labels = mne.read_labels_from_annot(
-                subject,
-                atlas_name,
-                subjects_dir=subjects_dir,
-                **kwargs,
-            )
+            _download_fsaverage_annotations()
+            try:
+                fetcher(subject=None, subjects_dir=subjects_dir_arg, **kwargs)
+            except Exception:
+                pass
+            labels = _read_labels_from_annot()
 
     src = mne.setup_source_space(
         subject,
         spacing="oct6",
-        subjects_dir=subjects_dir,
+        subjects_dir=subjects_dir_arg,
         add_dist=False,
     )
     lh_vert = src[0]["vertno"]  # Left hemisphere vertices

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from .utils.paths import resolve_data_dir
+from .utils.paths import resolve_working_directory
 
 
-def get_data_directory(base: str | None = None) -> str:
-    """Return absolute path to the coord2region data directory.
+def get_working_directory(base: str | None = None) -> str:
+    """Return absolute path to the coord2region working directory.
 
     Parameters
     ----------
@@ -18,9 +18,9 @@ def get_data_directory(base: str | None = None) -> str:
     Returns
     -------
     str
-        Absolute path to the data directory.  The directory is created if
+        Absolute path to the working directory.  The directory is created if
         it does not already exist.
     """
-    path = resolve_data_dir(base)
+    path = resolve_working_directory(base)
     path.mkdir(parents=True, exist_ok=True)
     return str(path)

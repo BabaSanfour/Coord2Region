@@ -16,6 +16,26 @@
 - AI-generated region images
 - Command-line and Python interfaces
 
+## Workflow
+
+![Coord2Region workflow](docs/static/images/workflow.jpg)
+
+## Web interface (previews)
+
+| ![Config Builder – inputs and atlas](docs/static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](docs/static/images/web-interface-ui-builder2.png) | ![Runner preview](docs/static/images/web-interface-ui-runner.png) |
+| :--: | :--: | :--: |
+| Builder (inputs & atlas) | Builder (outputs & providers) | Runner |
+
+## Web interface
+
+The interactive configuration builder is published at
+[https://babasanfour.github.io/Coord2Region/](https://babasanfour.github.io/Coord2Region/). A dedicated GitHub Actions workflow
+builds the schema, compiles the Vite bundle, runs the Playwright UI checks, and
+deploys the Jekyll site to GitHub Pages whenever `main` is updated. To preview
+the site locally, install the `web-interface/` dependencies and run `npm run dev`
+alongside `bundle exec jekyll serve --livereload` (see `web-interface/README.md`
+for the full walkthrough).
+
 ## Installation
 
 Requires Python 3.10 or later. We recommend installing in a virtual environment:
@@ -45,8 +65,15 @@ coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
 
 Other use cases:
 
-- `coord2region coords-to-summary 30 -22 50` → text summary from related studies
-- `coord2region coords-to-image 30 -22 50` → AI-generated region image
+- `coord2region coords-to-study 30 -22 50` → atlas labels and related studies
+- `coord2region coords-to-summary 30 -22 50` → labels, studies and an AI summary
+- `coord2region coords-to-image 30 -22 50 --image-backend nilearn` → labels, studies and a rendered image
+- `coord2region coords-to-insights 30 -22 50 --atlas harvard-oxford` → full report with labels, studies, summary and image
+
+Region-driven workflows:
+
+- `coord2region region-to-coords "Left Amygdala" --atlas harvard-oxford` → retrieve the atlas coordinate
+- `coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford` → coordinates, studies, summary and image for that region
 
 Full usage instructions and API details are available in the [documentation](https://coord2region.readthedocs.io/en/latest/).
 
