@@ -127,9 +127,26 @@ class AtlasFileHandler:
                     subject_path = candidate
 
             if subject_path is None:
-                default_path = Path(mne.datasets.sample.data_path()) / "subjects"
-                subject_path = default_path.expanduser().resolve()
-                mne.utils.set_config("SUBJECTS_DIR", str(subject_path), set_env=True)
+                try:
+                    sample_root = Path(mne.datasets.sample.data_path(download=False))
+                except Exception:  # pragma: no cover - depends on mne internals
+                    logger.debug(
+                        "Unable to locate MNE sample dataset for default subjects_dir:",
+                        exc_info=True,
+                    )
+                else:
+                    default_root = sample_root.expanduser()
+                    default_path = default_root / "subjects"
+                    subject_path = default_path.resolve()
+                    try:
+                        mne.utils.set_config(
+                            "SUBJECTS_DIR", str(subject_path), set_env=True
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        logger.debug(
+                            "Failed to set MNE SUBJECTS_DIR configuration",
+                            exc_info=True,
+                        )
 
         self.subjects_dir = str(subject_path) if subject_path is not None else None
 

@@ -41,6 +41,62 @@ def _make_handler(tmp_path, monkeypatch, *, data_subdir="data"):
 
 
 @pytest.mark.unit
+def test_missing_sample_dataset_allows_continuation(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.get_config", lambda *a, **k: None
+    )
+    monkeypatch.delenv("SUBJECTS_DIR", raising=False)
+    def raise_missing_dataset(*args, **kwargs):
+        raise RuntimeError("no dataset")
+
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.datasets.sample.data_path",
+        raise_missing_dataset,
+    )
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.utils.set_config", lambda *a, **k: None
+    )
+
+    handler = AtlasFileHandler(data_dir=str(tmp_path / "data"))
+    assert handler.subjects_dir is None
+
+
+@pytest.mark.unit
+def test_sample_dataset_path_str_is_normalized(tmp_path, monkeypatch):
+    sample_root = tmp_path / "mne-sample"
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.get_config", lambda *a, **k: None
+    )
+    monkeypatch.delenv("SUBJECTS_DIR", raising=False)
+
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.datasets.sample.data_path",
+        lambda *a, **k: str(sample_root),
+    )
+
+    set_config_calls = []
+
+    def fake_set_config(key, value, set_env=False):
+        set_config_calls.append((key, value, set_env))
+
+    monkeypatch.setattr(
+        "coord2region.utils.file_handler.mne.utils.set_config", fake_set_config
+    )
+
+    handler = AtlasFileHandler(data_dir=str(tmp_path / "data"))
+
+    expected_subjects_dir = sample_root / "subjects"
+    assert handler.subjects_dir == str(expected_subjects_dir)
+    assert expected_subjects_dir.exists()
+    assert set_config_calls
+    assert set_config_calls[-1] == (
+        "SUBJECTS_DIR",
+        str(expected_subjects_dir),
+        True,
+    )
+
+
+@pytest.mark.unit
 def test_save_as_csv(tmp_path):
     path = tmp_path / "subdir" / "results.csv"
     res1 = PipelineResult(coordinate=[1, 2, 3], region_labels={"a": "b"}, summary="S", studies=[{"id": 1}], images={"ai": "img.png"})
