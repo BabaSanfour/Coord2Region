@@ -172,6 +172,13 @@ const outputFormatOptions = ["json", "pickle", "csv", "pdf", "directory"] as con
 type SelectOption = { value: string; label: string };
 
 const summaryModelOptions: ReadonlyArray<SelectOption> = [
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (OpenAI)' },
+  { value: 'gpt-4o', label: 'GPT-4o (OpenAI)' },
+  { value: 'o4-mini', label: 'o4-mini (OpenAI)' },
+  { value: 'o4', label: 'o4 (OpenAI)' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini (OpenAI)' },
+  { value: 'gpt-4.1', label: 'GPT-4.1 (OpenAI)' },
+  { value: 'o3-mini', label: 'o3-mini (OpenAI)' },
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Google)' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Google)' },
   { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro (Google)' },
@@ -179,7 +186,6 @@ const summaryModelOptions: ReadonlyArray<SelectOption> = [
   { value: 'claude-3-opus', label: 'Claude 3 Opus (Anthropic)' },
   { value: 'deepseek-r1', label: 'DeepSeek R1 (OpenRouter)' },
   { value: 'deepseek-chat-v3-0324', label: 'DeepSeek Chat v3 (OpenRouter)' },
-  { value: 'gpt-4', label: 'GPT-4 (OpenAI)' },
   { value: 'distilgpt2', label: 'distilgpt2 (Hugging Face)' }
 ];
 
@@ -194,6 +200,13 @@ const imagePromptTypeOptions: ReadonlyArray<SelectOption> = [
 
 // Map models to their API key providers
 const modelToProvider: Record<string, string> = {
+  'gpt-4o-mini': 'openai',
+  'gpt-4o': 'openai',
+  'o4-mini': 'openai',
+  'o4': 'openai',
+  'gpt-4.1-mini': 'openai',
+  'gpt-4.1': 'openai',
+  'o3-mini': 'openai',
   'gemini-2.0-flash': 'gemini',
   'gemini-1.5-pro': 'gemini',
   'gemini-1.0-pro': 'gemini',
@@ -201,7 +214,6 @@ const modelToProvider: Record<string, string> = {
   'claude-3-opus': 'anthropic',
   'deepseek-r1': 'openrouter',
   'deepseek-chat-v3-0324': 'openrouter',
-  'gpt-4': 'openai',
   'distilgpt2': 'huggingface'
 };
 

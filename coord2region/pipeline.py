@@ -238,7 +238,7 @@ def run_pipeline(
     )
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
-    summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
+    summary_models = _get_summary_models(kwargs, default_model="gpt-4o-mini")
     prompt_type = kwargs.get("prompt_type") or "summary"
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
@@ -270,6 +270,7 @@ def run_pipeline(
     gemini_api_key = kwargs.get("gemini_api_key")
     openrouter_api_key = kwargs.get("openrouter_api_key")
     openai_api_key = kwargs.get("openai_api_key")
+    openai_project = kwargs.get("openai_project")
     anthropic_api_key = kwargs.get("anthropic_api_key")
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
@@ -299,6 +300,7 @@ def run_pipeline(
             gemini_api_key=gemini_api_key,
             openrouter_api_key=openrouter_api_key,
             openai_api_key=openai_api_key,
+            openai_project=openai_project,
             anthropic_api_key=anthropic_api_key,
             huggingface_api_key=huggingface_api_key,
         )
@@ -375,13 +377,20 @@ def run_pipeline(
 
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
-                res.studies = get_studies_for_coordinate(
-                    dataset,
-                    coord,
-                    radius=study_search_radius,
-                    email=email,
-                    sources=sources,
-                )
+                if isinstance(dataset, dict):
+                    res.studies = get_studies_for_coordinate(
+                        dataset,
+                        coord,
+                        radius=study_search_radius,
+                        email=email,
+                        sources=sources,
+                    )
+                else:
+                    # When using a single deduplicated Dataset (not a mapping),
+                    # do not pass 'sources' to avoid filtering out the combined set.
+                    res.studies = get_studies_for_coordinate(
+                        dataset, coord, radius=study_search_radius, email=email
+                    )
             except Exception:
                 res.studies = []
 
@@ -476,7 +485,7 @@ async def _run_pipeline_async(
     )
     # unified sources control both dataset preparation and study search
     sources = kwargs.get("sources")
-    summary_models = _get_summary_models(kwargs, default_model="gemini-2.0-flash")
+    summary_models = _get_summary_models(kwargs, default_model="gpt-4o-mini")
     prompt_type = kwargs.get("prompt_type") or "summary"
     custom_prompt = kwargs.get("custom_prompt")
     summary_max_tokens = kwargs.get("summary_max_tokens", 1000)
@@ -508,6 +517,7 @@ async def _run_pipeline_async(
     gemini_api_key = kwargs.get("gemini_api_key")
     openrouter_api_key = kwargs.get("openrouter_api_key")
     openai_api_key = kwargs.get("openai_api_key")
+    openai_project = kwargs.get("openai_project")
     anthropic_api_key = kwargs.get("anthropic_api_key")
     huggingface_api_key = kwargs.get("huggingface_api_key")
     image_model = kwargs.get("image_model", "stabilityai/stable-diffusion-2")
@@ -537,6 +547,7 @@ async def _run_pipeline_async(
             gemini_api_key=gemini_api_key,
             openrouter_api_key=openrouter_api_key,
             openai_api_key=openai_api_key,
+            openai_project=openai_project,
             anthropic_api_key=anthropic_api_key,
             huggingface_api_key=huggingface_api_key,
         )
@@ -608,14 +619,22 @@ async def _run_pipeline_async(
 
         if ("raw_studies" in outputs or "summaries" in outputs) and dataset is not None:
             try:
-                res.studies = await asyncio.to_thread(
-                    get_studies_for_coordinate,
-                    dataset,
-                    coord,
-                    study_search_radius,
-                    email,
-                    sources,
-                )
+                if isinstance(dataset, dict):
+                    res.studies = await asyncio.to_thread(
+                        lambda: get_studies_for_coordinate(
+                            dataset,
+                            coord,
+                            radius=study_search_radius,
+                            email=email,
+                            sources=sources,
+                        )
+                    )
+                else:
+                    res.studies = await asyncio.to_thread(
+                        lambda: get_studies_for_coordinate(
+                            dataset, coord, radius=study_search_radius, email=email
+                        )
+                    )
             except Exception:
                 res.studies = []
 

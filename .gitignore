@@ -30,6 +30,12 @@ nimare_data/
 study_data/
 examples/studies*/
 
+# Environment configuration
+.env
+.env.*
+!.env.example
+config/coord2region-config.yaml
+
 # Sphinx documentation
 docs/_build/
 make.bat
@@ -45,3 +51,5 @@ web-interface/playwright-report/
 web-interface/test-results/
 web-interface/.vite/
 web-interface/test-preview/
+config/coord2region-config.yaml
+    

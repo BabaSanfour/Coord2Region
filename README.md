@@ -55,7 +55,9 @@ pip install '.[docs]'   # documentation build
 
 On shells like zsh, keep the extras spec in quotes to avoid glob expansion errors.
 
-Set environment variables like `OPENAI_API_KEY` or `GEMINI_API_KEY` to enable LLM-based features.
+Run `python scripts/configure_coord2region.py` to create a private
+`config/coord2region-config.yaml`, or export environment variables such as
+`OPENAI_API_KEY` and `GEMINI_API_KEY`, to enable LLM-based features.
 
 ## Example
 
@@ -74,6 +76,13 @@ Region-driven workflows:
 
 - `coord2region region-to-coords "Left Amygdala" --atlas harvard-oxford` → retrieve the atlas coordinate
 - `coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford` → coordinates, studies, summary and image for that region
+
+Python examples with AI providers (API keys required):
+
+- `python examples/ai_text_summary.py` – fetch atlas labels and nearby studies, then generate a concise summary.
+- `python examples/ai_reasoned_report.py` – produce a narrative and structured JSON output using `coord2region.ai_reports`.
+- `python examples/ai_image_workflow.py` – render a Stable Diffusion image alongside a Nilearn fallback.
+- `python scripts/generate_reasoned_template.py --x 30 --y -22 --z 50` – build the full narrative/JSON template and matching image prompt for downstream AI tooling.
 
 Full usage instructions and API details are available in the [documentation](https://coord2region.readthedocs.io/en/latest/).
 
