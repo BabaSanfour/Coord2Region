@@ -62,48 +62,55 @@ LLM_PROMPT_TEMPLATES: Dict[str, str] = {
 
 
 # Templates for image prompt generation. Each template can be formatted with
-# ``coordinate``, ``first_paragraph``, and ``atlas_context`` variables.
+# ``coordinate``, ``first_paragraph``, ``atlas_context``, and ``study_context`` variables.
 IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
     "anatomical": (
-        "Create a detailed anatomical illustration of the brain region at MNI "
-        "coordinate {coordinate}.\nBased on neuroimaging studies, this location "
-        "corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show a clear, labeled anatomical visualization with the "
-        "specific coordinate marked. Include surrounding brain structures for "
-        "context. Use a professional medical illustration style with accurate "
-        "colors and textures of brain tissue."
+        "Create a scientific brain visualization showing exactly three orthogonal MRI slices "
+        "arranged horizontally: coronal (left), sagittal (middle), and axial (right) views. "
+        "Use grayscale T1-weighted MRI brain anatomy on a black background. "
+        "Place bright yellow or white crosshairs (+) at MNI coordinate {coordinate}, with the "
+        "crosshairs extending across each slice to mark the exact location. "
+        "Label each view with the coordinate values shown. "
+        "Add L/R orientation markers. The style should match standard neuroimaging software "
+        "output like FSLeyes or Nilearn, with no artistic interpretation. "
+        "Ensure the crosshairs intersect precisely at the specified coordinate point.\n"
+        "Coordinate location: x={x_coord}, y={y_coord}, z={z_coord}\n"
+        "{atlas_context}"
     ),
     "functional": (
-        "Create a functional brain activation visualization showing activity at "
-        "MNI coordinate {coordinate}.\nThis region corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show the activation as a heat map or colored overlay on a "
-        "standardized brain template. Use a scientific visualization style similar "
-        "to fMRI results in neuroscience publications, with the activation at the "
-        "specified coordinate clearly highlighted."
+        "Produce a Nilearn-style activation map with sagittal, coronal, and axial "
+        "panels centred on coordinate {coordinate}.\n"
+        "Functional interpretation: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Overlay activation intensities as a heat map on the MNI152 template, include "
+        "legend ticks, slice coordinates, and crosshairs precisely at the specified "
+        "location."
     ),
     "schematic": (
-        "Create a schematic diagram of brain networks involving the region at "
-        "MNI coordinate {coordinate}.\nThis coordinate corresponds to: "
-        "{first_paragraph}\n{atlas_context}Show this region as a node in its "
-        "relevant brain networks, with connections to other regions. Use a "
-        "simplified, clean diagram style with labeled regions and connection lines "
-        "indicating functional or structural connectivity. Include a small reference "
-        "brain to indicate the location."
+        "Draw a network schematic anchored on MNI coordinate {coordinate}. Include an "
+        "inset miniature of the Nilearn-style orthogonal slices marking the focus.\n"
+        "Conceptual summary: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Label interacting regions, indicate connectivity directions when supported, "
+        "and keep the overall style technical and publication-ready."
     ),
     "artistic": (
-        "Create an artistic visualization of the brain region at MNI coordinate "
-        "{coordinate}.\nThis region is: {first_paragraph}\n"
-        "{atlas_context}Create an artistic interpretation that conveys the function "
-        "of this region through metaphorical or abstract elements, while still "
-        "maintaining scientific accuracy in the brain anatomy. Balance creativity "
-        "with neuroscientific precision."
+        "Create a stylised yet anatomically faithful visualization spotlighting "
+        "coordinate {coordinate}. Retain Nilearn-like slice framing so the activation "
+        "can be compared to reference material.\n"
+        "Narrative focus: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Blend scientific structure with thoughtful lighting or texture while keeping "
+        "the coordinate marker and orthogonal slices clear."
     ),
     "default": (
-        "Create a clear visualization of the brain region at MNI coordinate "
-        "{coordinate}.\n"
-        "Based on neuroimaging studies, this region corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show this region clearly marked on a standard brain template "
-        "with proper anatomical context."
+        "Render a Nilearn-style comparative figure centred on coordinate "
+        "{coordinate}. Provide orthogonal MNI152 slices with crosshairs, legend, and "
+        "activation emphasis.\n"
+        "Primary description: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Ensure the output resembles neuroimaging data ready for side-by-side "
+        "comparison with a deterministic Nilearn export."
     ),
 }
 
@@ -181,12 +188,17 @@ def generate_region_image_prompt(
 
     # Format the coordinate for inclusion in the prompt.
     try:
-        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
-            float(coordinate[0]), float(coordinate[1]), float(coordinate[2])
-        )
+        x_val = float(coordinate[0])
+        y_val = float(coordinate[1])
+        z_val = float(coordinate[2])
+        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(x_val, y_val, z_val)
+        x_coord = f"{x_val:.0f}"
+        y_coord = f"{y_val:.0f}"
+        z_coord = f"{z_val:.0f}"
     except Exception:
         # Fallback to the raw coordinate representation.
         coord_str = str(coordinate)
+        x_coord = y_coord = z_coord = "0"
 
     # Build atlas context if requested and available.
     atlas_context = ""
@@ -200,20 +212,40 @@ def generate_region_image_prompt(
             + ", ".join(atlas_parts)
             + ". "
         )
+    
+    # Build study context - not used for anatomical images but needed for template compatibility
+    study_context = ""
+    studies = region_info.get("studies") or []
+    if studies and image_type in ["functional", "schematic", "artistic", "default"]:
+        study_lines = []
+        for i, study in enumerate(studies[:3], 1):  # Limit to first 3 studies
+            title = study.get("title", "").strip()
+            if title:
+                study_lines.append(f"Study {i}: {title[:80]}...")
+        if study_lines:
+            study_context = "Related research: " + "; ".join(study_lines) + ". "
 
     # If a custom template is provided, use it directly.
     if prompt_template:
         return prompt_template.format(
             coordinate=coord_str,
+            x_coord=x_coord,
+            y_coord=y_coord,
+            z_coord=z_coord,
             first_paragraph=first_paragraph,
             atlas_context=atlas_context,
+            study_context=study_context,
         )
     # Retrieve prompt template by image type or fall back to default.
     template = IMAGE_PROMPT_TEMPLATES.get(image_type, IMAGE_PROMPT_TEMPLATES["default"])
     return template.format(
         coordinate=coord_str,
+        x_coord=x_coord,
+        y_coord=y_coord,
+        z_coord=z_coord,
         first_paragraph=first_paragraph,
         atlas_context=atlas_context,
+        study_context=study_context,
     )
 
 
@@ -290,7 +322,7 @@ def generate_summary(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gemini-2.0-flash",
+    model: str = "gpt-4o-mini",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
@@ -355,7 +387,7 @@ def generate_batch_summaries(
         Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
     ],
     prompt_type: str = "summary",
-    model: str = "gemini-2.0-flash",
+    model: str = "gpt-4o-mini",
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
 ) -> List[str]:
@@ -428,7 +460,7 @@ async def generate_summary_async(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gemini-2.0-flash",
+    model: str = "gpt-4o-mini",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
@@ -479,7 +511,7 @@ def stream_summary(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gemini-2.0-flash",
+    model: str = "gpt-4o-mini",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,

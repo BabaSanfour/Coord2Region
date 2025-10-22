@@ -1,0 +1,62 @@
+# Coord2Region configuration template
+#
+# This template drives the interactive configuration helper in
+# `scripts/configure_coord2region.py`. Each field contains the prompt
+# metadata used when asking a user for credentials. The helper writes the
+# collected values to `config/coord2region-config.yaml`, which remains
+# untracked and should stay private.
+#
+# Template schema:
+#   version: Increment when the interactive helper behaviour changes.
+#   output:  Relative path for the generated configuration file.
+#   environment:
+#       <ENV_NAME>:
+#           prompt: Message displayed to the user (defaults to ENV_NAME).
+#           help:   Optional single-line context shown before the prompt.
+#           default: Default value used when the user presses enter.
+#           secret:  If true, the value will be requested with `getpass`.
+#           required: If true, the helper will reprompt until a value is supplied.
+
+version: 1
+output: coord2region-config.yaml
+
+environment:
+  OPENAI_API_KEY:
+    prompt: "OpenAI API key (token starts with sk-…)"
+    help: "Required for GPT text models and GPT-Image. Leave blank to skip OpenAI."
+    secret: true
+  OPENAI_PROJECT:
+    prompt: "OpenAI project ID (if using project-scoped keys)"
+    help: "Only needed when your OpenAI API key is scoped to a project."
+  OPENROUTER_API_KEY:
+    prompt: "OpenRouter API key"
+    help: "Grants access to community-hosted models via OpenRouter."
+    secret: true
+  GROQ_API_KEY:
+    prompt: "Groq API key"
+    help: "Optional. Enables Groq-hosted Llama/Gemma/Qwen models."
+    secret: true
+  HUGGINGFACE_API_KEY:
+    prompt: "Hugging Face API token"
+    help: "Optional. Enables Hugging Face hosted inference endpoints."
+    secret: true
+  HUGGINGFACE_MODEL_PROVIDERS:
+    prompt: "Hugging Face provider aliases"
+    help: "Comma separated alias:model_id pairs. Example: deepseek-r1:together,llama-3.3-70b-instruct:together"
+    default: "deepseek-r1:together,gpt-oss-120b:sambanova,llama-3.3-70b-instruct:together,stabilityai/stable-diffusion-3.5-large:fal-ai,stabilityai/stable-diffusion-xl-base-1.0:replicate"
+  EMAIL_FOR_ABSTRACTS:
+    prompt: "Contact email for fetching abstracts"
+    help: "Used to comply with provider terms when downloading literature metadata."
+    default: "contact@example.com"
+  COORD2REGION_TEXT_MODEL:
+    prompt: "Default Coord2Region text model"
+    default: "gpt-4o-mini"
+  COORD2REGION_IMAGE_MODEL:
+    prompt: "Default Coord2Region image model"
+    default: "stabilityai/stable-diffusion-2"
+  COORD2REGION_PROMPT_TYPE:
+    prompt: "Default Coord2Region prompt type"
+    default: "summary"
+  COORD2REGION_WORKDIR:
+    prompt: "Working directory for generated outputs"
+    default: "coord2region_full"

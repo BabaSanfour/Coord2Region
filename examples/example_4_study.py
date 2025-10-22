@@ -19,8 +19,8 @@ from coord2region.paths import get_working_directory
 # download and create one if necessary. For speed, we only include the
 # NIDM-Pain dataset in this example.
 
-working_dir = get_working_directory()
-dataset = prepare_datasets(data_dir=working_dir, sources=["nidm_pain"])
+working_dir = get_working_directory("coord2region_full")
+dataset = prepare_datasets(data_dir=working_dir, sources=["nidm_pain","neurosynth","neuroquery"])
 datasets = {"Combined": dataset}
 
 print(f"Loaded dataset with {len(dataset.ids)} studies")
@@ -32,7 +32,7 @@ print(f"Loaded dataset with {len(dataset.ids)} studies")
 
 mni_coord = [48,-38, -24]  # Example coordinate in MNI space
 
-study_results = get_studies_for_coordinate(datasets, coord=mni_coord)
+study_results = get_studies_for_coordinate(datasets, coord=mni_coord,radius=2, email="snesmaeili@gmail.com")
 
 # Display results
 print(f"\nFound {len(study_results)} studies for MNI coordinate {mni_coord}:\n")

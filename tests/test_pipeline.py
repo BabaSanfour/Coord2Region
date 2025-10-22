@@ -48,14 +48,14 @@ def test_run_pipeline_coords(
 
     assert results[0].studies == [{"id": "1"}]
     assert results[0].summary == "SUMMARY"
-    assert results[0].summaries == {"gemini-2.0-flash": "SUMMARY"}
+    assert results[0].summaries == {"gpt-4o-mini": "SUMMARY"}
     assert results[0].image and os.path.exists(results[0].image)
 
     export_path = tmp_path / "results" / output_name
     with open(export_path, "r", encoding="utf8") as f:
         exported = json.load(f)
     assert exported[0]["summary"] == "SUMMARY"
-    assert exported[0]["summaries"] == {"gemini-2.0-flash": "SUMMARY"}
+    assert exported[0]["summaries"] == {"gpt-4o-mini": "SUMMARY"}
 
 
     # Note: input_type='studies' is no longer supported
@@ -167,8 +167,8 @@ def test_run_pipeline_async(mock_ai, mock_multi, mock_prepare, mock_get):
 
     assert [r.summary for r in results] == ["ASYNC", "ASYNC"]
     assert [r.summaries for r in results] == [
-        {"gemini-2.0-flash": "ASYNC"},
-        {"gemini-2.0-flash": "ASYNC"},
+        {"gpt-4o-mini": "ASYNC"},
+        {"gpt-4o-mini": "ASYNC"},
     ]
     assert len(progress_calls) == 2
 

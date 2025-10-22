@@ -17,8 +17,8 @@ def main() -> None:
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
     )
 
-    if ai.supports("gpt-4"):
-        print(ai.generate_text("gpt-4", "Hello from OpenAI"))
+    if ai.supports("gpt-4o-mini"):
+        print(ai.generate_text("gpt-4o-mini", "Hello from OpenAI"))
     elif ai.supports("claude-3-opus"):
         print(ai.generate_text("claude-3-opus", "Hello from Anthropic"))
     else:

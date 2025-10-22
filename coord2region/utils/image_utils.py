@@ -10,7 +10,7 @@ filesystem.
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Sequence
+from typing import Sequence, Tuple
 
 import numpy as np
 import nibabel as nib
@@ -124,5 +124,68 @@ def add_watermark(
 
     out = BytesIO()
     watermarked.convert("RGB").save(out, format="PNG")
+    out.seek(0)
+    return out.getvalue()
+
+
+def build_side_by_side_panel(
+    left_image: bytes,
+    right_image: bytes,
+    *,
+    left_title: str = "AI-generated approximation",
+    right_title: str = "Nilearn reference",
+    background_color: Tuple[int, int, int] = (20, 20, 24),
+    padding: int = 36,
+) -> bytes:
+    """Return a labelled side-by-side comparison panel.
+
+    Parameters
+    ----------
+    left_image, right_image : bytes
+        PNG-encoded images for the left and right panels respectively.
+    left_title, right_title : str, optional
+        Captions rendered above the corresponding image.
+    background_color : tuple[int, int, int], optional
+        RGB colour applied to the canvas background. Defaults to a dark grey.
+    padding : int, optional
+        Padding (in pixels) surrounding the images and text.
+    """
+    left = Image.open(BytesIO(left_image)).convert("RGB")
+    right = Image.open(BytesIO(right_image)).convert("RGB")
+
+    font_size = max(14, int(min(left.width, right.width) * 0.035))
+    try:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+    except Exception:
+        font = ImageFont.load_default()
+
+    dummy = Image.new("RGB", (10, 10))
+    draw = ImageDraw.Draw(dummy)
+    left_bbox = draw.textbbox((0, 0), left_title, font=font)
+    right_bbox = draw.textbbox((0, 0), right_title, font=font)
+    title_height = max(left_bbox[3] - left_bbox[1], right_bbox[3] - right_bbox[1])
+    spacer = padding // 2
+
+    total_width = left.width + right.width + padding * 3
+    total_height = max(left.height, right.height) + title_height + padding * 3
+
+    canvas = Image.new("RGB", (total_width, total_height), background_color)
+    draw = ImageDraw.Draw(canvas)
+
+    left_text_width = left_bbox[2] - left_bbox[0]
+    right_text_width = right_bbox[2] - right_bbox[0]
+    text_y = padding
+    left_text_x = padding + max(0, (left.width - left_text_width) // 2)
+    right_text_x = padding * 2 + left.width + max(0, (right.width - right_text_width) // 2)
+
+    draw.text((left_text_x, text_y), left_title, fill=(235, 235, 245), font=font)
+    draw.text((right_text_x, text_y), right_title, fill=(235, 235, 245), font=font)
+
+    image_y = text_y + title_height + spacer
+    canvas.paste(left, (padding, image_y))
+    canvas.paste(right, (padding * 2 + left.width, image_y))
+
+    out = BytesIO()
+    canvas.save(out, format="PNG")
     out.seek(0)
     return out.getvalue()
