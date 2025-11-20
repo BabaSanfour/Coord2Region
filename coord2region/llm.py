@@ -1,9 +1,7 @@
 """LLM utilities for prompt construction and summary generation.
 
-The summary generation helpers provide an in-memory LRU cache keyed by
-``(model, prompt)``. The cache size can be controlled with the
-``cache_size`` parameter on the public functions; setting it to ``0``
-disables caching.
+The summary helpers keep an in-memory LRU cache keyed by ``(model, prompt)``.
+The cache currently uses a fixed size controlled by :data:`SUMMARY_CACHE_SIZE`.
 """
 
 from collections import OrderedDict
@@ -11,6 +9,9 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from .utils.image_utils import generate_mni152_image, add_watermark
 from .ai_model_interface import AIModelInterface
+
+
+SUMMARY_CACHE_SIZE = 128
 
 # ---------------------------------------------------------------------------
 # Exposed prompt templates
@@ -61,48 +62,57 @@ LLM_PROMPT_TEMPLATES: Dict[str, str] = {
 
 
 # Templates for image prompt generation. Each template can be formatted with
-# ``coordinate``, ``first_paragraph``, and ``atlas_context`` variables.
+# ``coordinate``, ``first_paragraph``, ``atlas_context``,
+# and ``study_context`` variables.
 IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
     "anatomical": (
-        "Create a detailed anatomical illustration of the brain region at MNI "
-        "coordinate {coordinate}.\nBased on neuroimaging studies, this location "
-        "corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show a clear, labeled anatomical visualization with the "
-        "specific coordinate marked. Include surrounding brain structures for "
-        "context. Use a professional medical illustration style with accurate "
-        "colors and textures of brain tissue."
+        "Create a scientific brain visualization showing exactly three orthogonal MRI"
+        "slices arranged horizontally: coronal (left), sagittal (middle),"
+        "and axial (right) views. "
+        "Use grayscale T1-weighted MRI brain anatomy on a black background. "
+        "Place bright yellow or white crosshairs (+) at MNI coordinate {coordinate},"
+        "with the crosshairs extending across each slice to mark the exact location. "
+        "Label each view with the coordinate values shown. "
+        "Add L/R orientation markers. The style should match standard neuroimaging "
+        "software output like FSLeyes or Nilearn, with no artistic interpretation. "
+        "Ensure the crosshairs intersect precisely at the specified coordinate point.\n"
+        "Coordinate location: x={x_coord}, y={y_coord}, z={z_coord}\n"
+        "{atlas_context}"
     ),
     "functional": (
-        "Create a functional brain activation visualization showing activity at "
-        "MNI coordinate {coordinate}.\nThis region corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show the activation as a heat map or colored overlay on a "
-        "standardized brain template. Use a scientific visualization style similar "
-        "to fMRI results in neuroscience publications, with the activation at the "
-        "specified coordinate clearly highlighted."
+        "Produce a Nilearn-style activation map with sagittal, coronal, and axial "
+        "panels centred on coordinate {coordinate}.\n"
+        "Functional interpretation: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Overlay activation intensities as a heat map on the MNI152 template, include "
+        "legend ticks, slice coordinates, and crosshairs precisely at the specified "
+        "location."
     ),
     "schematic": (
-        "Create a schematic diagram of brain networks involving the region at "
-        "MNI coordinate {coordinate}.\nThis coordinate corresponds to: "
-        "{first_paragraph}\n{atlas_context}Show this region as a node in its "
-        "relevant brain networks, with connections to other regions. Use a "
-        "simplified, clean diagram style with labeled regions and connection lines "
-        "indicating functional or structural connectivity. Include a small reference "
-        "brain to indicate the location."
+        "Draw a network schematic anchored on MNI coordinate {coordinate}. Include an "
+        "inset miniature of the Nilearn-style orthogonal slices marking the focus.\n"
+        "Conceptual summary: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Label interacting regions, indicate connectivity directions when supported, "
+        "and keep the overall style technical and publication-ready."
     ),
     "artistic": (
-        "Create an artistic visualization of the brain region at MNI coordinate "
-        "{coordinate}.\nThis region is: {first_paragraph}\n"
-        "{atlas_context}Create an artistic interpretation that conveys the function "
-        "of this region through metaphorical or abstract elements, while still "
-        "maintaining scientific accuracy in the brain anatomy. Balance creativity "
-        "with neuroscientific precision."
+        "Create a stylised yet anatomically faithful visualization spotlighting "
+        "coordinate {coordinate}. Retain Nilearn-like slice framing so the activation "
+        "can be compared to reference material.\n"
+        "Narrative focus: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Blend scientific structure with thoughtful lighting or texture while keeping "
+        "the coordinate marker and orthogonal slices clear."
     ),
     "default": (
-        "Create a clear visualization of the brain region at MNI coordinate "
-        "{coordinate}.\n"
-        "Based on neuroimaging studies, this region corresponds to: {first_paragraph}\n"
-        "{atlas_context}Show this region clearly marked on a standard brain template "
-        "with proper anatomical context."
+        "Render a Nilearn-style comparative figure centred on coordinate "
+        "{coordinate}. Provide orthogonal MNI152 slices with crosshairs, legend, and "
+        "activation emphasis.\n"
+        "Primary description: {first_paragraph}\n"
+        "{atlas_context}{study_context}"
+        "Ensure the output resembles neuroimaging data ready for side-by-side "
+        "comparison with a deterministic Nilearn export."
     ),
 }
 
@@ -113,7 +123,24 @@ def generate_llm_prompt(
     prompt_type: str = "summary",
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a detailed prompt for language models based on studies."""
+    """Generate a detailed prompt for language models based on studies.
+
+    Parameters
+    ----------
+    studies : list of dict
+        Study metadata dictionaries that describe the activation evidence.
+    coordinate : sequence of float
+        MNI coordinate used for formatting the prompt header.
+    prompt_type : str, optional
+        Key that selects a built-in template from :data:`LLM_PROMPT_TEMPLATES`.
+    prompt_template : str, optional
+        Custom template string requiring ``coord`` and ``studies`` placeholders.
+
+    Returns
+    -------
+    str
+        Fully formatted prompt ready for submission to a language model.
+    """
     # Format coordinate string safely.
     try:
         coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
@@ -137,6 +164,9 @@ def generate_llm_prompt(
         abstract_text = study.get("abstract", "No abstract available")
         study_lines.append(f"Abstract: {abstract_text}\n")
     studies_section = "".join(study_lines)
+
+    if prompt_type == "custom" and not prompt_template:
+        raise ValueError("prompt_template must be provided when prompt_type='custom'")
 
     # If a custom template is provided, use it.
     if prompt_template:
@@ -170,19 +200,43 @@ def generate_region_image_prompt(
     include_atlas_labels: bool = True,
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a prompt for creating images of brain regions."""
+    """Generate a prompt for creating images of brain regions.
+
+    Parameters
+    ----------
+    coordinate : sequence of float
+        Target MNI coordinate to highlight in the visualization.
+    region_info : dict
+        Metadata describing the region, such as ``summary`` and atlas labels.
+    image_type : str, optional
+        Template key selecting the style of the image prompt.
+    include_atlas_labels : bool, optional
+        Whether atlas label descriptions should be inserted into the prompt.
+    prompt_template : str, optional
+        Custom template string overriding the built-in prompt dictionary.
+
+    Returns
+    -------
+    str
+        Fully formatted prompt with atlas and study context injected.
+    """
     # Safely get the summary and a short first paragraph.
     summary = region_info.get("summary", "No summary available.")
     first_paragraph = summary.split("\n\n", 1)[0]
 
     # Format the coordinate for inclusion in the prompt.
     try:
-        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
-            float(coordinate[0]), float(coordinate[1]), float(coordinate[2])
-        )
+        x_val = float(coordinate[0])
+        y_val = float(coordinate[1])
+        z_val = float(coordinate[2])
+        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(x_val, y_val, z_val)
+        x_coord = f"{x_val:.0f}"
+        y_coord = f"{y_val:.0f}"
+        z_coord = f"{z_val:.0f}"
     except Exception:
         # Fallback to the raw coordinate representation.
         coord_str = str(coordinate)
+        x_coord = y_coord = z_coord = "0"
 
     # Build atlas context if requested and available.
     atlas_context = ""
@@ -197,19 +251,40 @@ def generate_region_image_prompt(
             + ". "
         )
 
+    # Build study context - not used for anatomical images but
+    # needed for template compatibility
+    study_context = ""
+    studies = region_info.get("studies") or []
+    if studies and image_type in ["functional", "schematic", "artistic", "default"]:
+        study_lines = []
+        for i, study in enumerate(studies[:3], 1):  # Limit to first 3 studies
+            title = study.get("title", "").strip()
+            if title:
+                study_lines.append(f"Study {i}: {title[:80]}...")
+        if study_lines:
+            study_context = "Related research: " + "; ".join(study_lines) + ". "
+
     # If a custom template is provided, use it directly.
     if prompt_template:
         return prompt_template.format(
             coordinate=coord_str,
+            x_coord=x_coord,
+            y_coord=y_coord,
+            z_coord=z_coord,
             first_paragraph=first_paragraph,
             atlas_context=atlas_context,
+            study_context=study_context,
         )
     # Retrieve prompt template by image type or fall back to default.
     template = IMAGE_PROMPT_TEMPLATES.get(image_type, IMAGE_PROMPT_TEMPLATES["default"])
     return template.format(
         coordinate=coord_str,
+        x_coord=x_coord,
+        y_coord=y_coord,
+        z_coord=z_coord,
         first_paragraph=first_paragraph,
         atlas_context=atlas_context,
+        study_context=study_context,
     )
 
 
@@ -246,8 +321,7 @@ def generate_region_image(
         Name of the AI model to use. Defaults to
         ``"stabilityai/stable-diffusion-2"``.
     include_atlas_labels : bool, optional
-        Whether to include atlas label context in the prompt. Defaults to
-        ``True``.
+        Whether to include atlas label context in the prompt. Defaults to ``True``.
     prompt_template : str, optional
         Custom template overriding default prompts.
     retries : int, optional
@@ -285,24 +359,45 @@ def generate_summary(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> str:
     """Generate a text summary for a coordinate based on studies.
 
-    Results are cached in an LRU cache keyed by ``(model, prompt)``. Use
-    ``cache_size=0`` to disable caching or increase the size if needed.
+    Parameters
+    ----------
+    ai : AIModelInterface
+        AI backend used to create the summary.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate around which the summary should focus.
+    prompt_type : str, optional
+        Key into :data:`LLM_PROMPT_TEMPLATES`. Use ``"custom"`` with
+        ``custom_prompt`` to provide a bespoke template.
+    model : str, optional
+        Name of the text generation model. Defaults to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to prepend to the prompt for extra context.
+    custom_prompt : str, optional
+        Template string formatted with ``coord`` and ``studies`` placeholders.
+    max_tokens : int, optional
+        Maximum number of tokens requested from the language model.
+
+    Returns
+    -------
+    str
+        Textual summary returned by the AI model.
     """
     # Build base prompt with study information
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     # Insert atlas label information when provided
@@ -321,7 +416,7 @@ def generate_summary(
     # Generate and return the summary using the AI interface with caching
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], str]" = generate_summary._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -329,10 +424,10 @@ def generate_summary(
 
     result = ai.generate_text(model=model, prompt=prompt, max_tokens=max_tokens)
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = result
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return result
@@ -343,18 +438,33 @@ def generate_batch_summaries(
     coord_studies_pairs: List[
         Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
     ],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> List[str]:
     """Generate summaries for multiple coordinates.
 
-    If the underlying provider reports that it supports batching, the prompts
-    for all coordinates are combined into a single request and the response is
-    split using an internal delimiter. Otherwise, each summary is generated
-    sequentially via :func:`generate_summary`.
+    Parameters
+    ----------
+    ai : AIModelInterface
+        AI backend used to create the summaries.
+    coord_studies_pairs : list of tuple
+        Coordinate-study pairs to summarise.
+    prompt_type : str, optional
+        Template key used for each summary prompt.
+    model : str, optional
+        Model used for text generation. Defaults to ``"gemini-2.0-flash"``.
+    custom_prompt : str, optional
+        Template string overriding the built-in prompt for every coordinate.
+    max_tokens : int, optional
+        Maximum tokens requested from each AI call.
+
+    Returns
+    -------
+    list of str
+        Generated summaries for the provided coordinate pairs.
+
     """
     if not coord_studies_pairs:
         return []
@@ -365,11 +475,10 @@ def generate_batch_summaries(
                 ai,
                 studies,
                 coord,
-                summary_type=summary_type,
+                prompt_type=prompt_type,
                 model=model,
-                prompt_template=prompt_template,
+                custom_prompt=custom_prompt,
                 max_tokens=max_tokens,
-                cache_size=cache_size,
             )
             for coord, studies in coord_studies_pairs
         ]
@@ -381,8 +490,8 @@ def generate_batch_summaries(
             generate_llm_prompt(
                 studies,
                 coord,
-                prompt_type=summary_type,
-                prompt_template=prompt_template,
+                prompt_type=prompt_type,
+                prompt_template=custom_prompt if prompt_type == "custom" else None,
             )
         )
 
@@ -394,7 +503,7 @@ def generate_batch_summaries(
 
     key = (model, combined_prompt)
     cache: "OrderedDict[Tuple[str, str], List[str]]" = generate_batch_summaries._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -405,10 +514,10 @@ def generate_batch_summaries(
     )
     results = [part.strip() for part in response.split(delimiter) if part.strip()]
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = results
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return results
@@ -418,22 +527,43 @@ async def generate_summary_async(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> str:
     """Asynchronously generate a text summary for a coordinate.
 
-    Results are cached in an LRU cache keyed by ``(model, prompt)``.
+    Parameters
+    ----------
+    ai : AIModelInterface
+        AI backend used to create the summary asynchronously.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate for the summary.
+    prompt_type : str, optional
+        Prompt template key defaulting to ``"summary"``.
+    model : str, optional
+        Model name, defaulting to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to include in the prompt.
+    custom_prompt : str, optional
+        User-supplied template applied via ``str.format``.
+    max_tokens : int, optional
+        Maximum number of tokens requested for the summary.
+
+    Returns
+    -------
+    str
+        Generated summary text.
     """
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     if atlas_labels:
@@ -450,7 +580,7 @@ async def generate_summary_async(
 
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], str]" = generate_summary_async._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
             cache.move_to_end(key)
@@ -460,10 +590,10 @@ async def generate_summary_async(
         model=model, prompt=prompt, max_tokens=max_tokens
     )
 
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cache[key] = result
         cache.move_to_end(key)
-        while len(cache) > cache_size:
+        while len(cache) > SUMMARY_CACHE_SIZE:
             cache.popitem(last=False)
 
     return result
@@ -473,24 +603,43 @@ def stream_summary(
     ai: "AIModelInterface",
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
-    summary_type: str = "summary",
+    prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
-    prompt_template: Optional[str] = None,
+    custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
-    cache_size: int = 128,
 ) -> Iterator[str]:
     """Stream a text summary for a coordinate in chunks.
 
-    Responses are cached and subsequent calls with the same ``model`` and
-    ``prompt`` will yield cached chunks. Disable caching with
-    ``cache_size=0``.
+    Parameters
+    ----------
+    ai : AIModelInterface
+        Streaming AI backend used to generate the summary.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate for the summary.
+    prompt_type : str, optional
+        Prompt template key defaulting to ``"summary"``.
+    model : str, optional
+        Model name, defaulting to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to include in the prompt.
+    custom_prompt : str, optional
+        User-supplied template applied via ``str.format``.
+    max_tokens : int, optional
+        Maximum number of tokens requested for the summary.
+
+    Returns
+    -------
+    iterator of str
+        Chunks of text yielded by the streaming AI backend.
     """
     prompt = generate_llm_prompt(
         studies,
         coordinate,
-        prompt_type=summary_type,
-        prompt_template=prompt_template,
+        prompt_type=prompt_type,
+        prompt_template=custom_prompt if prompt_type == "custom" else None,
     )
 
     if atlas_labels:
@@ -507,7 +656,7 @@ def stream_summary(
 
     key = (model, prompt)
     cache: "OrderedDict[Tuple[str, str], List[str]]" = stream_summary._cache
-    if cache_size > 0:
+    if SUMMARY_CACHE_SIZE > 0:
         cached_chunks = cache.get(key)
         if cached_chunks is not None:
             cache.move_to_end(key)
@@ -523,10 +672,10 @@ def stream_summary(
             chunks.append(chunk)
             yield chunk
     finally:
-        if cache_size > 0 and chunks:
+        if SUMMARY_CACHE_SIZE > 0 and chunks:
             cache[key] = chunks
             cache.move_to_end(key)
-            while len(cache) > cache_size:
+            while len(cache) > SUMMARY_CACHE_SIZE:
                 cache.popitem(last=False)
 
 

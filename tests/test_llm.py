@@ -106,7 +106,13 @@ def test_generate_region_image_prompt_anatomical_with_atlas():
     coord = "[1.00, 2.00, 3.00]"
     atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
     expected = IMAGE_PROMPT_TEMPLATES["anatomical"].format(
-        coordinate=coord, first_paragraph="Paragraph one.", atlas_context=atlas
+        coordinate=coord,
+        first_paragraph="Paragraph one.",
+        atlas_context=atlas,
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -119,7 +125,13 @@ def test_generate_region_image_prompt_functional_no_atlas():
     )
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["functional"].format(
-        coordinate=coord, first_paragraph="Single paragraph", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Single paragraph",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -135,7 +147,13 @@ def test_generate_region_image_prompt_schematic_no_include():
     )
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["schematic"].format(
-        coordinate=coord, first_paragraph="Para.", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Para.",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -152,7 +170,13 @@ def test_generate_region_image_prompt_artistic():
     coord = "[1.00, 2.00, 3.00]"
     atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
     expected = IMAGE_PROMPT_TEMPLATES["artistic"].format(
-        coordinate=coord, first_paragraph="Summary.", atlas_context=atlas
+        coordinate=coord,
+        first_paragraph="Summary.",
+        atlas_context=atlas,
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -163,7 +187,13 @@ def test_generate_region_image_prompt_unknown_type():
     prompt = generate_region_image_prompt([1, 2, 3], region_info, image_type="other")
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["default"].format(
-        coordinate=coord, first_paragraph="Just one paragraph", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Just one paragraph",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -207,7 +237,7 @@ def test_generate_summary_calls_ai(mock_prompt):
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result = generate_summary(ai, studies, coord, cache_size=0)
+    result = generate_summary(ai, studies, coord)
 
     mock_prompt.assert_called_once()
     ai.generate_text.assert_called_once_with(
@@ -224,8 +254,8 @@ def test_generate_summary_uses_cache(mock_prompt):
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result1 = generate_summary(ai, studies, coord, cache_size=2)
-    result2 = generate_summary(ai, studies, coord, cache_size=2)
+    result1 = generate_summary(ai, studies, coord)
+    result2 = generate_summary(ai, studies, coord)
 
     ai.generate_text.assert_called_once()
     assert result1 == result2 == "SUMMARY"
@@ -241,7 +271,7 @@ def test_generate_summary_includes_atlas_labels(mock_prompt):
 
     atlas_labels = {"Atlas": "Label"}
     generate_summary(
-        ai, [], [1, 2, 3], atlas_labels=atlas_labels, cache_size=0
+        ai, [], [1, 2, 3], atlas_labels=atlas_labels
     )
 
     prompt_used = ai.generate_text.call_args.kwargs["prompt"]
@@ -258,7 +288,7 @@ def test_generate_summary_async_calls_ai(mock_prompt):
     coord = [1, 2, 3]
 
     result = asyncio.run(
-        generate_summary_async(ai, studies, coord, cache_size=0)
+        generate_summary_async(ai, studies, coord)
     )
 
     mock_prompt.assert_called_once()
@@ -283,7 +313,7 @@ def test_stream_summary_calls_ai(mock_prompt):
     studies = _sample_studies()
     coord = [1, 2, 3]
 
-    result = list(stream_summary(ai, studies, coord, cache_size=0))
+    result = list(stream_summary(ai, studies, coord))
 
     mock_prompt.assert_called_once()
     ai.stream_generate_text.assert_called_once_with(
@@ -299,7 +329,7 @@ def test_generate_batch_summaries_no_batching(mock_prompt):
     ai.generate_text.side_effect = ["S1", "S2"]
     pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
 
-    result = generate_batch_summaries(ai, pairs, cache_size=0)
+    result = generate_batch_summaries(ai, pairs)
 
     assert result == ["S1", "S2"]
     assert ai.generate_text.call_count == 2
@@ -313,7 +343,7 @@ def test_generate_batch_summaries_with_batching(mock_prompt):
     ai.generate_text.return_value = f"S1{delimiter}S2"
     pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
 
-    result = generate_batch_summaries(ai, pairs, cache_size=0)
+    result = generate_batch_summaries(ai, pairs)
 
     assert result == ["S1", "S2"]
     ai.generate_text.assert_called_once()
@@ -344,8 +374,8 @@ def test_stream_summary_cache():
     ai.stream_generate_text.side_effect = [iter(["A", "B"])]
     studies = _sample_studies()
     coord = [1,2,3]
-    first = list(stream_summary(ai, studies, coord, cache_size=2))
-    second = list(stream_summary(ai, studies, coord, cache_size=2))
+    first = list(stream_summary(ai, studies, coord))
+    second = list(stream_summary(ai, studies, coord))
     assert first == second == ["A", "B"]
     ai.stream_generate_text.assert_called_once()
 
@@ -363,11 +393,11 @@ def test_generate_batch_summaries_cache(mock_prompt):
     ai.generate_text.return_value = f"S1{delimiter}S2"
     pairs = [([1, 2, 3], _sample_studies()), ([4, 5, 6], _sample_studies())]
 
-    first = generate_batch_summaries(ai, pairs, cache_size=2)
+    first = generate_batch_summaries(ai, pairs)
     ai.generate_text.assert_called_once()
 
     ai.generate_text.reset_mock()
-    second = generate_batch_summaries(ai, pairs, cache_size=2)
+    second = generate_batch_summaries(ai, pairs)
     ai.generate_text.assert_not_called()
     assert first == second == ["S1", "S2"]
 
@@ -387,7 +417,6 @@ def test_generate_summary_async_includes_atlas_labels(mock_prompt):
             [],
             [1, 2, 3],
             atlas_labels={"Atlas": "Label"},
-            cache_size=0,
         )
     )
 

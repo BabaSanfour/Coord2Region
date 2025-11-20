@@ -1,0 +1,74 @@
+name: Web Interface CI
+
+on:
+  pull_request:
+    paths:
+      - 'web-interface/**'
+      - '!web-interface/_site/**'
+  push:
+    branches: [ web, main ]
+    paths:
+      - 'web-interface/**'
+      - '!web-interface/_site/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-interface/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+        working-directory: web-interface
+
+      - name: Build web assets (Vite)
+        run: npm run build
+        working-directory: web-interface
+
+      - name: Generate test preview shell
+        run: npm run generate:test-page
+        working-directory: web-interface
+
+      - name: Install Playwright browsers and system deps
+        run: npx playwright install --with-deps
+        working-directory: web-interface
+
+      - name: Run UI tests (Playwright)
+        run: npm run test:ui
+        working-directory: web-interface
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: Configure bundler path
+        run: bundle config set path vendor/bundle
+        working-directory: web-interface
+
+      - name: Ensure Linux platform in lockfile
+        run: bundle lock --add-platform x86_64-linux
+        working-directory: web-interface
+
+      - name: Resolve Linux-native gems
+        run: bundle update --conservative sass-embedded google-protobuf ffi
+        working-directory: web-interface
+
+      - name: Install Ruby gems
+        run: bundle install --jobs 4
+        working-directory: web-interface
+
+      - name: Build Jekyll site
+        env:
+          JEKYLL_ENV: production
+        run: bundle exec jekyll build
+        working-directory: web-interface

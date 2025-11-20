@@ -37,6 +37,16 @@ coverage, which is enforced by Codecov:
 pytest --cov
 ```
 
+## Configuration schema
+
+The CLI parameters are defined via `Coord2RegionConfig`. If you modify that model or its validators, regenerate and commit the JSON schema:
+
+```bash
+make schema   # or: PYTHONPATH=. python scripts/generate_schema.py
+```
+
+The generated file (`docs/static/schema.json`) is covered by regression tests, and CI reruns the generator to ensure the committed file is up-to-date.
+
 ## Documentation
 
 Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style. To build
@@ -46,6 +56,28 @@ the documentation, install the docs extras and run Sphinx:
 pip install '.[docs]'
 make -C docs html
 ```
+
+## Web interface development
+
+The Jekyll landing page and React configuration builder live in `web-interface/`.
+For installation and workflow details see [`web-interface/README.md`](web-interface/README.md).
+The quick-start steps are:
+
+```bash
+cd web-interface
+npm install
+npm run dev
+```
+
+The build artifact consumed by Jekyll is produced with `npm run build`. End-to-end
+UI coverage (coordinate/file toggles, YAML preview, clipboard helpers) runs via
+Playwright:
+
+```bash
+npm run test:ui
+```
+
+Execute these commands from inside the `web-interface/` directory.
 
 ## Versioning
 

@@ -3,7 +3,7 @@
 import pytest
 import os
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 from coord2region.coord2study import (
     fetch_datasets,
@@ -122,13 +122,28 @@ def test_get_studies_for_coordinate_radius():
     assert len(no_hits) == 0
     assert len(hits) == 1
     # Ensure the radius argument was passed through correctly
-    from unittest.mock import call
-
     expected_coord_list = [coord]
     assert mock_dataset.get_studies_by_coordinate.call_args_list == [
         call(expected_coord_list, r=0),
         call(expected_coord_list, r=5),
     ]
+
+
+@pytest.mark.unit
+def test_get_studies_for_coordinate_accepts_dataset_instance():
+    mock_dataset = MagicMock()
+    mock_dataset.get_studies_by_coordinate.return_value = ["123"]
+    mock_dataset.get_metadata.side_effect = lambda ids, field: {
+        "title": ["Title"],
+        "authors": ["Author"],
+    }.get(field, [None])
+
+    results = get_studies_for_coordinate(
+        mock_dataset, coord=[1, 2, 3], radius=2, sources=["Combined"]
+    )
+
+    assert len(results) == 1
+    mock_dataset.get_studies_by_coordinate.assert_called_once()
 
 
 @pytest.mark.unit

@@ -1,8 +1,8 @@
 """Demonstrate provider selection, retries, and caching
 =====================================================
 
-This example now relies on the updated ``openai`` client (``openai>=1``)
-under the hood. Ensure the environment has a valid OpenAI API key and the
+This example uses the OpenAI Responses API via the ``openai`` client
+(``openai>=1``). Ensure the environment has a valid OpenAI API key and the
 newer library installed before running.
 """
 
@@ -35,7 +35,7 @@ def main() -> None:
         # Generate text using a specific model. The interface will retry
         # transient failures with exponential backoff.
         response = ai.generate_text(
-            model="gpt-4", prompt="Hello from Coord2Region!"
+            model="gpt-4o-mini", prompt="Hello from Coord2Region!"
         )
     except AuthenticationError:
         print("OpenAI authentication failed; skipping example")

@@ -6,7 +6,11 @@ import numpy as np
 import nibabel as nib
 from PIL import Image, ImageFont
 
-from coord2region.utils.image_utils import add_watermark, generate_mni152_image
+from coord2region.utils.image_utils import (
+    add_watermark,
+    generate_mni152_image,
+    build_side_by_side_panel,
+)
 
 
 @patch("coord2region.utils.image_utils.plot_stat_map")
@@ -52,3 +56,22 @@ def test_add_watermark_font_fallback():
     arr = np.array(Image.open(BytesIO(watermarked_bytes)))
     assert np.any(arr[int(arr.shape[0]*0.8):] > 0)
     assert mock_tt.call_count >= 1
+
+
+@pytest.mark.unit
+def test_build_side_by_side_panel_combines_images():
+    left = BytesIO()
+    Image.new("RGB", (40, 40), color="red").save(left, format="PNG")
+    right = BytesIO()
+    Image.new("RGB", (30, 30), color="blue").save(right, format="PNG")
+
+    panel_bytes = build_side_by_side_panel(
+        left.getvalue(),
+        right.getvalue(),
+        left_title="Left Panel",
+        right_title="Right Panel",
+        padding=10,
+    )
+    panel = Image.open(BytesIO(panel_bytes))
+    assert panel.width > 80  # wider than the sum of individual widths
+    assert panel.height > 60

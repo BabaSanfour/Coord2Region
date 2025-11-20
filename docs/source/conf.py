@@ -24,14 +24,32 @@ sys.path.insert(0, os.path.abspath(os.path.join(curdir, "..", "..")))
 import shutil
 
 
+def _rewrite_readme_image_paths(text: str) -> str:
+    """Rewrite image paths in README for Sphinx build.
+
+    The root README uses paths like ``docs/static/images/...`` so images render
+    correctly on GitHub regardless of branch (they are relative to repo root).
+    When we copy README.md into ``docs/source/`` for Sphinx, those relative
+    paths would incorrectly point to ``docs/source/docs/static/images``.
+
+    We rewrite them to ``../static/images`` which is the correct relative path
+    from ``docs/source/`` to ``docs/static/images``.
+    """
+    return text.replace("docs/static/images/", "../static/images/")
+
+
 def copy_readme():
     """Copy README.md from the root directory to docs/source/."""
     source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../README.md"))
     destination = os.path.abspath(os.path.join(os.path.dirname(__file__), "README.md"))
 
     if os.path.exists(source):
-        shutil.copyfile(source, destination)
-        print(f"Copied {source} -> {destination}")
+        with open(source, "r", encoding="utf-8") as fsrc:
+            content = fsrc.read()
+        content = _rewrite_readme_image_paths(content)
+        with open(destination, "w", encoding="utf-8") as fdst:
+            fdst.write(content)
+        print(f"Copied (with image path rewrite) {source} -> {destination}")
 
 
 def cleanup_readme(app, exception):

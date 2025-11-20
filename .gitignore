@@ -23,11 +23,18 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 .venv_coord2region
+.venv_test
 
 nimare_data/
 
 study_data/
 examples/studies*/
+
+# Environment configuration
+.env
+.env.*
+!.env.example
+config/coord2region-config.yaml
 
 # Sphinx documentation
 docs/_build/
@@ -35,3 +42,14 @@ make.bat
 docs/source/generated
 docs/source/auto_examples
 coord2region/_version.py
+
+# Web interface tooling
+web-interface/node_modules/
+web-interface/website/node_modules/
+web-interface/assets/js/
+web-interface/playwright-report/
+web-interface/test-results/
+web-interface/.vite/
+web-interface/test-preview/
+config/coord2region-config.yaml
+    

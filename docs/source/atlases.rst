@@ -58,6 +58,16 @@ they use the ``fsaverage`` subject and can be adapted via ``subject`` and
 - ``aparc_sub``: MNE aparc subdivision parcellation.
 - ``yeo2011``: 17-network surface parcellation (``Yeo2011_17Networks_N1000``).
 - ``human-connectum project``: HCP MMP 1.0 (``HCPMMP1_combined``) parcellation.
+
+  .. note::
+
+     Accessing the HCP MMP atlas requires accepting the Human Connectome Project
+     data use terms. Before using this atlas run::
+
+         python -c "import mne; mne.datasets.fetch_hcp_mmp_parcellation(accept=True)"
+
+     or create a non-empty ``~/.mne/hcpmmp-license.txt`` file and set the
+     ``COORD2REGION_ACCEPT_HCPMMP=1`` environment variable.
 - ``pals_b12_lobes`` / ``pals_b12_orbitofrontal`` / ``pals_b12_visuotopic``: PALS-B12 label sets.
 - ``oasis.chubs``: OASIS CHUBS labels.
 
@@ -83,4 +93,3 @@ Notes
   like ``sample``).
 - For volumetric atlases, labels are provided in MNI space and can be used with
   :class:`coord2region.coord2region.AtlasMapper` directly.
-

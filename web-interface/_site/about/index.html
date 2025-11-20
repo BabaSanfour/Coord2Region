@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Coord2Region</title>
+  <meta name="description" content="About the Coord2Region project and Phase 2 goals.">
+  <link rel="icon" href="/Coord2Region/assets/img/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/Coord2Region/assets/css/styles.css?v=1763603681">
+  
+  
+  <link rel="stylesheet" href="/Coord2Region/assets/css/main.css?v=1763597992">
+  
+  
+  
+  <script defer src="/Coord2Region/assets/js/theme-logo.js?v=1763604282"></script>
+  
+</head>
+
+  <body class="theme">
+    <header class="hero">
+      <div class="hero__content container">
+        <h1>Coord2Region: Coordinates <em class="into">into</em> Insights</h1>
+        <p class="hero__tagline">Transform coordinates or region names into related studies, AI summaries, and AI‑generated images</p>
+      <div class="hero__cta">
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/">Home</a>
+       <a class="btn btn-primary"
+         aria-current="page"
+         href="/Coord2Region/about/">About</a>
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/builder/">Config Builder</a>
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/cloud/">Cloud Runner</a>
+       <a class="btn btn-secondary" href="https://coord2region.readthedocs.io/en/latest/" target="_blank" rel="noopener">Documentation</a>
+       <a class="btn btn-secondary" href="https://github.com/BabaSanfour/Coord2Region" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      </div>
+    </header>
+    <main class="content container">
+      <section class="logo-text-block" data-logo-light="/Coord2Region/assets/img/logo.png" data-logo-dark="/Coord2Region/assets/img/logo_darkmode.png">
+  <img src="/Coord2Region/assets/img/logo.png" alt="Coord2Region logo" class="inline-logo small theme-logo" />
+  <div>
+    <p>Coord2Region is both a Python package and a web experience. Feed it MNI coordinates or region names and it lines up atlas labels, nearby studies, optional LLM summaries, and illustrative images. Underneath the hood you get NiMARE, Nilearn, and MNE working together without wiring every dependency yourself.</p>
+  </div>
+</section>
+
+<div class="about-grid">
+  <section>
+    <h2>Build <span>insights</span> from coordinates</h2>
+    <p>
+      Coord2Region is both a Python package and a web experience. Feed it MNI coordinates or region names and it lines up atlas labels, nearby studies, optional LLM summaries, and illustrative images. Underneath the hood you get NiMARE, Nilearn, and MNE working together without wiring every dependency yourself.
+    </p>
+    <ul class="feature-list">
+      <li><strong>Atlas lookups</strong> across Harvard–Oxford, Schaefer, Destrieux, Jülich, and more.</li>
+      <li><strong>Study retrieval</strong> via Neurosynth, NeuroQuery, and NiMARE datasets.</li>
+      <li><strong>AI extras</strong> for summaries and images (bring your API keys, or run purely offline).</li>
+      <li><strong>Export-ready outputs</strong>: YAML + CLI commands + JSON/CSV deliverables.</li>
+    </ul>
+    <p>Want the full story? Browse the <a href="https://coord2region.readthedocs.io/en/latest/">Read the Docs guide</a>.</p>
+  </section>
+
+  <section>
+    <h2>Why use the builder?</h2>
+    <div class="card-grid">
+      <article>
+        <h3>No-install prototyping</h3>
+        <p>Craft a complete Coord2Region run from the browser, inspect the YAML live, and copy the CLI command with zero setup.</p>
+      </article>
+      <article>
+        <h3>Config authoring surface</h3>
+        <p>Already scripted? Import a YAML, tweak parameters safely, download the updated config, or hand collaborators a clickable preset.</p>
+      </article>
+      <article>
+        <h3>Teaching-friendly presets</h3>
+        <p>Jump-start analyses with curated templates (single peak lookup, region → coords, full insights bundle) and see what changes.</p>
+      </article>
+      <article>
+        <h3>Guardrails built in</h3>
+        <p>Each toggle always updates the YAML, the CLI command, and a direct “no YAML” command so you know exactly what will execute.</p>
+      </article>
+    </div>
+  </section>
+</div>
+
+<section class="stepper">
+  <h2>Builder walkthrough</h2>
+  <ol>
+    <li><strong>Inputs.</strong> Paste coordinate triples or list region names. CSV upload is supported for large batches.</li>
+    <li><strong>Atlas selection.</strong> Search, filter, or add custom URLs/paths. Mix volumetric and surface atlases as needed.</li>
+    <li><strong>Studies &amp; summaries.</strong> Toggle nearby study retrieval, then layer in LLM summaries with your preferred provider.</li>
+    <li><strong>Images.</strong> Combine nilearn anatomical figures with AI prompts or swap in Stable Diffusion/Claude/GPT image backends.</li>
+    <li><strong>Outputs.</strong> Choose the working directory, export format, and whether to emit batch-friendly CSV/JSON bundles.</li>
+  </ol>
+  <p>
+    The right panel mirrors every change: YAML preview (copy/download), the standard YAML-driven CLI command, a direct “no YAML” command,
+    and a template/import drawer for round-tripping configs.
+  </p>
+</section>
+
+<section class="cloud-runner">
+  <h2>Cloud Runner</h2>
+  <p>
+    Prefer not to run anything locally? Authenticate, submit a config, and let the hosted Cloud Runner execute the full pipeline (labels, studies, summaries, images). You can monitor jobs, stream logs, and download results (YAML/JSON/CSV/images) right from the browser.
+  </p>
+  <div class="card-grid">
+    <article>
+      <h3>Queue &amp; monitor</h3>
+      <p>Drop a YAML, pick your providers, and watch progress in real time. Cancel or rerun jobs with a click.</p>
+    </article>
+    <article>
+      <h3>Shareable outputs</h3>
+      <p>Results stick around so co-authors and students can inspect the same artefacts without juggling local environments.</p>
+    </article>
+    <article>
+      <h3>BYO credentials</h3>
+      <p>Use your own AI keys securely. Summaries and images are powered by the exact providers you choose.</p>
+    </article>
+  </div>
+  <p class="cta">Ready to try it? Open the <a href="/Coord2Region/cloud/">Cloud Runner</a> and submit a config.</p>
+</section>
+
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p class="footnote">&copy; 2025 Coord2Region contributors.</p>
+      </div>
+    </footer>
+    
+    <style>
+      .theme-toggle {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 1000;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--bg-alt);
+        color: var(--fg);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        cursor: pointer;
+      }
+      .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+      .theme-toggle:active { transform: scale(0.96); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+      .icon { display: none; }
+      :root[data-theme='dark'] .icon-moon { display: inline; }
+      :root:not([data-theme]), :root[data-theme='dark'] .icon-sun { display: none; }
+      :root[data-theme='light'] .icon-sun { display: inline; }
+      :root[data-theme='light'] .icon-moon { display: none; }
+    </style>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="icon icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1Zm0-20a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm10 9h-1a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2ZM3 12H2a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2Zm15.657 7.071-.707-.707a1 1 0 1 1 1.414-1.414l.707.707a1 1 0 1 1-1.414 1.414ZM4.636 6.343l-.707-.707A1 1 0 0 1 5.343 4.222l.707.707A1 1 0 0 1 4.636 6.343Zm12.728-2.121-.707.707A1 1 0 0 1 15.243 3.515l.707-.707A1 1 0 0 1 17.364 4.222ZM6.05 19.364l-.707.707A1 1 0 1 1 3.929 18.95l.707-.707A1 1 0 1 1 6.05 19.364Z"/>
+      </svg>
+      <svg class="icon icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+      </svg>
+    </button>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('c2r-theme');
+          var apply = function(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            var btn = document.getElementById('theme-toggle');
+            if (btn) {
+              btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+              btn.setAttribute('title', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+            }
+          };
+          if (saved === 'light' || saved === 'dark') {
+            apply(saved);
+          } else {
+            var prefersLight = false;
+            try { prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+            apply(prefersLight ? 'light' : 'dark');
+          }
+          document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+              var current = document.documentElement.getAttribute('data-theme') || 'dark';
+              var next = current === 'light' ? 'dark' : 'light';
+              apply(next);
+              try { localStorage.setItem('c2r-theme', next); } catch (e) {}
+            });
+          });
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" src="/Coord2Region/assets/js/bundle.js?v=1763597992"></script>
+  </body>
+</html>

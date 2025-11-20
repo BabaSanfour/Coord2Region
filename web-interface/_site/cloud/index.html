@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Runner</title>
+  <meta name="description" content="Cloud execution portal for Coord2Region on Hugging Face Spaces, powered by Streamlit.">
+  <link rel="icon" href="/Coord2Region/assets/img/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/Coord2Region/assets/css/styles.css?v=1763603681">
+  
+  
+  <link rel="stylesheet" href="/Coord2Region/assets/css/main.css?v=1763597992">
+  
+  
+  
+  <script defer src="/Coord2Region/assets/js/theme-logo.js?v=1763604282"></script>
+  
+</head>
+
+  <body class="theme cloud-page">
+    <header class="hero">
+      <div class="hero__content container">
+        <h1>Coord2Region: Coordinates <em class="into">into</em> Insights</h1>
+        <p class="hero__tagline">Cloud Runner — Run Coord2Region in your browser</p>
+      <div class="hero__cta">
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/">Home</a>
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/about/">About</a>
+       <a class="btn btn-secondary"
+         
+         href="/Coord2Region/builder/">Config Builder</a>
+       <a class="btn btn-primary"
+         aria-current="page"
+         href="/Coord2Region/cloud/">Cloud Runner</a>
+       <a class="btn btn-secondary" href="https://coord2region.readthedocs.io/en/latest/" target="_blank" rel="noopener">Documentation</a>
+       <a class="btn btn-secondary" href="https://github.com/BabaSanfour/Coord2Region" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      </div>
+    </header>
+    <main class="content container">
+      <h2 id="cloud-runner">Cloud Runner</h2>
+
+<p>Launch Coord2Region instantly in the cloud — no installation needed. Hosted on
+Hugging Face Spaces and powered by Streamlit.</p>
+
+<iframe src="https://babasanfour-coord2region.hf.space" frameborder="0" class="embed-frame" title="Coord2Region Cloud Runner" loading="lazy" allow="clipboard-write; fullscreen"></iframe>
+
+<p>Having trouble with the embed?</p>
+
+<p><a href="https://babasanfour-coord2region.hf.space" class="btn btn-secondary" target="_blank" rel="noopener">Open the app in a new tab</a></p>
+
+<p class="footnote">Powered by Streamlit · Hugging Face Spaces</p>
+
+    </main>
+    <footer class="site-footer">
+      <div class="container">
+        <p class="footnote">&copy; 2025 Coord2Region contributors.</p>
+      </div>
+    </footer>
+    
+    <style>
+      .theme-toggle {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 1000;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: var(--bg-alt);
+        color: var(--fg);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        cursor: pointer;
+      }
+      .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+      .theme-toggle:active { transform: scale(0.96); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+      .icon { display: none; }
+      :root[data-theme='dark'] .icon-moon { display: inline; }
+      :root:not([data-theme]), :root[data-theme='dark'] .icon-sun { display: none; }
+      :root[data-theme='light'] .icon-sun { display: inline; }
+      :root[data-theme='light'] .icon-moon { display: none; }
+    </style>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="icon icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1Zm0-20a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm10 9h-1a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2ZM3 12H2a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2Zm15.657 7.071-.707-.707a1 1 0 1 1 1.414-1.414l.707.707a1 1 0 1 1-1.414 1.414ZM4.636 6.343l-.707-.707A1 1 0 0 1 5.343 4.222l.707.707A1 1 0 0 1 4.636 6.343Zm12.728-2.121-.707.707A1 1 0 0 1 15.243 3.515l.707-.707A1 1 0 0 1 17.364 4.222ZM6.05 19.364l-.707.707A1 1 0 1 1 3.929 18.95l.707-.707A1 1 0 1 1 6.05 19.364Z"/>
+      </svg>
+      <svg class="icon icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+      </svg>
+    </button>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('c2r-theme');
+          var apply = function(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            var btn = document.getElementById('theme-toggle');
+            if (btn) {
+              btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+              btn.setAttribute('title', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+            }
+          };
+          if (saved === 'light' || saved === 'dark') {
+            apply(saved);
+          } else {
+            var prefersLight = false;
+            try { prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+            apply(prefersLight ? 'light' : 'dark');
+          }
+          document.addEventListener('DOMContentLoaded', function () {
+            var btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+              var current = document.documentElement.getAttribute('data-theme') || 'dark';
+              var next = current === 'light' ? 'dark' : 'light';
+              apply(next);
+              try { localStorage.setItem('c2r-theme', next); } catch (e) {}
+            });
+          });
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" src="/Coord2Region/assets/js/bundle.js?v=1763597992"></script>
+  </body>
+</html>

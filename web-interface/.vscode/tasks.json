@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-website",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Jekyll build site",
+			"type": "shell",
+			"command": "bundle exec jekyll build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$ruby"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run UI tests",
+			"type": "shell",
+			"command": "npm run test:ui",
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		}
+	]
+}

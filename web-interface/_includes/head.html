@@ -1,0 +1,20 @@
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | default: site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="icon" href="{{ site.favicon | relative_url }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {% assign css_file = site.static_files | where: 'path', '/assets/css/styles.css' | first %}
+  <link rel="stylesheet" href="{{ css_file.path | relative_url }}?v={{ css_file.modified_time | date: '%s' }}">
+  {% assign app_css = site.static_files | where: 'path', '/assets/css/main.css' | first %}
+  {% if app_css %}
+  <link rel="stylesheet" href="{{ app_css.path | relative_url }}?v={{ app_css.modified_time | date: '%s' }}">
+  {% endif %}
+  {% assign theme_js = site.static_files | where: 'path', '/assets/js/theme-logo.js' | first %}
+  {% if theme_js %}
+  <script defer src="{{ theme_js.path | relative_url }}?v={{ theme_js.modified_time | date: '%s' }}"></script>
+  {% endif %}
+</head>
