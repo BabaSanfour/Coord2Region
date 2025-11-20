@@ -13,6 +13,7 @@ from coord2region.ai_model_interface import (
     _load_yaml_environment,
     _retry_async,
     _retry_stream,
+    _retry_sync,
     load_env_file,
     huggingface_credentials_present,
     pick_first_supported_model,
@@ -394,6 +395,21 @@ def test_retry_stream_helper():
 
     result = list(_retry_stream(flaky, retries=2))
     assert result == ["a", "b"]
+    assert calls["count"] == 2
+
+
+@pytest.mark.unit
+def test_retry_sync_helper():
+    calls = {"count": 0}
+
+    def flaky():
+        calls["count"] += 1
+        if calls["count"] < 2:
+            raise RuntimeError("fail")
+        return "ok"
+
+    result = _retry_sync(flaky, retries=2)
+    assert result == "ok"
     assert calls["count"] == 2
 
 

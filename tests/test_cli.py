@@ -4,6 +4,7 @@ import sys
 import types
 from pathlib import Path
 import textwrap
+import shlex
 
 import csv
 import argparse
@@ -17,6 +18,8 @@ from coord2region.cli import (
     _batch,
     _collect_kwargs,
     _atlas_source_from_value,
+    _inputs_to_tokens,
+    _commands_from_config,
     run_from_config,
     main,
 )
@@ -197,6 +200,87 @@ print(json.dumps(captured['config'].get('atlas_configs', {}).get('https://exampl
 
     assert "https://example.com/custom.nii.gz" in atlas_names
     assert atlas_config.get("atlas_url") == "https://example.com/custom.nii.gz"
+
+
+@pytest.mark.unit
+def test_atlas_source_from_value_variants(tmp_path):
+    assert _atlas_source_from_value("https://example.org/file.nii.gz") == {
+        "atlas_url": "https://example.org/file.nii.gz"
+    }
+    local_path = tmp_path / "atlas.nii.gz"
+    local_path.write_text("", encoding="utf8")
+    assert _atlas_source_from_value(str(local_path)) == {"atlas_file": str(local_path)}
+    assert _atlas_source_from_value("~/atlas.nii.gz") == {
+        "atlas_file": "~/atlas.nii.gz"
+    }
+    assert _atlas_source_from_value("C:\\atlas.nii.gz") == {
+        "atlas_file": "C:\\atlas.nii.gz"
+    }
+
+
+@pytest.mark.unit
+def test_inputs_to_tokens_formats_values_and_errors():
+    coord_tokens = _inputs_to_tokens("coords", [[1, 2.5, 3.0], (4.0, 5, 6)])
+    assert coord_tokens == ["1", "2.5", "3", "4", "5", "6"]
+    names = _inputs_to_tokens("region_names", ["A", "B"])
+    assert names == ["A", "B"]
+    with pytest.raises(ValueError):
+        _inputs_to_tokens("unknown", [])
+
+
+@pytest.mark.unit
+def test_commands_from_config_coords_to_insights_includes_flags():
+    runtime = {
+        "input_type": "coords",
+        "inputs": [[0, 0, 0]],
+        "outputs": ["region_labels", "raw_studies", "summaries", "images"],
+        "output_format": "json",
+        "output_name": "results.json",
+        "image_backend": "both",
+        "config": {
+            "working_directory": "/tmp/work",
+            "gemini_api_key": "KEY",
+            "huggingface_api_key": "HF",
+            "sources": ["neurosynth"],
+            "email_for_abstracts": "user@example.com",
+            "atlas_names": ["aal"],
+            "atlas_configs": {"aal": {"atlas_url": "https://example/aal.nii.gz"}},
+            "image_model": "hf/model",
+            "image_prompt_type": "functional",
+            "image_custom_prompt": "focus {coordinate}",
+        },
+    }
+    commands = _commands_from_config(runtime)
+    assert len(commands) == 1
+    tokens = shlex.split(commands[0])
+    assert tokens[:2] == ["coord2region", "coords-to-insights"]
+    assert "--atlas" in tokens and tokens[tokens.index("--atlas") + 1] == "aal"
+    assert "--output-format" in tokens
+    assert "--image-prompt-type" in tokens
+    assert "--image-custom-prompt" in tokens
+    assert "--gemini-api-key" in tokens
+    assert "--huggingface-api-key" in tokens
+    assert "--image-model" in tokens
+
+
+@pytest.mark.unit
+def test_commands_from_config_region_single_atlas_required():
+    runtime = {
+        "input_type": "region_names",
+        "inputs": ["Region"],
+        "outputs": ["mni_coordinates", "raw_studies"],
+        "config": {
+            "atlas_names": ["aal", "juelich"],
+        },
+    }
+    with pytest.raises(ValueError):
+        _commands_from_config(runtime)
+
+    runtime["config"]["atlas_names"] = ["aal"]
+    commands = _commands_from_config(runtime)
+    tokens = shlex.split(commands[0])
+    assert tokens[:2] == ["coord2region", "region-to-study"]
+    assert "--atlas" in tokens
 
 
 def test_collect_kwargs_comprehensive(tmp_path):

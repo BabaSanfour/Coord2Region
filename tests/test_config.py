@@ -255,3 +255,41 @@ def test_config_derive_atlas_config_variants():
     assert path == {"atlas_file": "~/atlas.nii.gz"}
 
     assert Coord2RegionConfig._derive_atlas_config("aal") is None
+
+
+def test_config_requires_output_name_when_format_set():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "coords",
+                "coordinates": [[0, 0, 0]],
+                "outputs": ["region_labels"],
+                "output_format": "json",
+            }
+        )
+
+
+def test_config_rejects_multiple_coordinate_sources(tmp_path):
+    path = tmp_path / "coords.csv"
+    path.write_text("0,0,0\n", encoding="utf8")
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "coords",
+                "coordinates": [[0, 0, 0]],
+                "coordinates_file": str(path),
+                "outputs": ["region_labels"],
+            }
+        )
+
+
+def test_config_region_inputs_disallow_coordinates():
+    with pytest.raises(ValidationError):
+        Coord2RegionConfig.model_validate(
+            {
+                "input_type": "region_names",
+                "region_names": ["Region"],
+                "coordinates": [[0, 0, 0]],
+                "outputs": ["region_labels"],
+            }
+        )
