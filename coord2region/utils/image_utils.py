@@ -176,7 +176,9 @@ def build_side_by_side_panel(
     right_text_width = right_bbox[2] - right_bbox[0]
     text_y = padding
     left_text_x = padding + max(0, (left.width - left_text_width) // 2)
-    right_text_x = padding * 2 + left.width + max(0, (right.width - right_text_width) // 2)
+    right_text_x = (
+        padding * 2 + left.width + max(0, (right.width - right_text_width) // 2)
+    )
 
     draw.text((left_text_x, text_y), left_title, fill=(235, 235, 245), font=font)
     draw.text((right_text_x, text_y), right_title, fill=(235, 235, 245), font=font)

@@ -62,17 +62,19 @@ LLM_PROMPT_TEMPLATES: Dict[str, str] = {
 
 
 # Templates for image prompt generation. Each template can be formatted with
-# ``coordinate``, ``first_paragraph``, ``atlas_context``, and ``study_context`` variables.
+# ``coordinate``, ``first_paragraph``, ``atlas_context``,
+# and ``study_context`` variables.
 IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
     "anatomical": (
-        "Create a scientific brain visualization showing exactly three orthogonal MRI slices "
-        "arranged horizontally: coronal (left), sagittal (middle), and axial (right) views. "
+        "Create a scientific brain visualization showing exactly three orthogonal MRI"
+        "slices arranged horizontally: coronal (left), sagittal (middle),"
+        "and axial (right) views. "
         "Use grayscale T1-weighted MRI brain anatomy on a black background. "
-        "Place bright yellow or white crosshairs (+) at MNI coordinate {coordinate}, with the "
-        "crosshairs extending across each slice to mark the exact location. "
+        "Place bright yellow or white crosshairs (+) at MNI coordinate {coordinate},"
+        "with the crosshairs extending across each slice to mark the exact location. "
         "Label each view with the coordinate values shown. "
-        "Add L/R orientation markers. The style should match standard neuroimaging software "
-        "output like FSLeyes or Nilearn, with no artistic interpretation. "
+        "Add L/R orientation markers. The style should match standard neuroimaging "
+        "software output like FSLeyes or Nilearn, with no artistic interpretation. "
         "Ensure the crosshairs intersect precisely at the specified coordinate point.\n"
         "Coordinate location: x={x_coord}, y={y_coord}, z={z_coord}\n"
         "{atlas_context}"
@@ -121,7 +123,24 @@ def generate_llm_prompt(
     prompt_type: str = "summary",
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a detailed prompt for language models based on studies."""
+    """Generate a detailed prompt for language models based on studies.
+
+    Parameters
+    ----------
+    studies : list of dict
+        Study metadata dictionaries that describe the activation evidence.
+    coordinate : sequence of float
+        MNI coordinate used for formatting the prompt header.
+    prompt_type : str, optional
+        Key that selects a built-in template from :data:`LLM_PROMPT_TEMPLATES`.
+    prompt_template : str, optional
+        Custom template string requiring ``coord`` and ``studies`` placeholders.
+
+    Returns
+    -------
+    str
+        Fully formatted prompt ready for submission to a language model.
+    """
     # Format coordinate string safely.
     try:
         coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
@@ -181,7 +200,26 @@ def generate_region_image_prompt(
     include_atlas_labels: bool = True,
     prompt_template: Optional[str] = None,
 ) -> str:
-    """Generate a prompt for creating images of brain regions."""
+    """Generate a prompt for creating images of brain regions.
+
+    Parameters
+    ----------
+    coordinate : sequence of float
+        Target MNI coordinate to highlight in the visualization.
+    region_info : dict
+        Metadata describing the region, such as ``summary`` and atlas labels.
+    image_type : str, optional
+        Template key selecting the style of the image prompt.
+    include_atlas_labels : bool, optional
+        Whether atlas label descriptions should be inserted into the prompt.
+    prompt_template : str, optional
+        Custom template string overriding the built-in prompt dictionary.
+
+    Returns
+    -------
+    str
+        Fully formatted prompt with atlas and study context injected.
+    """
     # Safely get the summary and a short first paragraph.
     summary = region_info.get("summary", "No summary available.")
     first_paragraph = summary.split("\n\n", 1)[0]
@@ -212,8 +250,9 @@ def generate_region_image_prompt(
             + ", ".join(atlas_parts)
             + ". "
         )
-    
-    # Build study context - not used for anatomical images but needed for template compatibility
+
+    # Build study context - not used for anatomical images but
+    # needed for template compatibility
     study_context = ""
     studies = region_info.get("studies") or []
     if studies and image_type in ["functional", "schematic", "artistic", "default"]:
@@ -282,8 +321,7 @@ def generate_region_image(
         Name of the AI model to use. Defaults to
         ``"stabilityai/stable-diffusion-2"``.
     include_atlas_labels : bool, optional
-        Whether to include atlas label context in the prompt. Defaults to
-        ``True``.
+        Whether to include atlas label context in the prompt. Defaults to ``True``.
     prompt_template : str, optional
         Custom template overriding default prompts.
     retries : int, optional
@@ -322,7 +360,7 @@ def generate_summary(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gpt-4o-mini",
+    model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
@@ -331,14 +369,28 @@ def generate_summary(
 
     Parameters
     ----------
+    ai : AIModelInterface
+        AI backend used to create the summary.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate around which the summary should focus.
     prompt_type : str, optional
         Key into :data:`LLM_PROMPT_TEMPLATES`. Use ``"custom"`` with
-        ``custom_prompt`` to supply your own template string.
+        ``custom_prompt`` to provide a bespoke template.
+    model : str, optional
+        Name of the text generation model. Defaults to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to prepend to the prompt for extra context.
     custom_prompt : str, optional
-        Full template applied via ``str.format`` with ``coord`` and ``studies``
-        placeholders. Required when ``prompt_type == "custom"``.
+        Template string formatted with ``coord`` and ``studies`` placeholders.
     max_tokens : int, optional
         Maximum number of tokens requested from the language model.
+
+    Returns
+    -------
+    str
+        Textual summary returned by the AI model.
     """
     # Build base prompt with study information
     prompt = generate_llm_prompt(
@@ -387,16 +439,32 @@ def generate_batch_summaries(
         Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
     ],
     prompt_type: str = "summary",
-    model: str = "gpt-4o-mini",
+    model: str = "gemini-2.0-flash",
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
 ) -> List[str]:
     """Generate summaries for multiple coordinates.
 
-    If the underlying provider reports that it supports batching, the prompts
-    for all coordinates are combined into a single request and the response is
-    split using an internal delimiter. Otherwise, each summary is generated
-    sequentially via :func:`generate_summary`.
+    Parameters
+    ----------
+    ai : AIModelInterface
+        AI backend used to create the summaries.
+    coord_studies_pairs : list of tuple
+        Coordinate-study pairs to summarise.
+    prompt_type : str, optional
+        Template key used for each summary prompt.
+    model : str, optional
+        Model used for text generation. Defaults to ``"gemini-2.0-flash"``.
+    custom_prompt : str, optional
+        Template string overriding the built-in prompt for every coordinate.
+    max_tokens : int, optional
+        Maximum tokens requested from each AI call.
+
+    Returns
+    -------
+    list of str
+        Generated summaries for the provided coordinate pairs.
+
     """
     if not coord_studies_pairs:
         return []
@@ -460,12 +528,37 @@ async def generate_summary_async(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gpt-4o-mini",
+    model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
 ) -> str:
-    """Asynchronously generate a text summary for a coordinate."""
+    """Asynchronously generate a text summary for a coordinate.
+
+    Parameters
+    ----------
+    ai : AIModelInterface
+        AI backend used to create the summary asynchronously.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate for the summary.
+    prompt_type : str, optional
+        Prompt template key defaulting to ``"summary"``.
+    model : str, optional
+        Model name, defaulting to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to include in the prompt.
+    custom_prompt : str, optional
+        User-supplied template applied via ``str.format``.
+    max_tokens : int, optional
+        Maximum number of tokens requested for the summary.
+
+    Returns
+    -------
+    str
+        Generated summary text.
+    """
     prompt = generate_llm_prompt(
         studies,
         coordinate,
@@ -511,12 +604,37 @@ def stream_summary(
     studies: List[Dict[str, Any]],
     coordinate: Union[List[float], Tuple[float, float, float]],
     prompt_type: str = "summary",
-    model: str = "gpt-4o-mini",
+    model: str = "gemini-2.0-flash",
     atlas_labels: Optional[Dict[str, str]] = None,
     custom_prompt: Optional[str] = None,
     max_tokens: int = 1000,
 ) -> Iterator[str]:
-    """Stream a text summary for a coordinate in chunks."""
+    """Stream a text summary for a coordinate in chunks.
+
+    Parameters
+    ----------
+    ai : AIModelInterface
+        Streaming AI backend used to generate the summary.
+    studies : list of dict
+        Studies reporting activation at the target coordinate.
+    coordinate : sequence of float
+        MNI coordinate for the summary.
+    prompt_type : str, optional
+        Prompt template key defaulting to ``"summary"``.
+    model : str, optional
+        Model name, defaulting to ``"gemini-2.0-flash"``.
+    atlas_labels : dict, optional
+        Atlas-derived labels to include in the prompt.
+    custom_prompt : str, optional
+        User-supplied template applied via ``str.format``.
+    max_tokens : int, optional
+        Maximum number of tokens requested for the summary.
+
+    Returns
+    -------
+    iterator of str
+        Chunks of text yielded by the streaming AI backend.
+    """
     prompt = generate_llm_prompt(
         studies,
         coordinate,

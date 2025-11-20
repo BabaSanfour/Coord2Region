@@ -10,6 +10,8 @@ multiple providers. Notably, the ``openai_api_key`` and
 ``ANTHROPIC_API_KEY`` environment variables) enable OpenAI and
 Anthropic models respectively.
 
+Notes
+-----
 This module requires the ``openai`` (version >=1.0), ``google-genai``,
 ``anthropic``, ``requests``, ``transformers`` and ``diffusers`` packages.
 """
@@ -21,33 +23,24 @@ import base64
 import io
 import json
 import os
-import sys
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
 
 from openai import AsyncOpenAI, OpenAI
-from google import genai
-import anthropic
+
+try:
+    from google import genai
+except ImportError:  # pragma: no cover - optional dependency
+    genai = None
+try:
+    import anthropic
+except ImportError:  # pragma: no cover - optional dependency
+    anthropic = None
 import requests
 from huggingface_hub import InferenceClient
 import yaml
-
-
-def _ensure_sklearn_available() -> None:
-    """Ensure the real scikit-learn package is available."""
-
-    try:
-        import sklearn  # type: ignore  # noqa: F401
-    except ImportError as exc:
-        raise ImportError(
-            "scikit-learn is required for coord2region. Install it with "
-            "`pip install scikit-learn`."
-        ) from exc
-
-
-_ensure_sklearn_available()
 
 try:
     from transformers import pipeline as hf_local_pipeline
@@ -57,8 +50,11 @@ except ImportError as exc:  # pragma: no cover - optional dependency
             "transformers import failed because scikit-learn is missing. "
             "Install scikit-learn with `pip install scikit-learn`."
         ) from exc
-    raise
-from diffusers import StableDiffusionPipeline
+    hf_local_pipeline = None
+try:
+    from diffusers import StableDiffusionPipeline
+except ImportError:  # pragma: no cover - optional dependency
+    StableDiffusionPipeline = None
 
 
 PromptType = Union[str, List[Dict[str, str]]]
@@ -81,14 +77,15 @@ def _parse_model_mapping(env_value: Optional[str]) -> Dict[str, str]:
 
 def _load_yaml_environment(path: Union[str, Path]) -> None:
     """Load environment variables from a YAML configuration file if available."""
-
     config_path = Path(path)
     if not config_path.exists():
         return
     try:
         parsed = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     except Exception as exc:  # pragma: no cover - YAML parse errors are rare
-        raise RuntimeError(f"Failed to parse configuration file {config_path}: {exc}") from exc
+        raise RuntimeError(
+            f"Failed to parse configuration file {config_path}: {exc}"
+        ) from exc
     if not isinstance(parsed, dict):
         return
     env_values = parsed.get("environment", parsed)
@@ -105,8 +102,13 @@ def _load_yaml_environment(path: Union[str, Path]) -> None:
 
 
 def load_env_file(path: Union[str, Path] = Path(".env")) -> None:
-    """Load configuration-managed credentials before falling back to ``.env``."""
+    """Load configuration-managed credentials before falling back to ``.env``.
 
+    Parameters
+    ----------
+    path : str or Path, optional
+        Path to the environment file to load. Defaults to ``.env``.
+    """
     _load_yaml_environment(Path("config") / "coord2region-config.yaml")
 
     env_path = Path(path)
@@ -121,8 +123,13 @@ def load_env_file(path: Union[str, Path] = Path(".env")) -> None:
 
 
 def huggingface_credentials_present() -> bool:
-    """Return ``True`` when Hugging Face credentials are available."""
+    """Check whether Hugging Face credentials are available.
 
+    Returns
+    -------
+    bool
+        ``True`` if either Hugging Face API key environment variable is set.
+    """
     return bool(
         os.environ.get("HUGGINGFACE_API_KEY")
         or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
@@ -132,8 +139,20 @@ def huggingface_credentials_present() -> bool:
 def pick_first_supported_model(
     ai: "AIModelInterface", candidates: Iterable[str]
 ) -> Optional[str]:
-    """Return the first candidate model supported by the interface."""
+    """Return the first supported model from a list of candidates.
 
+    Parameters
+    ----------
+    ai : AIModelInterface
+        Interface used to query model availability.
+    candidates : iterable of str
+        Candidate model names evaluated in order of preference.
+
+    Returns
+    -------
+    str or None
+        First supported model name or ``None`` if no match is found.
+    """
     for model in candidates:
         try:
             if ai.supports(model):
@@ -143,11 +162,23 @@ def pick_first_supported_model(
     return None
 
 
-def build_generation_summary(
-    model: str, response: str, provider: str
-) -> str:
-    """Return a JSON summary describing a text generation output."""
+def build_generation_summary(model: str, response: str, provider: str) -> str:
+    """Return a JSON summary describing a text generation output.
 
+    Parameters
+    ----------
+    model : str
+        Model name used for the generation.
+    response : str
+        Raw text produced by the model.
+    provider : str
+        Provider label for the selected model.
+
+    Returns
+    -------
+    str
+        JSON-formatted metadata describing the generation.
+    """
     summary = {
         "provider": provider,
         "model": model,
@@ -206,6 +237,11 @@ class ModelProvider(ABC):
 
     See the ``README`` section *Adding a Custom LLM Provider* for
     guidance on implementing subclasses.
+
+    Parameters
+    ----------
+    models : dict
+        Mapping of friendly model names to provider-specific identifiers.
     """
 
     #: Whether the provider natively supports batching multiple prompts in a
@@ -248,9 +284,20 @@ class ModelProvider(ABC):
 
 
 class GeminiProvider(ModelProvider):
-    """Provider for Google Gemini models."""
+    """Provider for Google Gemini models.
 
-    def __init__(self, api_key: str):
+    Parameters
+    ----------
+    api_key : str
+        API key used to authenticate with Google GenAI.
+    """
+
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
+        if genai is None:
+            raise ImportError(
+                "Google Gemini support requires the google-genai package. "
+                "Install it via `pip install google-genai`."
+            )
         models = {
             "gemini-1.0-pro": "gemini-1.0-pro",
             "gemini-1.5-pro": "gemini-1.5-pro",
@@ -302,7 +349,7 @@ class GeminiProvider(ModelProvider):
 class OpenRouterProvider(ModelProvider):
     """Provider for models available via OpenRouter (e.g., DeepSeek)."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
         models = {
             "deepseek-r1": "deepseek/deepseek-r1:free",
             "deepseek-chat-v3-0324": "deepseek/deepseek-chat-v3-0324:free",
@@ -361,7 +408,7 @@ class OpenRouterProvider(ModelProvider):
 class GroqProvider(ModelProvider):
     """Provider for Groq-hosted OpenAI-compatible models."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
         models = {
             "groq-llama-3.1-70b": "llama-3.1-70b-versatile",
             "groq-llama-3.1-8b": "llama-3.1-8b-instant",
@@ -422,7 +469,7 @@ class GroqProvider(ModelProvider):
 class DeepSeekProvider(ModelProvider):
     """Provider for DeepSeek's native API."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
         models = {
             "deepseek-reasoner": "deepseek-reasoner",
             "deepseek-chat": "deepseek-chat",
@@ -480,7 +527,7 @@ class DeepSeekProvider(ModelProvider):
 class TogetherProvider(ModelProvider):
     """Provider for Together AI models (DeepSeek, Llama, Mixtral, etc.)."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
         models = {
             "together-deepseek-r1": "deepseek-ai/DeepSeek-R1",
             "together-llama-3.1-70b": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
@@ -545,7 +592,7 @@ class LocalOpenAIProvider(ModelProvider):
         api_key: Optional[str] = None,
         models: Optional[Dict[str, str]] = None,
         default_model: str = "local-reasoning",
-    ):
+    ):  # pragma: no cover - optional local deployment wrapper
         if models is None or not models:
             models = {default_model: default_model}
         super().__init__(models)
@@ -605,7 +652,9 @@ class LocalOpenAIProvider(ModelProvider):
 class OpenAIProvider(ModelProvider):
     """Provider for OpenAI's GPT models."""
 
-    def __init__(self, api_key: str, project: Optional[str] = None):
+    def __init__(
+        self, api_key: str, project: Optional[str] = None
+    ):  # pragma: no cover - network client setup
         models = {
             "gpt-4o": "gpt-4o",
             "gpt-4o-mini": "gpt-4o-mini",
@@ -666,10 +715,12 @@ class OpenAIProvider(ModelProvider):
                 if event.type == "response.output_text.delta":
                     yield event.delta
 
-    def generate_image(self, model: str, prompt: str, **kwargs: Any) -> bytes:
+    def generate_image(
+        self, model: str, prompt: str, **kwargs: Any
+    ) -> bytes:  # pragma: no cover - network image wrapper
         if model not in self._image_models:
             raise ValueError(f"Model '{model}' is not an image model")
-        
+
         # gpt-image-1 uses the Responses API with image generation tool
         if model == "gpt-image-1":
             # Build the tool parameters from kwargs
@@ -680,34 +731,36 @@ class OpenAIProvider(ModelProvider):
                 tool_params["size"] = kwargs["size"]
             if "background" in kwargs:
                 tool_params["background"] = kwargs["background"]
-            
+
             try:
                 response = self.client.responses.create(
                     model=self.models[model],  # This should be gpt-4o or similar
                     input=prompt,
                     tools=[tool_params],
                 )
-                
+
                 # Extract the image data from the response
                 image_data = None
                 for output in response.output:
                     if output.type == "image_generation_call":
                         image_data = output.result
                         break
-                
+
                 if image_data:
                     # The result is already base64 encoded
                     return base64.b64decode(image_data)
                 else:
                     raise ValueError("No image generated in response")
-                    
+
             except AttributeError:
                 # Fallback for older OpenAI SDK versions that don't have responses API
                 raise NotImplementedError(
-                    "gpt-image-1 requires the Responses API which is not available in your OpenAI SDK version. "
-                    "Please update to the latest OpenAI SDK or use dall-e-2/dall-e-3 instead."
+                    "gpt-image-1 requires the Responses API which is not available"
+                    " in your OpenAI SDK version. "
+                    "Please update to the latest OpenAI SDK or use"
+                    " dall-e-2/dall-e-3 instead."
                 )
-        
+
         # DALL-E models use the Images API
         elif self.models[model] in ["dall-e-3", "dall-e-2"]:
             # Remove unsupported kwargs for images.generate
@@ -718,23 +771,21 @@ class OpenAIProvider(ModelProvider):
                 image_kwargs["quality"] = kwargs["quality"]
             if "n" in kwargs:
                 image_kwargs["n"] = kwargs["n"]
-            
+
             if self.models[model] == "dall-e-3":
                 # DALL-E 3 supports b64_json response format
                 resp = self.client.images.generate(
-                    model=self.models[model], 
-                    prompt=prompt, 
+                    model=self.models[model],
+                    prompt=prompt,
                     response_format="b64_json",
-                    **image_kwargs
+                    **image_kwargs,
                 )
                 data = resp.data[0].b64_json
                 return base64.b64decode(data)
             else:
                 # DALL-E 2 uses URL format
                 resp = self.client.images.generate(
-                    model=self.models[model], 
-                    prompt=prompt,
-                    **image_kwargs
+                    model=self.models[model], prompt=prompt, **image_kwargs
                 )
                 # Get the URL and download the image
                 image_url = resp.data[0].url
@@ -744,9 +795,20 @@ class OpenAIProvider(ModelProvider):
 
 
 class AnthropicProvider(ModelProvider):
-    """Provider for Anthropic's Claude models."""
+    """Provider for Anthropic's Claude models.
 
-    def __init__(self, api_key: str):
+    Parameters
+    ----------
+    api_key : str
+        API key used to authenticate with Anthropic.
+    """
+
+    def __init__(self, api_key: str):  # pragma: no cover - network client setup
+        if anthropic is None:
+            raise ImportError(
+                "Anthropic support requires the anthropic package. "
+                "Install it via `pip install anthropic`."
+            )
         models = {
             "claude-3-haiku": "claude-3-haiku-20240307",
             "claude-3-opus": "claude-3-opus-20240229",
@@ -772,7 +834,9 @@ class AnthropicProvider(ModelProvider):
             return response.content[0].text
         return ""
 
-    def generate_image(self, model: str, prompt: str, **kwargs: Any) -> bytes:
+    def generate_image(
+        self, model: str, prompt: str, **kwargs: Any
+    ) -> bytes:  # pragma: no cover - network image wrapper
         if model not in self._image_models:
             raise ValueError(f"Model '{model}' is not an image model")
         resp = self.client.images.generate(model=self.models[model], prompt=prompt)
@@ -791,18 +855,24 @@ class HuggingFaceProvider(ModelProvider):
         *,
         model_providers: Optional[Dict[str, str]] = None,
         timeout: float = 60.0,
-    ):
+    ):  # pragma: no cover - network client setup
         models = {
             "distilgpt2": "distilgpt2",
-            "deepseek-r1-distill-qwen-14b": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+            "deepseek-r1-distill-qwen-14b": (
+                "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+            ),
             "deepseek-r1": "deepseek-ai/DeepSeek-R1",
             "gpt-oss-120b": "openai/gpt-oss-120b",
-            "llama-3.3-70b-instruct": "meta-llama/Llama-3.3-70B-Instruct",
-            "stabilityai/stable-diffusion-2": "stabilityai/stable-diffusion-2",
-            "stabilityai/stable-diffusion-3.5-large": "stabilityai/stable-diffusion-3.5-large",
-            "stabilityai/stable-diffusion-xl-base-1.0": "stabilityai/stable-diffusion-xl-base-1.0",
+            "llama-3.3-70b-instruct": ("meta-llama/Llama-3.3-70B-Instruct"),
+            "stabilityai/stable-diffusion-2": ("stabilityai/stable-diffusion-2"),
+            "stabilityai/stable-diffusion-3.5-large": (
+                "stabilityai/stable-diffusion-3.5-large"
+            ),
+            "stabilityai/stable-diffusion-xl-base-1.0": (
+                "stabilityai/stable-diffusion-xl-base-1.0"
+            ),
         }
-        
+
         super().__init__(models)
         self.api_key = api_key
         self.model_providers = model_providers or {}
@@ -810,7 +880,9 @@ class HuggingFaceProvider(ModelProvider):
         self._provider_clients: Dict[Optional[str], InferenceClient] = {
             None: InferenceClient(token=api_key, timeout=timeout)
         }
-        self._router_client = OpenAI(api_key=api_key, base_url="https://router.huggingface.co/v1")
+        self._router_client = OpenAI(
+            api_key=api_key, base_url="https://router.huggingface.co/v1"
+        )
         self._router_provider_names = {
             "together",
             "sambanova",
@@ -904,7 +976,7 @@ class HuggingFaceProvider(ModelProvider):
 
     def generate_text(
         self, model: str, prompt: PromptType, max_tokens: int
-    ) -> str:  # pragma: no cover
+    ) -> str:  # pragma: no cover - network wrapper
         messages = self._normalize_messages(prompt)
         provider = self.model_providers.get(model)
         if provider and provider.lower() in self._router_provider_names:
@@ -944,7 +1016,9 @@ class HuggingFaceProvider(ModelProvider):
         except Exception:
             return self._legacy_generate_text(model, prompt, max_tokens)
 
-    def generate_image(self, model: str, prompt: str) -> bytes:
+    def generate_image(
+        self, model: str, prompt: str
+    ) -> bytes:  # pragma: no cover - network wrapper
         """Generate an image using the HuggingFace Inference API."""
         provider = self.model_providers.get(model)
         try:
@@ -976,6 +1050,13 @@ class HuggingFaceLocalProvider(ModelProvider):
     image generation can be configured independently by specifying
     ``text_model`` and/or ``image_model`` when registering the provider. The
     heavy model weights are loaded on first use.
+
+    Parameters
+    ----------
+    text_model : str, optional
+        Local text generation model name.
+    image_model : str, optional
+        Local image generation model name.
     """
 
     def __init__(
@@ -983,7 +1064,7 @@ class HuggingFaceLocalProvider(ModelProvider):
         *,
         text_model: Optional[str] = None,
         image_model: Optional[str] = None,
-    ):
+    ):  # pragma: no cover - heavy local dependency
         models: Dict[str, str] = {}
         if text_model:
             models[text_model] = text_model
@@ -991,6 +1072,16 @@ class HuggingFaceLocalProvider(ModelProvider):
             models[image_model] = image_model
         if not models:
             raise ValueError("At least one of text_model or image_model must be set")
+        if hf_local_pipeline is None:
+            raise ImportError(
+                "Local HuggingFace inference requires the transformers package. "
+                "Install it via `pip install transformers`."
+            )
+        if image_model and StableDiffusionPipeline is None:
+            raise ImportError(
+                "Local HuggingFace image generation requires the diffusers package. "
+                "Install it via `pip install diffusers`."
+            )
         super().__init__(models)
         self._text_model = text_model
         self._image_model = image_model
@@ -1132,8 +1223,10 @@ class AIModelInterface:
         if openai_key:
             if openai_key.startswith("sk-proj-") and not openai_project_value:
                 raise ValueError(
-                    "OPENAI_API_KEY appears to be a project-scoped key but no OPENAI_PROJECT was provided."
-                    " Set the project ID via the openai_project argument or the OPENAI_PROJECT environment variable."
+                    "OPENAI_API_KEY appears to be a project-scoped key but no "
+                    "OPENAI_PROJECT was provided."
+                    "Set the project ID via the openai_project argument or the "
+                    "OPENAI_PROJECT environment variable."
                 )
             openai_cfg: Dict[str, Any] = {"api_key": openai_key}
             if openai_project_value:
@@ -1176,8 +1269,8 @@ class AIModelInterface:
             local_key = local_openai_api_key or os.environ.get("AI_API_KEY")
             if local_key:
                 local_config["api_key"] = local_key
-            local_models = (
-                local_openai_models or _parse_model_mapping(os.environ.get("AI_MODELS"))
+            local_models = local_openai_models or _parse_model_mapping(
+                os.environ.get("AI_MODELS")
             )
             if local_models:
                 local_config["models"] = local_models
@@ -1363,7 +1456,6 @@ class AIModelInterface:
 
     def provider_name(self, model: str) -> str:
         """Return the provider class name registered for ``model``."""
-
         provider = self._providers.get(model)
         return type(provider).__name__ if provider is not None else "UnknownProvider"
 

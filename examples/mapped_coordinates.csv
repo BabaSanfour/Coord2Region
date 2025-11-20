@@ -1,11 +1,11 @@
 x,y,z,harvard-oxford,schaefer,yeo,juelich
-42,-9,32,Precentral Gyrus,7Networks_LH_Vis_1,NONE,GM Primary somatosensory cortex BA3a
--46,46,11,Frontal Pole,7Networks_LH_Cont_PFCl_4,17Networks_12,GM Broca's area BA45
-0,-40,42,"Cingulate Gyrus, posterior division",7Networks_LH_Default_pCunPCC_9,17Networks_16,GM Superior parietal lobule 5M
-22,26,14,Background,7Networks_LH_Vis_1,NONE,WM Superior occipito-frontal fascicle
-14,27,56,Superior Frontal Gyrus,7Networks_RH_Default_PFCdPFCm_12,17Networks_17,GM Premotor cortex BA6
-39,43,-37,Background,7Networks_LH_Vis_1,NONE,Background
--58,-39,-8,"Middle Temporal Gyrus, posterior division",7Networks_LH_Cont_OFC_1,17Networks_13,Background
--59,27,47,Background,7Networks_LH_Vis_1,NONE,Background
--31,-23,-59,Background,7Networks_LH_Vis_1,NONE,Background
-3,-1,-40,Background,7Networks_LH_Vis_1,NONE,Background
+42,-9,32,Precentral Gyrus,7Networks_RH_SomMot_18,7Networks_6,GM Primary somatosensory cortex BA3a
+-46,46,11,Frontal Pole,7Networks_LH_Cont_PFCl_3,7Networks_6,GM Broca's area BA45
+0,-40,42,"Cingulate Gyrus, posterior division",7Networks_LH_Default_pCunPCC_8,7Networks_7,GM Superior parietal lobule 5M
+22,26,14,"Cingulate Gyrus, anterior division",7Networks_RH_Default_PFCdPFCm_6,7Networks_6,WM Superior occipito-frontal fascicle
+14,27,56,Superior Frontal Gyrus,7Networks_RH_Default_PFCdPFCm_11,7Networks_7,GM Premotor cortex BA6
+39,43,-37,Frontal Medial Cortex,7Networks_RH_Default_PFCv_2,7Networks_5,WM Inferior occipito-frontal fascicle
+-58,-39,-8,"Middle Temporal Gyrus, posterior division",7Networks_LH_Cont_Temp_1,7Networks_7,WM Acoustic radiation
+-59,27,47,Middle Frontal Gyrus,7Networks_LH_Default_PFC_17,7Networks_7,GM Broca's area BA44
+-31,-23,-59,"Temporal Fusiform Cortex, anterior division",7Networks_LH_Limbic_TempPole_1,7Networks_5,GM Hippocampus entorhinal cortex
+3,-1,-40,"Inferior Temporal Gyrus, anterior division",7Networks_RH_Limbic_TempPole_1,7Networks_5,GM Hippocampus entorhinal cortex

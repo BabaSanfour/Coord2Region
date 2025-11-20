@@ -106,7 +106,13 @@ def test_generate_region_image_prompt_anatomical_with_atlas():
     coord = "[1.00, 2.00, 3.00]"
     atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
     expected = IMAGE_PROMPT_TEMPLATES["anatomical"].format(
-        coordinate=coord, first_paragraph="Paragraph one.", atlas_context=atlas
+        coordinate=coord,
+        first_paragraph="Paragraph one.",
+        atlas_context=atlas,
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -119,7 +125,13 @@ def test_generate_region_image_prompt_functional_no_atlas():
     )
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["functional"].format(
-        coordinate=coord, first_paragraph="Single paragraph", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Single paragraph",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -135,7 +147,13 @@ def test_generate_region_image_prompt_schematic_no_include():
     )
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["schematic"].format(
-        coordinate=coord, first_paragraph="Para.", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Para.",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -152,7 +170,13 @@ def test_generate_region_image_prompt_artistic():
     coord = "[1.00, 2.00, 3.00]"
     atlas = "According to brain atlases, this region corresponds to: Atlas: Label. "
     expected = IMAGE_PROMPT_TEMPLATES["artistic"].format(
-        coordinate=coord, first_paragraph="Summary.", atlas_context=atlas
+        coordinate=coord,
+        first_paragraph="Summary.",
+        atlas_context=atlas,
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 
@@ -163,7 +187,13 @@ def test_generate_region_image_prompt_unknown_type():
     prompt = generate_region_image_prompt([1, 2, 3], region_info, image_type="other")
     coord = "[1.00, 2.00, 3.00]"
     expected = IMAGE_PROMPT_TEMPLATES["default"].format(
-        coordinate=coord, first_paragraph="Just one paragraph", atlas_context=""
+        coordinate=coord,
+        first_paragraph="Just one paragraph",
+        atlas_context="",
+        x_coord="1",
+        y_coord="2",
+        z_coord="3",
+        study_context="",
     )
     assert prompt == expected
 

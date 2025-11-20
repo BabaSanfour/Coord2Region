@@ -5,7 +5,8 @@ minimal. It provides:
 
 - ``load_environment``: read ``.env`` (if present) into ``os.environ``.
 - ``build_interface``: construct an ``AIModelInterface`` with available providers.
-- ``select_model``: choose a supported model from a candidate list with an optional override.
+- ``select_model``: choose a supported model from a candidate list with an optional
+        override.
 - ``getenv_str``: fetch and trim a string environment variable.
 
 Examples import these helpers instead of duplicating logic.
@@ -60,22 +61,43 @@ IMAGE_MODEL_CANDIDATES: Sequence[str] = (
 
 
 def load_environment(env_path: Optional[str] = None) -> None:
-    """Load environment variables from the YAML config and optional ``.env``."""
+    """Load environment variables from configuration files.
 
+    Parameters
+    ----------
+    env_path : str, optional
+        Override path to the ``.env`` file. Defaults to ``".env"`` if not provided.
+    """
     from .ai_model_interface import load_env_file
+
     load_env_file(env_path or ".env")
 
 
-def build_interface(*, enabled_providers: Optional[Sequence[str]] = None) -> "AIModelInterface":
-    """Initialise :class:`AIModelInterface` after loading the environment."""
+def build_interface(
+    *, enabled_providers: Optional[Sequence[str]] = None
+) -> "AIModelInterface":
+    """Initialise :class:`AIModelInterface` with available providers.
 
+    Parameters
+    ----------
+    enabled_providers : sequence of str, optional
+        Explicit list of provider names to register. If omitted, all detected
+        providers are enabled.
+
+    Returns
+    -------
+    AIModelInterface
+        Interface capable of dispatching requests to the configured providers.
+    """
     load_environment()
     providers = list(enabled_providers) if enabled_providers is not None else None
     from .ai_model_interface import AIModelInterface
+
     ai = AIModelInterface(enabled_providers=providers)
     if not ai.list_available_models():
         logging.warning(
-            "No AI providers registered. Ensure API keys are present in the environment."
+            "No AI providers registered. Ensure API keys are present in "
+            "the environment."
         )
     return ai
 
@@ -87,8 +109,24 @@ def select_model(
     explicit: Optional[str] = None,
     kind: str = "text",
 ) -> Optional[str]:
-    """Return the first supported model, honouring an explicit override."""
+    """Return the first supported model, honouring an explicit override.
 
+    Parameters
+    ----------
+    ai : AIModelInterface
+        Interface used to query available models.
+    candidates : sequence of str
+        Preferred model aliases evaluated in order.
+    explicit : str, optional
+        Explicit model request taking precedence if supported.
+    kind : str, optional
+        Human-friendly label for the capability being selected (e.g., ``"text"``).
+
+    Returns
+    -------
+    str or None
+        Supported model name or ``None`` when no candidate is available.
+    """
     if explicit:
         request = explicit.strip()
         if request:
@@ -101,6 +139,7 @@ def select_model(
                 request,
             )
     from .ai_model_interface import pick_first_supported_model
+
     model = pick_first_supported_model(ai, candidates)
     if model:
         logging.info("Selected %s model: %s", kind, model)
@@ -111,8 +150,19 @@ def select_model(
 
 
 def getenv_str(name: str) -> Optional[str]:
-    """Return the trimmed value of ``name`` from the environment or ``None``."""
+    """Return the trimmed value of an environment variable.
 
+    Parameters
+    ----------
+    name : str
+        Environment variable to read and sanitize.
+
+    Returns
+    -------
+    str or None
+        Trimmed string value with surrounding quotes removed, or ``None`` if
+        not set or empty.
+    """
     value = os.getenv(name)
     if value is None:
         return None

@@ -472,3 +472,39 @@ details.howto .howto__content ol {
 details.howto .howto__content ol li {
   margin-bottom: 0.6rem;
 }
+/* Logo + text pairing */
+.logo-text-block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+
+.logo-text-block picture {
+  display: block;
+  flex-shrink: 0;
+}
+
+.logo-text-block img.inline-logo {
+  width: 140px;
+  height: auto;
+  display: block;
+}
+
+.logo-text-block p,
+.logo-text-block h2 {
+  margin: 0;
+}
+
+.logo-text-block div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.workflow-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}

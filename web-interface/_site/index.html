@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Home</title>
   <meta name="description" content="Overview of Coord2Region with links to the Builder, About, Cloud, and Docs.">
+  <link rel="icon" href="/Coord2Region/assets/img/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="/assets/css/styles.css?v=1758590954">
+  <link rel="stylesheet" href="/Coord2Region/assets/css/styles.css?v=1763603681">
   
   
-  <link rel="stylesheet" href="/assets/css/main.css?v=1758590947">
+  <link rel="stylesheet" href="/Coord2Region/assets/css/main.css?v=1763597992">
+  
+  
+  
+  <script defer src="/Coord2Region/assets/js/theme-logo.js?v=1763604282"></script>
   
 </head>
 
@@ -24,29 +29,33 @@
       <div class="hero__cta">
        <a class="btn btn-primary"
          aria-current="page"
-         href="/">Home</a>
+         href="/Coord2Region/">Home</a>
        <a class="btn btn-secondary"
          
-         href="/about/">About</a>
+         href="/Coord2Region/about/">About</a>
        <a class="btn btn-secondary"
          
-         href="/builder/">Config Builder</a>
+         href="/Coord2Region/builder/">Config Builder</a>
        <a class="btn btn-secondary"
          
-         href="/cloud/">Cloud Runner</a>
+         href="/Coord2Region/cloud/">Cloud Runner</a>
        <a class="btn btn-secondary" href="https://coord2region.readthedocs.io/en/latest/" target="_blank" rel="noopener">Documentation</a>
        <a class="btn btn-secondary" href="https://github.com/BabaSanfour/Coord2Region" target="_blank" rel="noopener">View on GitHub</a>
       </div>
       </div>
     </header>
     <main class="content container">
-      <p>Phase 2 · Actively evolving</p>
+      <section class="logo-text-block" data-logo-light="/Coord2Region/assets/img/logo.png" data-logo-dark="/Coord2Region/assets/img/logo_darkmode.png">
+  <img src="/Coord2Region/assets/img/logo.png" alt="Coord2Region logo" class="inline-logo small theme-logo" />
+  <div>
+    <h2>Meet Coord2Region</h2>
+    <p>
+      From raw neuroimaging coordinates to atlas‑level labels, study retrieval, AI summaries, and reproducible outputs. Build a configuration in the browser, then run it locally with the CLI — or start in the CLI and import the YAML here to keep everything in sync.
+    </p>
+  </div>
+</section>
 
-<h2 id="meet-coord2region">Meet Coord2Region</h2>
-
-<p>From raw neuroimaging coordinates to atlas‑level labels, study retrieval, AI‑assisted summaries, and reproducible outputs. Build a configuration in the browser, then run it locally with the CLI.</p>
-
-<p>➡️ Open the Config Builder: <a href="/builder/">/builder/</a></p>
+<p>➡️ Open the Config Builder: <a href="/Coord2Region/builder/">/Coord2Region/builder/</a></p>
 
 <h3 id="what-you-can-do">What you can do</h3>
 
@@ -54,27 +63,35 @@
   <li>Map coordinates to atlas regions and summaries</li>
   <li>Query related studies and generate YAML configs</li>
   <li>Export CLI commands for quick runs</li>
-  <li>Optionally include AI‑generated images</li>
+  <li>Optionally include AI‑generated images and nilearn anatomical slices</li>
 </ul>
+
+<h3 id="getting-started">Getting started</h3>
+
+<ol>
+  <li>Install the Python package (<code class="language-plaintext highlighter-rouge">pip install coord2region</code>) and run <code class="language-plaintext highlighter-rouge">python scripts/configure_coord2region.py</code> once to capture API keys and atlas cache paths.</li>
+  <li>Launch the builder from this site, choose coordinates or region names, and fill out the guided form.</li>
+  <li>Copy the YAML or CLI command into your terminal – or download the YAML and import it later to continue editing.</li>
+</ol>
 
 <h3 id="quick-links">Quick links</h3>
 
-<p><a href="/about/">About</a> · <a href="/builder/">Config Builder</a> · <a href="/cloud/">Cloud Runner</a> · <a href="https://coord2region.readthedocs.io/en/latest/">Docs</a> · <a href="https://github.com/BabaSanfour/Coord2Region">GitHub</a></p>
+<p><a href="/Coord2Region/about/">About</a> · <a href="/Coord2Region/builder/">Config Builder</a> · <a href="/Coord2Region/cloud/">Cloud Runner</a> · <a href="https://coord2region.readthedocs.io/en/latest/">Docs</a> · <a href="https://github.com/BabaSanfour/Coord2Region">GitHub</a></p>
 
 <h2 id="how-it-works">How it works</h2>
 
 <ol>
-  <li>Load coordinates or select atlas regions in the Builder</li>
-  <li>Choose providers and output options</li>
-  <li>Copy the generated YAML or CLI, then run locally</li>
+  <li><span class="inline-logo-text">Load coordinates or select atlas regions in the Builder.</span></li>
+  <li><span class="inline-logo-text">Choose providers and output options.</span></li>
+  <li><span class="inline-logo-text">Copy the generated YAML or CLI, then run locally.</span></li>
 </ol>
 
-<p>Want details? See <a href="/about/">About</a> or the <a href="https://coord2region.readthedocs.io/en/latest/">Docs</a>.</p>
+<p>Want details? See <a href="/Coord2Region/about/">About</a> or the <a href="https://coord2region.readthedocs.io/en/latest/">Docs</a>.</p>
 
-<h3 id="web-ui-previews">Web UI previews</h3>
-
-<p>| <img src="https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder1.png" alt="Builder – inputs" width="280" /> | <img src="https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-builder2.png" alt="Builder – outputs" width="280" /> | <img src="https://raw.githubusercontent.com/BabaSanfour/Coord2Region/main/docs/static/images/web-interface-ui-runner.png" alt="Runner" width="280" /> |
-| :–: | :–: | :–: |</p>
+<figure class="workflow-figure">
+  <img src="/Coord2Region/assets/img/workflow.jpg" alt="Coord2Region workflow overview" class="workflow-image" />
+  <figcaption>From coordinates to atlas labels, studies, summaries, and optional images.</figcaption>
+</figure>
 
     </main>
     <footer class="site-footer">
@@ -149,6 +166,6 @@
         } catch (e) {}
       })();
     </script>
-    <script type="module" src="/assets/js/bundle.js?v=1758590947"></script>
+    <script type="module" src="/Coord2Region/assets/js/bundle.js?v=1763597992"></script>
   </body>
 </html>

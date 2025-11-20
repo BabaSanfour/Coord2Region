@@ -1,5 +1,8 @@
 title: Coord2Region Config Builder
 description: Interactive configuration builder and landing page for Coord2Region Phase 2.
+logo: /assets/img/logo.png
+logo_dark: /assets/img/logo_darkmode.png
+favicon: /assets/img/logo.png
 baseurl: "/Coord2Region"
 url: "https://BabaSanfour.github.io"
 markdown: kramdown

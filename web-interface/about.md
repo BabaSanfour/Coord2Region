@@ -6,51 +6,84 @@ title: "About Coord2Region"
 description: "About the Coord2Region project and Phase 2 goals."
 ---
 
-## About
+<section class="logo-text-block" data-logo-light="{{ '/assets/img/logo.png' | relative_url }}" data-logo-dark="{{ '/assets/img/logo_darkmode.png' | relative_url }}">
+  <img src="{{ '/assets/img/logo.png' | relative_url }}" alt="Coord2Region logo" class="inline-logo small theme-logo">
+  <div>
+    <p>Coord2Region is both a Python package and a web experience. Feed it MNI coordinates or region names and it lines up atlas labels, nearby studies, optional LLM summaries, and illustrative images. Underneath the hood you get NiMARE, Nilearn, and MNE working together without wiring every dependency yourself.</p>
+  </div>
+</section>
 
-Coord2Region is a Python package and web interface that turn brain coordinates or region names into actionable insights. Under the hood, it combines atlas lookups, public neuroimaging datasets, and optional AI providers to help you go from “where is this peak?” to “what does it likely mean?” in a few clicks.
+<div class="about-grid">
+  <section>
+    <h2>Build <span>insights</span> from coordinates</h2>
+    <p>
+      Coord2Region is both a Python package and a web experience. Feed it MNI coordinates or region names and it lines up atlas labels, nearby studies, optional LLM summaries, and illustrative images. Underneath the hood you get NiMARE, Nilearn, and MNE working together without wiring every dependency yourself.
+    </p>
+    <ul class="feature-list">
+      <li><strong>Atlas lookups</strong> across Harvard–Oxford, Schaefer, Destrieux, Jülich, and more.</li>
+      <li><strong>Study retrieval</strong> via Neurosynth, NeuroQuery, and NiMARE datasets.</li>
+      <li><strong>AI extras</strong> for summaries and images (bring your API keys, or run purely offline).</li>
+      <li><strong>Export-ready outputs</strong>: YAML + CLI commands + JSON/CSV deliverables.</li>
+    </ul>
+    <p>Want the full story? Browse the <a href="https://coord2region.readthedocs.io/en/latest/">Read the Docs guide</a>.</p>
+  </section>
 
-With coordinates (MNI) as input, Coord2Region maps peaks to atlas labels, finds related studies (e.g., Neurosynth, NeuroQuery), summarizes evidence with LLMs, and can generate illustrative images. With region names as input, it can resolve names to coordinates and perform the same downstream analyses. Typical use cases include annotating peaks in fMRI results, localizing iEEG/MEG sources, cross‑referencing coordinates with literature, and packaging results for sharing and reproducibility.
+  <section>
+    <h2>Why use the builder?</h2>
+    <div class="card-grid">
+      <article>
+        <h3>No-install prototyping</h3>
+        <p>Craft a complete Coord2Region run from the browser, inspect the YAML live, and copy the CLI command with zero setup.</p>
+      </article>
+      <article>
+        <h3>Config authoring surface</h3>
+        <p>Already scripted? Import a YAML, tweak parameters safely, download the updated config, or hand collaborators a clickable preset.</p>
+      </article>
+      <article>
+        <h3>Teaching-friendly presets</h3>
+        <p>Jump-start analyses with curated templates (single peak lookup, region → coords, full insights bundle) and see what changes.</p>
+      </article>
+      <article>
+        <h3>Guardrails built in</h3>
+        <p>Each toggle always updates the YAML, the CLI command, and a direct “no YAML” command so you know exactly what will execute.</p>
+      </article>
+    </div>
+  </section>
+</div>
 
-Documentation: [Read the Docs](https://coord2region.readthedocs.io/en/latest/)
+<section class="stepper">
+  <h2>Builder walkthrough</h2>
+  <ol>
+    <li><strong>Inputs.</strong> Paste coordinate triples or list region names. CSV upload is supported for large batches.</li>
+    <li><strong>Atlas selection.</strong> Search, filter, or add custom URLs/paths. Mix volumetric and surface atlases as needed.</li>
+    <li><strong>Studies & summaries.</strong> Toggle nearby study retrieval, then layer in LLM summaries with your preferred provider.</li>
+    <li><strong>Images.</strong> Combine nilearn anatomical figures with AI prompts or swap in Stable Diffusion/Claude/GPT image backends.</li>
+    <li><strong>Outputs.</strong> Choose the working directory, export format, and whether to emit batch-friendly CSV/JSON bundles.</li>
+  </ol>
+  <p>
+    The right panel mirrors every change: YAML preview (copy/download), the standard YAML-driven CLI command, a direct “no YAML” command,
+    and a template/import drawer for round-tripping configs.
+  </p>
+</section>
 
-## Why the web interface?
-
-The web interface is a no‑install way to compose and preview a complete Coord2Region run. It mirrors the Python CLI and exposes all key options as a guided builder, so you can:
-
-- Prototype analyses quickly without writing code.
-- Export the exact YAML and CLI commands you can run locally or in pipelines.
-- Share frozen configurations with collaborators for reproducibility.
-- Use presets to learn the tool (single peak lookup, multiple peaks with summaries, region → coords, full insights).
-
-If you already use the Python package, the web interface doubles as a “config authoring” surface — you can create a YAML here, check that it’s valid, and run it from your terminal with the generated commands.
-
-## Config Builder walkthrough
-
-The builder walks you through a few focused sections. Each choice live‑updates the YAML preview, the standard CLI command (YAML‑driven), and the direct “no YAML” sub‑commands.
-
-1. Inputs — Choose between coordinates or region names.
-   - Coordinates: paste triples (x, y, z) or point to a CSV file.
-   - Region names: provide one name per line (single atlas enforced for clarity).
-2. Atlas — Select one or more atlases. Groups are collapsible; search helps filter names. Per‑atlas parameters are supported when needed.
-3. Studies — Toggle study retrieval from open sources and configure the search radius. Great for gathering related literature around your peaks.
-4. Summaries — Use LLMs to synthesize quick, human‑readable summaries. Pick models, tokens, and optional custom prompts. Summaries imply studies because they use study context.
-5. Images — Optionally produce images per input using AI (prompt templates or custom) and/or nilearn for anatomical context. Choose backend and model as needed.
-6. Outputs — Configure export format/name and working directory; these settings control file outputs when you run the CLI.
-
-On the right, you’ll find:
-
-- YAML preview — a live config you can copy or download.
-- CLI command — the standard coord2region command that consumes a YAML file.
-- Direct CLI command — a convenience sub‑command based on your selections; no YAML required.
-- Templates & Import — load teaching presets or import a YAML you saved earlier to continue where you left off.
-
-## Phase Two: Cloud Runner (coming soon)
-
-Today, the builder is focused on generating valid configurations and commands you run locally. Phase Two will add an optional cloud runner: authenticate, submit your config, and let a managed job produce outputs (YAML/JSON/CSV/images) you can browse or download — no local setup required.
-
-- Queue a run from your browser; check job status and logs.
-- Persist results for sharing with co‑authors or students.
-- Bring your own API keys for AI providers when summaries/images are enabled.
-
-Until then, the web app remains the fastest way to craft correct configs and preview commands with guardrails.
+<section class="cloud-runner">
+  <h2>Cloud Runner</h2>
+  <p>
+    Prefer not to run anything locally? Authenticate, submit a config, and let the hosted Cloud Runner execute the full pipeline (labels, studies, summaries, images). You can monitor jobs, stream logs, and download results (YAML/JSON/CSV/images) right from the browser.
+  </p>
+  <div class="card-grid">
+    <article>
+      <h3>Queue & monitor</h3>
+      <p>Drop a YAML, pick your providers, and watch progress in real time. Cancel or rerun jobs with a click.</p>
+    </article>
+    <article>
+      <h3>Shareable outputs</h3>
+      <p>Results stick around so co-authors and students can inspect the same artefacts without juggling local environments.</p>
+    </article>
+    <article>
+      <h3>BYO credentials</h3>
+      <p>Use your own AI keys securely. Summaries and images are powered by the exact providers you choose.</p>
+    </article>
+  </div>
+  <p class="cta">Ready to try it? Open the <a href="{{ '/cloud/' | relative_url }}">Cloud Runner</a> and submit a config.</p>
+</section>
