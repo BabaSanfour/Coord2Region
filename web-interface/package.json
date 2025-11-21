@@ -16,12 +16,12 @@
     "@rjsf/utils": "^5.15.0",
     "@rjsf/validator-ajv8": "^5.15.0",
     "clsx": "^2.1.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.41.1",
+    "@playwright/test": "^1.56.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.5",
     "@types/react": "^18.2.44",
@@ -29,6 +29,6 @@
     "@vitejs/plugin-react": "^4.2.1",
     "gray-matter": "^4.0.3",
     "typescript": "^5.3.3",
-    "vite": "^5.0.10"
+    "vite": "^7.2.4"
   }
 }

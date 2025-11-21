@@ -176,11 +176,20 @@ templates_path = ['_templates']
 # a list of builtin themes.
 #
 html_theme = 'pydata_sphinx_theme'
+html_logo = "_static/images/logo.png"
+html_title = "Coord2Region"
+html_theme_options = {
+    "logo": {
+        "text": "Coord2Region",
+        "image_light": "images/logo.png",
+        "image_dark": "images/logo_darkmode.png",
+    },
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static'] #already done in the setup(app) section
+html_static_path = ['_static']
 # No additional paths are needed for the built HTML output.
 html_extra_path = []
 

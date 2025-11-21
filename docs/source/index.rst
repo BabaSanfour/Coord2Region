@@ -1,19 +1,53 @@
 Coord2Region
 ============
 
-.. raw:: html
+.. list-table::
+   :widths: 32 68
+   :class: landing-hero
 
-   <div class="logo-banner" style="text-align:center;margin:1.5rem 0;">
-     <picture>
-       <source media="(prefers-color-scheme: dark)" srcset="../static/images/logo_darkmode.png">
-       <img src="../static/images/logo.png" alt="Coord2Region logo" style="max-width:420px;width:90%;height:auto;">
-     </picture>
-   </div>
+   * - **Region (Start here)**
 
-**Coord2Region** is your bridge from coordinates to context: atlas regions, related studies, optional AI summaries, and reproducible outputs. It bundles NiMARE, Nilearn, and MNE under a unified CLI + Python interface, plus a companion web builder and cloud runner.
+         - :doc:`Install Coord2Region <install>`
+         - :doc:`Documentation overview <documentation_overview>`
+         - :doc:`API reference <autoapi/index>`
+         - :doc:`Get help & development <support_development>`
 
-Overview
---------
+       **Learn fast**
+
+         - :doc:`Tutorials <tutorials>`
+         - :doc:`Examples gallery <auto_examples/index>`
+         - :doc:`Pipeline tour <pipeline>`
+         - :doc:`Atlas guide <atlases>`
+         - :doc:`Providers & integrations <providers>`
+
+       **Community**
+
+         - :ref:`How to cite <cite-coord2region>`
+         - :ref:`Contribute <contribute>`
+         - :ref:`Contributors <contributors>`
+         - :doc:`Code of Conduct <CODE_OF_CONDUCT>`
+
+     - .. figure:: ../static/images/logo.png
+           :width: 240
+           :alt: Coord2Region logo
+           :align: center
+
+       *Coord2Region* turns MNI coordinates into atlas-backed context, surfaces linked literature, and optionally adds AI-ready summaries. One workflow powers the CLI, Python API, and hosted builder/runner so you can stay reproducible across laptops and browsers.
+
+       No manual atlas juggling: mix NiMARE, Nilearn, and MNE primitives; fetch atlases on demand; map points to names; crosswalk regions to studies; and archive structured YAML/JSON/CSV artefacts for every request.
+
+       Head over to the :doc:`README` for the full release story, or keep scrolling for direct entry points.
+
+What you will find
+------------------
+
+- Delivery-first install guide with environment, config, and validation steps (:doc:`install`).
+- Documentation overview that mirrors the Coord2Region workflow and links every major guide (:doc:`documentation_overview`).
+- A living API reference generated from the codebase (:doc:`autoapi/index`).
+- Tutorials, gallery examples, and providers notes that show how to adapt Coord2Region to your atlases, studies, or hosted environments.
+
+Coord2Region workflow
+---------------------
 
 .. figure:: ../static/images/workflow.jpg
    :alt: Coord2Region workflow overview
@@ -39,84 +73,32 @@ Web interface previews
 
 |ui1| |ui2| |ui3|
 
-Quick Start (Choose Your Path)
-------------------------------
+Paths to explore
+----------------
 
-1. **Install the package** (Python 3.10+):
-
-   .. code-block:: bash
-
-      python -m venv .venv
-      source .venv/bin/activate
-      pip install coord2region
-
-2. **Configure credentials.** Run :mod:`scripts.configure_coord2region` once to create a private ``config/coord2region-config.yaml`` (atlas directories and API keys). Alternatively, set environment variables such as ``OPENAI_API_KEY`` or ``GEMINI_API_KEY``.
-
-3. **Run a CLI recipe.**
-
-   .. code-block:: bash
-
-      # Atlas labels only
-      coord2region coords-to-atlas 30 -22 50 --atlas harvard-oxford
-
-      # Labels + studies + summary (API key required)
-      coord2region coords-to-summary 30 -22 50 --atlas harvard-oxford --model gemini-2.0-flash
-
-      # Region name → coordinates + insights bundle
-      coord2region region-to-insights "Left Amygdala" --atlas harvard-oxford
-
-   All commands emit YAML/JSON/CSV artefacts inside ``coord2region-output/`` by default.
-
-4. **Switch to Python (optional).**
-
-   .. code-block:: python
-
-      from coord2region import AtlasFetcher, AtlasMapper, AIModelInterface, generate_summary
-
-      atlas = AtlasFetcher().fetch_atlas("harvard-oxford")
-      mapper = AtlasMapper("harvard-oxford", atlas["vol"], atlas["hdr"], atlas["labels"])
-      print(mapper.mni_to_region_name([30, -22, 50]))
-
-      ai = AIModelInterface(huggingface_api_key="YOUR_KEY")
-      studies = []  # fetch with coord2region.coord2study helpers
-      print(generate_summary(ai, studies, [30, -22, 50]))
-
-5. **Pick your control surface.**
-
-   - **Builder.** The React/Vite builder at https://babasanfour.github.io/Coord2Region/ mirrors the CLI schema, offers presets, and keeps YAML/CLI previews in sync.
-   - **Cloud Runner.** Already packaged a config? Submit it through the hosted runner, stream logs, and download YAML/JSON/CSV/images without touching a local environment.
-
-Explore More
-------------
-
-- Tutorials and runnable examples are in the gallery below.
-- The user guide covers the end-to-end :mod:`coord2region.pipeline`.
-- The API reference lists public classes and functions.
+- :doc:`tutorials` – start with runnable notebooks for atlas lookups, literature retrieval, and AI-ready summaries.
+- :doc:`auto_examples/index` – browse short recipes you can adapt into pipelines or presentations.
+- :doc:`pipeline` – understand how the CLI, Python API, and hosted runner cooperate.
+- :doc:`atlases` – install, manage, and query supported atlases.
+- :doc:`providers` – configure AI models, data providers, and optional integrations.
+- :doc:`support_development` – discover how to cite Coord2Region, get help, or become a contributor.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Getting Started
+   :caption: Install
 
-   README
+   install
 
 .. toctree::
    :maxdepth: 1
-   :caption: User Guide
+   :caption: Documentation
 
+   documentation_overview
+   tutorials
    pipeline
    atlases
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Tutorials
-
-   tutorials
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Examples
-
-   auto_examples/index
+   providers
+   README
 
 .. toctree::
    :maxdepth: 1
@@ -126,12 +108,8 @@ Explore More
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developer Guide
+   :caption: Get Help & Development
 
+   support_development
    developer_guide
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Roadmap
-
    roadmap
