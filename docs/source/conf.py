@@ -12,8 +12,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import importlib
 import os
 import sys
+import warnings
 from datetime import date
 
 # sys.path.insert(0, os.path.abspath('.'))
@@ -61,6 +63,24 @@ def cleanup_readme(app, exception):
         print(f"Deleted {destination} after build.")
 
 
+def _has_module(module_name: str) -> bool:
+    """Return True if ``module_name`` can be imported in this environment."""
+    try:
+        importlib.import_module(module_name)
+    except ImportError:
+        return False
+    return True
+
+
+def _env_flag(name: str) -> bool:
+    """Interpret environment variables such as ``CI`` or feature flags."""
+    value = os.environ.get(name, "")
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+strict_docs_mode = _env_flag("COORD2REGION_DOCS_STRICT") or _env_flag("CI")
+
+
 def autodoc_skip_member(app, what, name, obj, skip, options):
     """Skip private members and internal loggers (autodoc)."""
     if name.startswith("_") or name in {"logger", "get_logger"}:
@@ -91,7 +111,8 @@ def setup(app):
     app.connect("build-finished", cleanup_readme)
     app.connect("autodoc-skip-member", autodoc_skip_member)
     # Reduce noise in API docs: hide private members and loggers from AutoAPI
-    app.connect("autoapi-skip-member", autoapi_skip_member)
+    if globals().get("autoapi_available", False):
+        app.connect("autoapi-skip-member", autoapi_skip_member)
 
 
 copy_readme()
@@ -124,6 +145,7 @@ extensions = [
     'sphinxcontrib.mermaid',
     'sphinx.ext.napoleon',
     "myst_parser",
+    "sphinx.ext.ifconfig",
 ]
 
 # Allow Markdown files to be used as documentation pages
@@ -175,16 +197,28 @@ templates_path = ['_templates']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pydata_sphinx_theme'
+_theme_missing = (
+    "pydata-sphinx-theme not installed; install coord2region[docs] to build with "
+    "the official theme."
+)
+if _has_module("pydata_sphinx_theme"):
+    html_theme = 'pydata_sphinx_theme'
+else:
+    if strict_docs_mode:
+        raise RuntimeError(_theme_missing)
+    warnings.warn(_theme_missing + " Falling back to the Sphinx default theme locally.")
+    html_theme = 'alabaster'
 html_logo = "_static/images/logo.png"
 html_title = "Coord2Region"
-html_theme_options = {
-    "logo": {
-        "text": "Coord2Region",
-        "image_light": "images/logo.png",
-        "image_dark": "images/logo_darkmode.png",
-    },
-}
+html_theme_options: dict[str, object] = {}
+if html_theme == 'pydata_sphinx_theme':
+    html_theme_options = {
+        "logo": {
+            "text": "Coord2Region",
+            "image_light": "images/logo.png",
+            "image_dark": "images/logo_darkmode.png",
+        },
+    }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -207,18 +241,25 @@ html_extra_path = []
 ###################################################################################################
 
 # Auto API
-extensions += ['autoapi.extension']
+autoapi_available = _has_module("autoapi")
+if autoapi_available:
+    extensions += ['autoapi.extension']
+    autoapi_type = 'python'
+    autoapi_dirs = ["../../coord2region"]
+    autoapi_options = [
+        "members",
+        # Do not include undocumented members to keep API concise
+        # "undoc-members",
+        "show-inheritance",
+        "show-module-summary",
+    ]
+    autoapi_ignore = ["coord2region/__init__.py"]
+    autoapi_template_dir = "_templates/autoapi"
+    autoapi_add_toctree_entry = True
+else:
+    warnings.warn(
+        "sphinx-autoapi not installed; skipping API reference generation. "
+        "Install coord2region[docs] to re-enable AutoAPI."
+    )
 
-autoapi_type = 'python'
-autoapi_dirs = ["../../coord2region"]
-autoapi_options = [
-    "members",
-    # Do not include undocumented members to keep API concise
-    # "undoc-members",
-    "show-inheritance",
-    "show-module-summary",
-]
-autoapi_ignore = ["coord2region/__init__.py"]
-autoapi_template_dir = "_templates/autoapi"
-autoapi_add_toctree_entry = True
 extensions += ['sphinx.ext.viewcode']  # see https://github.com/readthedocs/sphinx-autoapi/issues/422

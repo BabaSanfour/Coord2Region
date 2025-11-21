@@ -5,14 +5,16 @@ Coord2Region
    :widths: 32 68
    :class: landing-hero
 
-   * - **Region (Start here)**
+   * - **Start quickly**
 
+         - **Version:** |release|
          - :doc:`Install Coord2Region <install>`
          - :doc:`Documentation overview <documentation_overview>`
-         - :doc:`API reference <autoapi/index>`
+         - :doc:`Release notes & story <README>`
+         - :doc:`API reference <api_reference>`
          - :doc:`Get help & development <support_development>`
 
-       **Learn fast**
+       **Dive deeper**
 
          - :doc:`Tutorials <tutorials>`
          - :doc:`Examples gallery <auto_examples/index>`
@@ -32,19 +34,46 @@ Coord2Region
            :alt: Coord2Region logo
            :align: center
 
-       *Coord2Region* turns MNI coordinates into atlas-backed context, surfaces linked literature, and optionally adds AI-ready summaries. One workflow powers the CLI, Python API, and hosted builder/runner so you can stay reproducible across laptops and browsers.
+       *Coord2Region* turns MNI coordinates into atlas-backed context, links studies, and optionally ships AI-ready summaries. One workflow spans the CLI, Python API, and hosted builder/runner so reproducible YAML/JSON/CSV artefacts follow you from laptops to the cloud.
 
-       No manual atlas juggling: mix NiMARE, Nilearn, and MNE primitives; fetch atlases on demand; map points to names; crosswalk regions to studies; and archive structured YAML/JSON/CSV artefacts for every request.
+Why Coord2Region
+----------------
 
-       Head over to the :doc:`README` for the full release story, or keep scrolling for direct entry points.
+- Mix NiMARE, Nilearn, and MNE primitives without jumping between notebooks, CLIs, or hosted dashboards.
+- Pull atlas labels, related studies, and summaries for a single coordinate or batch datasets in seconds.
+- Export structured artefacts that downstream notebooks, dashboards, and collaborators can trust.
 
-What you will find
+Pick your workflow
 ------------------
 
-- Delivery-first install guide with environment, config, and validation steps (:doc:`install`).
-- Documentation overview that mirrors the Coord2Region workflow and links every major guide (:doc:`documentation_overview`).
-- A living API reference generated from the codebase (:doc:`autoapi/index`).
-- Tutorials, gallery examples, and providers notes that show how to adapt Coord2Region to your atlases, studies, or hosted environments.
+1. **CLI recipes** (:doc:`pipeline`) – define coordinates plus providers, run ``coord2region`` commands, and capture artefacts inside ``coord2region-output/``.
+2. **Python API** (:doc:`README`) – embed atlas mapping, provider lookups, or AI summarisation in your own packages or notebooks.
+3. **Builder web app** (:doc:`providers`) – describe inputs via forms that mirror the CLI schema, preview YAML/CLI, and export ready-to-run configs.
+4. **Hosted runner** (:doc:`support_development`) – upload finished configs, stream logs, and download the resulting archives without managing compute.
+
+Documentation map
+-----------------
+
+**Install & configure**
+   - :doc:`install` – virtual environments, package install, verification.
+   - :doc:`providers` – API keys, AI providers, hosted integrations.
+   - :doc:`README` – release overview with screenshots and features.
+
+**Learn by doing**
+   - :doc:`documentation_overview` – section navigator inspired by MNE’s docs.
+   - :doc:`tutorials` – notebook-style walkthroughs for complete pipelines.
+   - :doc:`auto_examples/index` – short executable recipes for specific tasks.
+   - :doc:`pipeline` – what happens between input coordinates and final artefacts.
+
+**Atlases & data**
+   - :doc:`atlases` – shipped atlases, download locations, and custom data.
+   - :doc:`providers` – configure study sources, AI models, and images.
+
+**Reference & community**
+   - :doc:`api_reference` – generated API docs (requires ``sphinx-autoapi``).
+   - :doc:`support_development` – help channels, citation text, contribution paths.
+   - :doc:`developer_guide` – dev install, testing, release process.
+   - :doc:`roadmap` – current priorities and future-facing milestones.
 
 Coord2Region workflow
 ---------------------
@@ -73,42 +102,40 @@ Web interface previews
 
 |ui1| |ui2| |ui3|
 
-Paths to explore
-----------------
+Community & support
+-------------------
 
-- :doc:`tutorials` – start with runnable notebooks for atlas lookups, literature retrieval, and AI-ready summaries.
-- :doc:`auto_examples/index` – browse short recipes you can adapt into pipelines or presentations.
-- :doc:`pipeline` – understand how the CLI, Python API, and hosted runner cooperate.
-- :doc:`atlases` – install, manage, and query supported atlases.
-- :doc:`providers` – configure AI models, data providers, and optional integrations.
-- :doc:`support_development` – discover how to cite Coord2Region, get help, or become a contributor.
+- Stay aligned with :doc:`support_development` for issue templates, conduct, and help links.
+- Cite Coord2Region via :download:`CITATION.cff <../../CITATION.cff>` and showcase your work on the :ref:`contributors` list.
+- Plan contributions through :doc:`developer_guide` and :doc:`roadmap`.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Install
+   :caption: Install & Configure
 
    install
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Documentation
-
-   documentation_overview
-   tutorials
-   pipeline
-   atlases
    providers
    README
 
 .. toctree::
    :maxdepth: 1
-   :caption: API Reference
+   :caption: Guides & Workflows
 
-   autoapi/index
+   documentation_overview
+   tutorials
+   pipeline
+   atlases
 
 .. toctree::
    :maxdepth: 1
-   :caption: Get Help & Development
+   :caption: Examples & Reference
+
+   auto_examples/index
+   api_reference
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Community & Planning
 
    support_development
    developer_guide
