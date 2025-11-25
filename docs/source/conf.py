@@ -133,6 +133,12 @@ intersphinx_mapping = {
 copybutton_prompt_text = r">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
 
+# Linkcheck configuration to avoid flaky CI failures
+linkcheck_timeout = 60
+linkcheck_ignore = [
+    r"https://www\.contributor-covenant\.org/.*",
+]
+
 # Gallery Configuration
 examples_dir = os.path.abspath(os.path.join(curdir, "..", "..", "examples"))
 sphinx_gallery_conf = {
@@ -142,16 +148,18 @@ sphinx_gallery_conf = {
     "gallery_dirs": "auto_examples",
     "filename_pattern": "^((?!sgskip).)*$",
     "backreferences_dir": "generated",
-    "run_stale_examples": True,
 }
 
-# Disable gallery runs unless explicitly requested
-if not _env_flag("COORD2REGION_DOCS_RUN_GALLERY"):
-    sphinx_gallery_conf["plot_gallery"] = False
-    sphinx_gallery_conf["run_stale_examples"] = False
+# Should the examples be executed?
+run_gallery = True
 if os.environ.get("READTHEDOCS") == "True":
-    sphinx_gallery_conf["plot_gallery"] = False
-    sphinx_gallery_conf["run_stale_examples"] = False
+    run_gallery = False
+elif os.environ.get("COORD2REGION_DOCS_RUN_GALLERY"):
+    # Allow explicit enable/disable via env var (truthy runs, falsy skips)
+    run_gallery = _env_flag("COORD2REGION_DOCS_RUN_GALLERY")
+
+sphinx_gallery_conf["plot_gallery"] = run_gallery
+sphinx_gallery_conf["run_stale_examples"] = run_gallery
 
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "_ideas"]
 templates_path = ["_templates"]

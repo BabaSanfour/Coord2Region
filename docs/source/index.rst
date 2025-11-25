@@ -52,7 +52,7 @@ Coord2Region
 
             **Current version** |release|
 
-         .. image:: /_static/images/logo.png
+         .. image:: _static/images/logo.png
             :class: hero-logo__img hero-logo__img--light
             :alt: Coord2Region logo
             :width: 260
