@@ -1,4 +1,10 @@
-"""Generate an atlas-aware summary for a coordinate using Coord2Region."""
+"""
+Generate an atlas-aware summary for a coordinate using Coord2Region.
+====================================================================
+
+Runs :func:`coord2region.pipeline.run_pipeline` to fetch atlas context and
+studies, then renders a concise LLM summary tailored to the requested target.
+"""
 
 from __future__ import annotations
 

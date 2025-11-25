@@ -41,6 +41,7 @@ docs/_build/
 make.bat
 docs/source/generated
 docs/source/auto_examples
+docs/source/autoapi
 coord2region/_version.py
 
 # Web interface tooling

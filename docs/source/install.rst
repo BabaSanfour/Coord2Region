@@ -1,55 +1,60 @@
-Install Coord2Region
-====================
+Install
+=======
 
-Coord2Region ships on PyPI and targets Python 3.10+. Follow the steps below to create an isolated workspace, install the package, and validate that both the CLI and helper scripts can reach your atlases or API credentials.
+Coord2Region ships on PyPI and targets Python 3.10 or newer. This landing page
+helps you choose the best installation path, configure atlases and AI
+providers, and verify that both the CLI and Python API work in your preferred
+environment.
 
-1. Create and activate a virtual environment.
+If you are new to Python, start with **Virtual environment + pip**. If you
+already use Anaconda/conda, see **Conda / mamba environment**. Each topic below
+dives into a single goal so you can jump straight to the step you need.
 
-   .. code-block:: bash
 
-      python -m venv .venv
-      source .venv/bin/activate
-      python -m pip install --upgrade pip
+System requirements
+~~~~~~~~~~~~~~~~~~~
 
-2. Install Coord2Region from PyPI.
+Coord2Region is a pure Python package built on the scientific Python stack and
+NiMARE/Nilearn/MNE. The installer pulls in required dependencies automatically,
+but you should confirm the following prerequisites before installing:
 
-   .. code-block:: bash
+- **Python**: 3.10 or newer (64-bit recommended).
+- **Operating systems**: Linux, macOS, and Windows are supported.
+- **Disk space**: set aside a few GB if you plan to cache multiple atlases,
+  NiMARE datasets, and example data.
+- **Optional AI providers**: API keys for services such as OpenAI, Gemini,
+  Anthropic, or Hugging Face are required only if you intend to use the
+  AI-powered summaries or image generation tools.
 
-      pip install coord2region
+.. note::
 
-3. Configure atlas locations and provider credentials once. The helper script writes ``config/coord2region-config.yaml`` so repeated CLI/Python runs stay in sync.
+   Coord2Region uses the same scientific stack as many neuroimaging tools.
+   Installing into a fresh environment avoids version conflicts with existing
+   projects and keeps dependencies reproducible.
 
-   .. code-block:: bash
+.. _install-next-steps:
 
-      python -m scripts.configure_coord2region
+Next steps
+~~~~~~~~~~
 
-   You can override any value later with environment variables such as ``OPENAI_API_KEY``, ``GEMINI_API_KEY``, or ``COORD2REGION_ATLAS_DIR``.
+Once Coord2Region is installed and verified:
 
-4. Verify the installation.
+- See the :doc:`documentation` for a tour of core concepts and
+  features.
+- Explore :doc:`Tutorials <documentation/tutorials>` for end-to-end walkthroughs.
+- Browse the :doc:`Examples gallery <auto_examples/index>` for concrete code
+  snippets and multi-atlas workflows.
+- Visit :doc:`Support & development <get_help>` if you want to report issues or
+  contribute new features.
 
-   .. code-block:: bash
+.. toctree::
+   :maxdepth: 2
+   :hidden:
 
-      coord2region --help
-      coord2region list-atlases
-
-   The ``coord2region`` command creates a ``coord2region-output/`` folder the first time it runs. Each recipe stores YAML/JSON/CSV artefacts there for reproducibility.
-
-Developer install
------------------
-
-If you plan to contribute, install Coord2Region from a clone of the repository so editable changes rebuild automatically.
-
-.. code-block:: bash
-
-   git clone https://github.com/babasanfour/Coord2Region.git
-   cd Coord2Region
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -e .[dev]
-
-Useful follow ups
------------------
-
-- Head to the :doc:`documentation_overview` for a map of every guide, tutorial, and reference.
-- Skim the :doc:`README` if you want the full feature tour that appears on the project landing page.
-- Need support or want to contribute? Jump to :doc:`support_development`.
+   install/virtualenv_pip
+   install/conda_mamba
+   install/config_workdirs
+   install/ide_integration
+   install/verification
+   install/upgrading
+   install/troubleshooting

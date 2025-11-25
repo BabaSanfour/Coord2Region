@@ -90,6 +90,27 @@ with patch("coord2region.cli.run_pipeline", return_value=[PipelineResult(coordin
     assert out[0]["summary"] == "CFG"
 
 
+def test_cli_version_flag_reports_package_version():
+    code = """
+from coord2region.cli import main
+main(["--version"])
+"""
+    result = _run(code)
+    assert result.returncode == 0
+    assert result.stdout.strip().startswith("coord2region ")
+
+
+def test_cli_list_atlases_flag_outputs_names(capsys):
+    with patch("coord2region.cli.AtlasFetcher") as mock_fetcher:
+        mock_fetcher.return_value.list_available_atlases.return_value = [
+            "aal",
+            "harvard-oxford",
+        ]
+        main(["--list-atlases"])
+    captured = capsys.readouterr()
+    assert captured.out.strip().splitlines() == ["aal", "harvard-oxford"]
+
+
 def test_run_from_config_validation_error(tmp_path, capsys):
     cfg = tmp_path / "cfg.yml"
     cfg.write_text(

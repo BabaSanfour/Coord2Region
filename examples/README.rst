@@ -3,89 +3,87 @@
 Examples Gallery
 ================
 
-Here we show some exemplary use cases for Coord2Region.
+When you have a focused question—"How do I call this provider?" or "How can I 
+dump outputs as CSV?"—browse the gallery below. Each card is a runnable 
+recipe showing the exact CLI flags or Python calls needed for a specific task.
 
-.. contents:: Contents
-   :local:
-   :depth: 2
+.. _examples_mapping:
 
-Module examples
----------------
+Anatomical Mapping
+------------------
 
-Demonstrations of individual modules.
+Basic recipes for querying atlases. These examples demonstrate how to retrieve 
+labels from standard atlases (Harvard-Oxford, AAL) and FreeSurfer parcellations.
 
-.. toctree::
-   :maxdepth: 1
+**Standard Atlases**
 
-   plot_fetching
-   plot_atlas_mapping
-   plot_coord2study
-   plot_ai_interface
-   plot_pipeline_basic
-   custom_provider_example
-   example_0_simple_atlas
-   example_1_harvard-oxford
-   example_2_batch_harvard
-   example_3_multi
-   example_4_study
-   example_5_multi_atlas_coords_and_studies_querying
-   example_6_dataset_cache
-   example_7_ai_providers
-   example_8_conditional_provider_activation
-   example_9_output_formats
-   example_10_image_providers
-   example_11_local_huggingface
-   example_12_nilearn_backend
-   example_13_aparc
-   example_14_batch_aparc
-   example_15_multi_aparc
+.. minigallery:: ../../examples/example_0_simple_atlas.py ../../examples/example_1_harvard-oxford.py ../../examples/example_2_batch_harvard.py ../../examples/example_3_multi.py ../../examples/plot_atlas_mapping.py
+   :add-heading:
 
-End-to-end workflows
+**FreeSurfer & Surface**
+
+.. minigallery:: ../../examples/example_13_aparc.py ../../examples/example_14_batch_aparc.py ../../examples/example_15_multi_aparc.py
+   :add-heading:
+
+.. _examples_literature_ai:
+
+Literature & AI Integration
+---------------------------
+
+Examples that query external providers. These scripts mix local atlas data with 
+Neurosynth/NeuroQuery lookups and Generative AI summaries.
+
+.. minigallery:: ../../examples/plot_coord2study.py ../../examples/plot_ai_interface.py ../../examples/example_4_study.py ../../examples/example_5_multi_atlas_coords_and_studies_querying.py ../../examples/example_7_ai_providers.py ../../examples/example_10_image_providers.py ../../examples/custom_provider_example.py
+   :add-heading:
+
+.. _examples_advanced:
+
+Advanced Configuration
+----------------------
+
+Deep dives into caching, conditional execution, backend switching, and 
+formatting outputs.
+
+.. minigallery:: ../../examples/example_6_dataset_cache.py ../../examples/example_8_conditional_provider_activation.py ../../examples/example_9_output_formats.py ../../examples/example_11_local_huggingface.py ../../examples/example_12_nilearn_backend.py ../../examples/plot_fetching.py
+   :add-heading:
+
+.. _examples_end_to_end:
+
+End-to-End Workflows
 --------------------
 
-Complete workflows that integrate multiple components. Each example checks for the required data before running.
+Complete pipelines integrating multiple components.
 
-.. toctree::
-   :maxdepth: 1
+.. minigallery:: ../../examples/plot_fmri_coord_to_region.py ../../examples/plot_meg_source_localization.py ../../examples/plot_ieeg_electrode_localization.py ../../examples/example_pipeline.py ../../examples/plot_pipeline_basic.py
+   :add-heading:
 
-   plot_fmri_coord_to_region
-   plot_meg_source_localization
-   plot_ieeg_electrode_localization
-   example_pipeline
+Data Management
+---------------
 
-Data download
--------------
+.. topic:: Download Requirements
 
-Some examples require datasets to be present locally.
+    Some examples require datasets to be present locally. Coord2Region tries to 
+    fetch these automatically, but you can also manage them manually.
 
-- MEG example (MNE "sample" dataset):
+    **Electrophysiology Datasets (MNE)**
+    
+    Examples using MNE (MEG/iEEG) rely on the ``sample`` and ``epilepsy_ecog`` datasets.
 
-  .. code-block:: python
+    .. code-block:: python
 
-      import mne
-      mne.datasets.sample.data_path()  # downloads to the default MNE data folder
+        import mne
+        # Downloads to ~/mne_data by default
+        mne.datasets.sample.data_path()
+        mne.datasets.epilepsy_ecog.data_path()
 
-- iEEG example (MNE epilepsy ECoG dataset):
+    **Literature Datasets (NiMARE/Neurosynth)**
+    
+    Coordinate-to-study lookups require cached database files. Use the helper 
+    function to pre-fetch them:
 
-  .. code-block:: python
+    .. code-block:: python
 
-      import mne
-      mne.datasets.epilepsy_ecog.data_path()
-
-You can control the download location via the ``MNE_DATA`` environment variable
-or by passing ``path=...`` to ``data_path()``. Examples will look for the
-subjects directory (when needed) under ``<data_path>/subjects``.
-
-Coord2Study datasets (NiMARE)
------------------------------
-
-Examples that query studies (e.g., coordinate → study lookup) rely on
-NiMARE-compatible datasets such as Neurosynth or NeuroQuery. Use the helper
-below to fetch datasets to a cache directory before running examples:
-
-.. code-block:: python
-
-    from coord2region.coord2study import fetch_datasets
-    fetch_datasets(data_dir="~/.coord2region_examples", sources=["neurosynth"])  # or ["neuroquery"]
-
-The first run downloads and converts datasets; subsequent runs reuse the cache.
+        from coord2region.coord2study import fetch_datasets
+        
+        # Downloads to ~/.coord2region_examples
+        fetch_datasets(data_dir="~/.coord2region_examples", sources=["neurosynth"])

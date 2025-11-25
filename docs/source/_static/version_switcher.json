@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Latest",
+    "version": "latest",
+    "url": "https://coord2region.readthedocs.io/en/latest/"
+  },
+  {
+    "name": "Stable (0.1)",
+    "version": "stable",
+    "url": "https://coord2region.readthedocs.io/en/stable/"
+  },
+  {
+    "name": "Local 0.1",
+    "version": "0.1",
+    "url": "http://localhost:8000/"
+  }
+]

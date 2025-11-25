@@ -1,142 +1,115 @@
 Coord2Region
 ============
 
-.. list-table::
-   :widths: 32 68
-   :class: landing-hero
+.. |icon-tutorials| raw:: html
 
-   * - **Start quickly**
+   <i class="fa-solid fa-graduation-cap" aria-hidden="true"></i>
 
-         - **Version:** |release|
-         - :doc:`Install Coord2Region <install>`
-         - :doc:`Documentation overview <documentation_overview>`
-         - :doc:`Release notes & story <README>`
-         - :doc:`API reference <api_reference>`
-         - :doc:`Get help & development <support_development>`
+.. |icon-examples| raw:: html
 
-       **Dive deeper**
+   <i class="fa-solid fa-flask" aria-hidden="true"></i>
 
-         - :doc:`Tutorials <tutorials>`
-         - :doc:`Examples gallery <auto_examples/index>`
-         - :doc:`Pipeline tour <pipeline>`
-         - :doc:`Atlas guide <atlases>`
-         - :doc:`Providers & integrations <providers>`
+.. |icon-pipeline| raw:: html
 
-       **Community**
+   <i class="fa-solid fa-cubes" aria-hidden="true"></i>
 
-         - :ref:`How to cite <cite-coord2region>`
-         - :ref:`Contribute <contribute>`
-         - :ref:`Contributors <contributors>`
-         - :doc:`Code of Conduct <CODE_OF_CONDUCT>`
+.. |icon-atlas| raw:: html
 
-     - .. figure:: ../static/images/logo.png
-           :width: 240
-           :alt: Coord2Region logo
-           :align: center
+   <i class="fa-solid fa-map" aria-hidden="true"></i>
 
-       *Coord2Region* turns MNI coordinates into atlas-backed context, links studies, and optionally ships AI-ready summaries. One workflow spans the CLI, Python API, and hosted builder/runner so reproducible YAML/JSON/CSV artefacts follow you from laptops to the cloud.
+.. |icon-builder| raw:: html
 
-Why Coord2Region
-----------------
+   <i class="fa-solid fa-display" aria-hidden="true"></i>
 
-- Mix NiMARE, Nilearn, and MNE primitives without jumping between notebooks, CLIs, or hosted dashboards.
-- Pull atlas labels, related studies, and summaries for a single coordinate or batch datasets in seconds.
-- Export structured artefacts that downstream notebooks, dashboards, and collaborators can trust.
+.. |icon-brain| raw:: html
 
-Pick your workflow
-------------------
+   <i class="fa-solid fa-brain" aria-hidden="true"></i>
 
-1. **CLI recipes** (:doc:`pipeline`) – define coordinates plus providers, run ``coord2region`` commands, and capture artefacts inside ``coord2region-output/``.
-2. **Python API** (:doc:`README`) – embed atlas mapping, provider lookups, or AI summarisation in your own packages or notebooks.
-3. **Builder web app** (:doc:`providers`) – describe inputs via forms that mirror the CLI schema, preview YAML/CLI, and export ready-to-run configs.
-4. **Hosted runner** (:doc:`support_development`) – upload finished configs, stream logs, and download the resulting archives without managing compute.
+.. |icon-cite| raw:: html
 
-Documentation map
------------------
+   <i class="fa-solid fa-bullhorn" aria-hidden="true"></i>
 
-**Install & configure**
-   - :doc:`install` – virtual environments, package install, verification.
-   - :doc:`providers` – API keys, AI providers, hosted integrations.
-   - :doc:`README` – release overview with screenshots and features.
+.. |icon-contrib| raw:: html
 
-**Learn by doing**
-   - :doc:`documentation_overview` – section navigator inspired by MNE’s docs.
-   - :doc:`tutorials` – notebook-style walkthroughs for complete pipelines.
-   - :doc:`auto_examples/index` – short executable recipes for specific tasks.
-   - :doc:`pipeline` – what happens between input coordinates and final artefacts.
+   <i class="fa-solid fa-hands-helping" aria-hidden="true"></i>
 
-**Atlases & data**
-   - :doc:`atlases` – shipped atlases, download locations, and custom data.
-   - :doc:`providers` – configure study sources, AI models, and images.
+.. |icon-contributors| raw:: html
 
-**Reference & community**
-   - :doc:`api_reference` – generated API docs (requires ``sphinx-autoapi``).
-   - :doc:`support_development` – help channels, citation text, contribution paths.
-   - :doc:`developer_guide` – dev install, testing, release process.
-   - :doc:`roadmap` – current priorities and future-facing milestones.
+   <i class="fa-solid fa-star" aria-hidden="true"></i>
 
-Coord2Region workflow
----------------------
+.. |icon-coc| raw:: html
 
-.. figure:: ../static/images/workflow.jpg
-   :alt: Coord2Region workflow overview
-   :align: center
-   :width: 90%
+   <i class="fa-solid fa-scroll" aria-hidden="true"></i>
 
-   High-level workflow from inputs to outputs.
 
-Web interface previews
-----------------------
+.. container:: hero-panel
 
-.. |ui1| image:: ../static/images/web-interface-ui-builder1.png
-   :alt: Config Builder – inputs and atlas
-   :width: 31%
+   .. container:: hero-surface
 
-.. |ui2| image:: ../static/images/web-interface-ui-builder2.png
-   :alt: Config Builder – outputs and providers
-   :width: 31%
+      .. container:: hero-logo
 
-.. |ui3| image:: ../static/images/web-interface-ui-runner.png
-   :alt: Runner preview
-   :width: 31%
+         .. container:: hero-copy__eyebrow
 
-|ui1| |ui2| |ui3|
+            **Current version** |release|
 
-Community & support
--------------------
+         .. image:: /_static/images/logo.png
+            :class: hero-logo__img hero-logo__img--light
+            :alt: Coord2Region logo
+            :width: 260
+            :align: center
 
-- Stay aligned with :doc:`support_development` for issue templates, conduct, and help links.
-- Cite Coord2Region via :download:`CITATION.cff <../../CITATION.cff>` and showcase your work on the :ref:`contributors` list.
-- Plan contributions through :doc:`developer_guide` and :doc:`roadmap`.
+      .. container:: hero-copy
+
+         .. container:: hero-copy__text
+
+            *Coord2Region* maps 3D brain coordinates (e.g., MNI or Talairach)
+            to anatomical regions across multiple atlases and connects them to
+            meta-analytic resources via NiMARE, Neurosynth, and NeuroQuery.
+
+            Optional large language model (LLM) utilities can summarize linked
+            studies and generate illustrative views of queried regions. These
+            AI-assisted features are designed to support interpretation and
+            exploration, while remaining complementary to established
+            neuroimaging workflows.
+
+         .. container:: hero-actions
+
+            - |icon-examples| :doc:`Examples <auto_examples/index>`
+            - |icon-tutorials| :doc:`Tutorials <documentation/tutorials>`
+            - |icon-coc| :doc:`Code of Conduct <documentation/coc>`
+            - |icon-cite| :doc:`Cite <documentation/citation>`
+            - |icon-contrib| :doc:`Contribute <developer_guide>`
+            - |icon-contributors| :doc:`Contributors <documentation/contributors>`
+
+
+   .. container:: hero-highlights
+
+      .. container:: hero-highlight
+
+         |icon-pipeline| :doc:`Reproducible pipeline <documentation/pipeline>`
+
+            An easy-to-use, configurable pipeline that runs
+            atlas lookups, studies retrieval, and AI tools.
+
+      .. container:: hero-highlight
+
+         |icon-atlas| :doc:`Atlases <documentation/atlases>`
+
+            Translate coordinates into anatomical labels across +20
+            atlases.
+
+      .. container:: hero-highlight
+
+         |icon-builder| :doc:`Interactive web interface <documentation/web_interface>`
+
+            A Web-based configuration builder and a cloud platform to run Coord2Region pipelines.
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Install & Configure
+   :hidden:
+   :maxdepth: 2
 
    install
-   providers
-   README
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Guides & Workflows
-
-   documentation_overview
-   tutorials
-   pipeline
-   atlases
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Examples & Reference
-
-   auto_examples/index
+   documentation
    api_reference
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Community & Planning
-
-   support_development
+   get_help
    developer_guide
-   roadmap

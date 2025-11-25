@@ -17,11 +17,29 @@ from dataclasses import asdict
 from typing import Iterable, List, Sequence, Dict, Optional
 import numbers
 
+from importlib import metadata as importlib_metadata
+
 import pandas as pd
 import yaml
 
 from .pipeline import run_pipeline
 from .config import Coord2RegionConfig, ValidationError
+from .fetching import AtlasFetcher
+
+
+def _package_version() -> str:
+    """Return the installed Coord2Region version string."""
+    try:
+        return importlib_metadata.version("coord2region")
+    except importlib_metadata.PackageNotFoundError:  # pragma: no cover - dev installs
+        return "0+unknown"
+
+
+def _print_available_atlases() -> None:
+    """Print the known atlas identifiers."""
+    fetcher = AtlasFetcher()
+    for name in fetcher.list_available_atlases():
+        print(name)
 
 
 def _parse_coord(text: str) -> List[float]:
@@ -623,6 +641,17 @@ def run_from_config(path: str, *, dry_run: bool = False) -> None:
 def create_parser() -> argparse.ArgumentParser:
     """Create the top-level argument parser for the CLI."""
     parser = argparse.ArgumentParser(prog="coord2region")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_package_version()}",
+        help="Show the installed coord2region version and exit",
+    )
+    parser.add_argument(
+        "--list-atlases",
+        action="store_true",
+        help="List bundled atlas identifiers and exit",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     p_run = subparsers.add_parser(
@@ -734,6 +763,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     """Entry point for the ``coord2region`` console script."""
     parser = create_parser()
     args = parser.parse_args(argv)
+
+    if getattr(args, "list_atlases", False):
+        _print_available_atlases()
+        return
 
     if not args.command:
         parser.print_help()

@@ -1,4 +1,11 @@
-"""Generate an AI image and a deterministic Nilearn reference for a coordinate."""
+"""
+Generate an AI image and a deterministic Nilearn reference for a coordinate.
+============================================================================
+
+This workflow runs :func:`coord2region.pipeline.run_pipeline` to collect atlas
+labels, nearby studies, and AI text summaries, then generates both an AI image
+and a deterministic Nilearn visualization for the target coordinate.
+"""
 
 from __future__ import annotations
 

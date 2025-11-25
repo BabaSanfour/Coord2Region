@@ -51,6 +51,7 @@ docs = [
     "insegel",
     "myst-parser",
     "pydata-sphinx-theme",
+    "packaging",
     "sphinx>=4.0.0",
     "sphinx-autoapi",
     "sphinx-copybutton",

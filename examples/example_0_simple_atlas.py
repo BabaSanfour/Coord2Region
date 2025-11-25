@@ -1,4 +1,4 @@
-"""Basic usage of :class:`coord2region.coord2region.AtlasMapper`
+"""Basic usage of :class:`AtlasMapper`
 ================================================================
 
 This example converts between coordinate systems and queries brain regions.

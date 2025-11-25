@@ -9,8 +9,8 @@
 
 <div align="left" style="display:flex;gap:1rem;align-items:center;">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/static/images/logo_darkmode.png">
-    <img alt="Coord2Region logo" src="docs/static/images/logo.png" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/source/_static/images/logo_darkmode.png">
+    <img alt="Coord2Region logo" src="docs/source/_static/images/logo.png" width="300">
   </picture>
   <p style="margin:0;">
     <strong>Coord2Region</strong> maps brain coordinates (or atlas region names) to anatomical labels, nearby studies, LLM summaries, and optional AI-generated images. It combines NiMARE, Nilearn, and MNE under a single CLI/Python API and ships with a companion web interface for configuration authoring.
@@ -92,7 +92,7 @@ The web interface mirrors the CLI schema and lives at [babasanfour.github.io/Coo
 - Presets to learn common workflows (single peak lookup, region → coords, multi-peak insights).
 - Import/export so you can iterate on a config in the browser and run the CLI locally.
 
-| ![Config Builder – inputs and atlas](docs/static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](docs/static/images/web-interface-ui-builder2.png) | ![Runner preview](docs/static/images/web-interface-ui-runner.png) |
+| ![Config Builder – inputs and atlas](docs/source/_static/images/web-interface-ui-builder1.png) | ![Config Builder – outputs and providers](docs/source/_static/images/web-interface-ui-builder2.png) | ![Runner preview](docs/source/_static/images/web-interface-ui-runner.png) |
 | :--: | :--: | :--: |
 | Builder (inputs & atlas) | Builder (outputs & providers) | Runner |
 
@@ -110,7 +110,7 @@ To preview or hack on the web stack locally, follow [`web-interface/README.md`](
 A compact overview of the Coord2Region pipeline: shows how inputs (coordinates or region names) are mapped to atlas labels, linked to study results, optionally enriched by AI summaries/images, and exported as reproducible artifacts.
 
 <div align="center">
-    <img src="docs/static/images/workflow.jpg" alt="Coord2Region workflow" width="800">
+    <img src="docs/source/_static/images/workflow.jpg" alt="Coord2Region workflow" width="800">
 </div>
 
 [license]: LICENSE

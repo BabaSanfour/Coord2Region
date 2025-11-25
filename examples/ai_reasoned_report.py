@@ -1,4 +1,11 @@
-"""Build a structured reasoned report with narrative and machine-readable JSON."""
+"""
+Build a structured reasoned report with narrative and machine-readable JSON.
+============================================================================
+
+This script combines atlas/study lookups with :func:`coord2region.ai_reports`
+helpers to produce a narrative plus a strict JSON summary for downstream
+systems.
+"""
 
 from __future__ import annotations
 

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Coord2Region, please cite the Zenodo preprint."
+authors:
+  - family-names: Abdelhedi
+    given-names: Hamza
+  - family-names: Mantilla-Ramos
+    given-names: Yorguin-Jose
+  - family-names: Esmaeili
+    given-names: Sina
+  - family-names: Pascarella
+    given-names: Annalisa
+  - family-names: Hadid
+    given-names: Vanessa
+  - family-names: Jerbi
+    given-names: Karim
+title: "Coord2Region"
+doi: 10.5281/zenodo.15048848
+url: https://zenodo.org/records/15048848
