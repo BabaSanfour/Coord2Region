@@ -31,14 +31,15 @@ def _env_flag(name: str) -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
-# Require the official theme/API docs on CI/ReadTheDocs unless explicitly opting
-# into local fallbacks.
+# Documentation builds use the official theme by default. Developers may opt
+# into the bare-bones fallback by setting COORD2REGION_DOCS_ALLOW_FALLBACK=1.
+allow_theme_fallback = _env_flag("COORD2REGION_DOCS_ALLOW_FALLBACK")
 strict_docs_mode = (
     _env_flag("COORD2REGION_DOCS_STRICT")
     or _env_flag("CI")
     or os.environ.get("READTHEDOCS") == "True"
+    or not allow_theme_fallback
 )
-allow_theme_fallback = _env_flag("COORD2REGION_DOCS_ALLOW_FALLBACK")
 
 
 def autodoc_skip_member(app, what, name, obj, skip, options):  # noqa: ARG001
@@ -195,8 +196,12 @@ else:
     )
 
 if theme_error:
-    if strict_docs_mode and not allow_theme_fallback:
-        raise RuntimeError(theme_error)
+    if strict_docs_mode:
+        raise RuntimeError(
+            theme_error
+            + " Set COORD2REGION_DOCS_ALLOW_FALLBACK=1 to preview with the "
+              "minimal theme."
+        )
     warnings.warn(theme_error + " Falling back to Sphinx's default theme locally.")
 
 html_title = "Coord2Region"

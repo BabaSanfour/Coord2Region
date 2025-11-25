@@ -28,6 +28,31 @@ Environment Setup
       # On zsh (requires quotes to avoid glob errors)
       pip install -e '.[dev,docs]'
 
+Documentation Build
+-------------------
+
+With the development environment in place, build the docs using the themed
+Sphinx site:
+
+.. code-block:: bash
+
+   make -C docs html
+
+The official ``pydata-sphinx-theme`` assets are required by default. If you only
+need a quick preview and do not want to install the docs extras, temporarily
+allow the minimal fallback theme:
+
+.. code-block:: bash
+
+   COORD2REGION_DOCS_ALLOW_FALLBACK=1 make -C docs html
+
+For live-reloading previews, install ``sphinx-autobuild`` (included in the
+``docs`` extra) and run:
+
+.. code-block:: bash
+
+   make -C docs livehtml
+
 Quality Assurance
 -----------------
 
