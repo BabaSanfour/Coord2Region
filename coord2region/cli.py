@@ -316,13 +316,15 @@ def _add_image_options(
     *,
     default_backend: str = "ai",
     include_huggingface: bool = True,
+    include_api_options: bool = True,
 ) -> None:
-    if include_huggingface:
-        p.add_argument(
-            "--huggingface-api-key", help="API key for Hugging Face provider"
-        )
-    p.add_argument("--openai-api-key", help="API key for OpenAI provider")
-    p.add_argument("--anthropic-api-key", help="API key for Anthropic provider")
+    if include_api_options:
+        if include_huggingface:
+            p.add_argument(
+                "--huggingface-api-key", help="API key for Hugging Face provider"
+            )
+        p.add_argument("--openai-api-key", help="API key for OpenAI provider")
+        p.add_argument("--anthropic-api-key", help="API key for Anthropic provider")
     p.add_argument("--image-model", default="stabilityai/stable-diffusion-2")
     p.add_argument(
         "--image-backend",
@@ -716,7 +718,12 @@ def create_parser() -> argparse.ArgumentParser:
     _add_atlas_options(p_insights)
     _add_study_options(p_insights)
     _add_llm_options(p_insights)
-    _add_image_options(p_insights, default_backend="nilearn", include_huggingface=False)
+    _add_image_options(
+        p_insights,
+        default_backend="nilearn",
+        include_huggingface=False,
+        include_api_options=False,
+    )
 
     # Region commands
     p_rtc = subparsers.add_parser(
@@ -762,7 +769,10 @@ def create_parser() -> argparse.ArgumentParser:
     _add_study_options(p_rtinsights)
     _add_llm_options(p_rtinsights)
     _add_image_options(
-        p_rtinsights, default_backend="nilearn", include_huggingface=False
+        p_rtinsights,
+        default_backend="nilearn",
+        include_huggingface=False,
+        include_api_options=False,
     )
 
     return parser
