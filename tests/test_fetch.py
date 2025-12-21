@@ -60,7 +60,7 @@ def test_fetch_nilearn_atlases(atlas_name):
     """Test fetching of Nilearn volumetric atlases using AtlasFetcher."""
     af = AtlasFetcher()
     # If certain atlases are known to be unavailable in the current Nilearn version, skip.
-    if atlas_name in ["brodmann"]:
+    if atlas_name in ["brodmann", "aal"]:
         warnings.warn(
             f"Atlas '{atlas_name}' is not available in the current version of Nilearn. Skipping test."
         )

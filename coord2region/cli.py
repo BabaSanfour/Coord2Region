@@ -321,6 +321,8 @@ def _add_image_options(
         p.add_argument(
             "--huggingface-api-key", help="API key for Hugging Face provider"
         )
+    p.add_argument("--openai-api-key", help="API key for OpenAI provider")
+    p.add_argument("--anthropic-api-key", help="API key for Anthropic provider")
     p.add_argument("--image-model", default="stabilityai/stable-diffusion-2")
     p.add_argument(
         "--image-backend",
@@ -330,7 +332,14 @@ def _add_image_options(
     )
     p.add_argument(
         "--image-prompt-type",
-        choices=["anatomical", "functional", "schematic", "artistic", "custom"],
+        choices=[
+            "anatomical",
+            "functional",
+            "schematic",
+            "artistic",
+            "custom",
+            "default",
+        ],
         help="Prompt template to use for AI image generation",
     )
     p.add_argument(
@@ -462,7 +471,7 @@ def _commands_from_config(cfg: dict) -> List[str]:
         ),
         frozenset(["region_labels", "raw_studies", "images"]): (
             "coords-to-image",
-            dict(include_api=False, include_sources=True, include_image=True),
+            dict(include_api=True, include_sources=True, include_image=True),
         ),
         frozenset(
             [
