@@ -102,6 +102,22 @@ update the version, create an annotated tag such as `vX.Y.Z`.
    git push origin vX.Y.Z
    ```
 
+## Changelog
+
+We maintain a release-based **Changelog** in `docs/source/changelog.rst`. Every Pull Request that introduces user-visible changes should include an entry in this file.
+
+### How to contribute to the Changelog:
+
+1. Locate the `Current (Unreleased)` section in `docs/source/changelog.rst`.
+2. Add a concise bullet point describing your change under the appropriate category (`Added`, `Changed`, `Fixed`, `Removed`). 
+3. Mention the PR number if available (e.g., `(:pr:`#123`)`).
+4. Add your name to the **Authors** list for the version if it's your first contribution to that release.
+
+### Format requirements:
+- Use past tense for entries (e.g., "Added...", "Fixed...").
+- Keep descriptions clear and high-level. 
+- Ensure security remediations are highlighted in the `Fixed` or `Security` sections.
+
 ## Code of Conduct and security
 
 Please review our [Code of Conduct](CODE_OF_CONDUCT.md) and

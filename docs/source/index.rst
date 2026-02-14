@@ -37,9 +37,11 @@ Coord2Region
 
    <i class="fa-solid fa-star" aria-hidden="true"></i>
 
-.. |icon-coc| raw:: html
+.. |icon-changelog| raw:: html
 
-   <i class="fa-solid fa-scroll" aria-hidden="true"></i>
+   <i class="fa-solid fa-history" aria-hidden="true"></i>
+
+.. |icon-coc| raw:: html
 
 
 .. container:: hero-panel
@@ -76,10 +78,10 @@ Coord2Region
 
             - |icon-examples| :doc:`Examples <auto_examples/index>`
             - |icon-tutorials| :doc:`Tutorials <documentation/tutorials>`
-            - |icon-coc| :doc:`Code of Conduct <documentation/coc>`
+            - |icon-contributors| :doc:`Contributors <documentation/contributors>`
             - |icon-cite| :doc:`Cite <documentation/citation>`
             - |icon-contrib| :doc:`Contribute <developer_guide>`
-            - |icon-contributors| :doc:`Contributors <documentation/contributors>`
+            - |icon-changelog| :doc:`Changelog <changelog>`
 
 
    .. container:: hero-highlights

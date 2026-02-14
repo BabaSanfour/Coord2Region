@@ -36,7 +36,7 @@ The documentation is organized into three sections to guide your usage:
 
 - **Project Metadata** – Contextual information about the software itself.
   Read about our :doc:`documentation/design_philosophy`, how to provide :doc:`documentation/citation` 
-  in your papers, and the people involved in :doc:`documentation/contributors`.
+  in your papers, the project :doc:`changelog`, and the people involved in :doc:`documentation/contributors`.
 
 .. toctree::
    :maxdepth: 2
@@ -66,5 +66,6 @@ The documentation is organized into three sections to guide your usage:
 
    documentation/design_philosophy
    documentation/citation
+   changelog
    documentation/contributors
    documentation/coc
