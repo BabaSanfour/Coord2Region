@@ -18,7 +18,12 @@ classifiers = [
 license = "BSD-3-Clause"
 
 dependencies = [
-    "biopython",
+    "biopython", # Recommended: update to 1.87+ when released (CVE-2025-68463)
+    "filelock>=3.20.3", # Fix TOCTOU Symlink Vulnerability (CVE-2024-56334)
+    "fonttools>=4.60.2", # Fix Arbitrary File Write and XML injection (CVE-2024-52233)
+    "pyasn1>=0.6.2", # Fix security vulnerability
+    "Pillow>=12.1.1", # Fix out-of-bounds write
+    "urllib3>=2.6.3", # Fix decompression-bomb bypass
     "mne",
     "nibabel",
     "nilearn==0.12.0",
