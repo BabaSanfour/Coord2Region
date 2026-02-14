@@ -27,10 +27,13 @@ def resolve_working_directory(base: PathLike = None) -> Path:
     if base is None:
         return Path.home() / "coord2region"
 
+    if "\x00" in str(base):
+        raise ValueError(f"Invalid path containing null byte: {base}")
+
     try:
         expanded = Path(base).expanduser()
         expanded.resolve()
-    except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover
+    except (OSError, RuntimeError, ValueError) as exc:
         # platform dependent
         raise ValueError(f"Invalid path: {base}") from exc
 

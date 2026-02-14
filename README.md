@@ -3,6 +3,7 @@
 
 [![Codecov](https://img.shields.io/codecov/c/github/BabaSanfour/Coord2Region)](https://codecov.io/gh/BabaSanfour/Coord2Region)
 [![Tests](https://img.shields.io/github/actions/workflow/status/BabaSanfour/Coord2Region/python-tests.yml?branch=main&label=tests)](https://github.com/BabaSanfour/Coord2Region/actions/workflows/python-tests.yml)
+[![Python versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org/)
 [![Documentation Status](https://readthedocs.org/projects/coord2region/badge/?version=latest)](https://coord2region.readthedocs.io/en/latest/)
 [![Preprint](https://img.shields.io/badge/Preprint-Zenodo-orange)](https://zenodo.org/records/15048848)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
@@ -27,7 +28,7 @@
 
 ## Quick Start
 
-1. **Install the package** (Python 3.10+):
+1. **Install the package** (Python 3.10-3.14):
 
    ```bash
    python -m venv .venv
