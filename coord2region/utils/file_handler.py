@@ -378,7 +378,10 @@ class AtlasFileHandler:
                     break
             extract_dir = os.path.join(self.data_dir, base_name)
             with tarfile.open(local_path, "r:*") as tar_ref:
-                tar_ref.extractall(extract_dir)
+                try:
+                    tar_ref.extractall(extract_dir, filter="data")
+                except TypeError:  # Python < 3.12 or old 3.11/3.10
+                    tar_ref.extractall(extract_dir)
                 decompressed_path = extract_dir
         elif local_path.endswith(".gz") and not local_path.endswith(".tar.gz"):
             logger.info(f"Decompressing gzip file {local_path}")

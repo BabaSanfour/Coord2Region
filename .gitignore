@@ -22,8 +22,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
-.venv_coord2region
-.venv_test
+.venv*/
 
 nimare_data/
 
@@ -55,3 +54,4 @@ web-interface/test-preview/
 config/coord2region-config.yaml
     
 .vscode/
+*.DS_Store

@@ -13,12 +13,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10']
-        node-version: [18]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     env:
       MPLBACKEND: Agg
@@ -43,6 +43,7 @@ jobs:
           python -m pip install --no-cache-dir ".[dev]"
 
       - name: Run pre-commit
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
         run: pre-commit run --all-files
 
       - name: Test with pytest
@@ -50,6 +51,7 @@ jobs:
           pytest tests/ --cov=coord2region/ --cov-report=xml --verbose -s
 
       - name: Ensure configuration schema is current
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
         run: |
           PYTHONPATH=. python scripts/generate_schema.py
           git diff --exit-code docs/static/schema.json
