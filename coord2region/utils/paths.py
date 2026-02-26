@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional, Union
 
-PathLike = Union[str, os.PathLike, None]
+PathLike = str | os.PathLike | None
 
 
 def resolve_working_directory(base: PathLike = None) -> Path:
@@ -59,7 +58,7 @@ def ensure_mne_data_directory(base: PathLike = None) -> Path:
     if config_candidate:
         candidates.append(config_candidate)
 
-    target: Optional[Path] = None
+    target: Path | None = None
     for candidate in candidates:
         candidate_path = Path(candidate).expanduser()
         if not candidate_path.is_absolute():
@@ -73,7 +72,9 @@ def ensure_mne_data_directory(base: PathLike = None) -> Path:
     try:
         os.makedirs(target, exist_ok=True)
     except OSError as exc:  # pragma: no cover - filesystem permissions
-        raise ValueError(f"Cannot create MNE data directory at {target}: {exc}")
+        raise ValueError(
+            f"Cannot create MNE data directory at {target}: {exc}"
+        ) from exc
 
     current_env = os.environ.get("MNE_DATA")
     if current_env != str(target):

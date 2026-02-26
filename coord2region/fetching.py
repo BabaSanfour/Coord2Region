@@ -4,15 +4,17 @@ This module provides the :class:`AtlasFetcher` class to download and manage
 brain atlases from various sources including Nilearn, MNE, and direct URLs.
 """
 
-import os
 import logging
+import os
 from pathlib import Path
-import numpy as np
-import nilearn.datasets
+
 import mne
+import nilearn.datasets
+import numpy as np
 from nibabel.nifti1 import Nifti1Image
+
+from .utils import pack_surf_output, pack_vol_output
 from .utils.file_handler import AtlasFileHandler
-from .utils import pack_vol_output, pack_surf_output
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +82,15 @@ class AtlasFetcher:
         self.subjects_dir = self.file_handler.subjects_dir
 
         from nilearn.datasets import (
-            fetch_atlas_destrieux_2009,
             fetch_atlas_aal,
-            fetch_atlas_talairach,
+            fetch_atlas_basc_multiscale_2015,
+            fetch_atlas_destrieux_2009,
             fetch_atlas_harvard_oxford,
             fetch_atlas_juelich,
-            fetch_atlas_schaefer_2018,
-            fetch_atlas_yeo_2011,
             fetch_atlas_pauli_2017,
-            fetch_atlas_basc_multiscale_2015,
+            fetch_atlas_schaefer_2018,
+            fetch_atlas_talairach,
+            fetch_atlas_yeo_2011,
         )
 
         self._atlas_fetchers_nilearn = {
@@ -509,7 +511,7 @@ class AtlasFetcher:
                     )
 
         atlas_image = kwargs.get("atlas_image")
-        if isinstance(atlas_image, (Nifti1Image, np.ndarray)):
+        if isinstance(atlas_image, Nifti1Image | np.ndarray):
             output = pack_vol_output(atlas_image)
             output["labels"] = kwargs.get("labels")
             return output

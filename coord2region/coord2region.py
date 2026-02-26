@@ -8,7 +8,7 @@ lookups and transformations across multiple brain atlases.
 import logging
 import pickle
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import mne
 import numpy as np
@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
+def _mni_to_tal(coords: list[float] | np.ndarray) -> np.ndarray:
     """Convert MNI coordinates to Talairach space.
 
     Parameters
@@ -56,7 +56,7 @@ def _mni_to_tal(coords: Union[List[float], np.ndarray]) -> np.ndarray:
     return out.reshape(orig_shape)
 
 
-def _tal_to_mni(coords: Union[List[float], np.ndarray]) -> np.ndarray:
+def _tal_to_mni(coords: list[float] | np.ndarray) -> np.ndarray:
     """Convert Talairach coordinates to MNI space.
 
     Parameters
@@ -100,7 +100,7 @@ _TRANSFORMS = {
 }
 
 
-def _get_numeric_hemi(hemi: Union[str, int]) -> int:
+def _get_numeric_hemi(hemi: str | int) -> int:
     """Convert hemisphere string to numeric code (0 or 1)."""
     if isinstance(hemi, int):
         return hemi
@@ -165,11 +165,11 @@ class AtlasMapper:
         name: str,
         vol: np.ndarray,
         hdr: np.ndarray,
-        labels: Optional[Union[Dict[str, str], List[str], np.ndarray]] = None,
-        indexes: Optional[Union[List[int], np.ndarray]] = None,
-        subject: Optional[str] = "fsaverage",
-        regions: Optional[Dict[str, np.ndarray]] = None,
-        subjects_dir: Optional[str] = None,
+        labels: dict[str, str] | list[str] | np.ndarray | None = None,
+        indexes: list[int] | np.ndarray | None = None,
+        subject: str | None = "fsaverage",
+        regions: dict[str, np.ndarray] | None = None,
+        subjects_dir: str | None = None,
         system: str = "mni",
     ) -> None:
         self.name = name
@@ -234,23 +234,23 @@ class AtlasMapper:
             self._label2index = None
 
         # Cache for region centroids (used by nearest-region queries)
-        self._centroids_cache: Optional[Dict[int, np.ndarray]] = None
+        self._centroids_cache: dict[int, np.ndarray] | None = None
 
         # Cached KD-tree for voxel center lookup (volume atlases)
-        self._voxel_kdtree: Optional[cKDTree] = None
-        self._voxel_indices: Optional[np.ndarray] = None
+        self._voxel_kdtree: cKDTree | None = None
+        self._voxel_indices: np.ndarray | None = None
 
     # -------------------------------------------------------------------------
     # Internal lookups (private)
     # -------------------------------------------------------------------------
 
-    def _lookup_region_name(self, value: Union[int, str]) -> str:
+    def _lookup_region_name(self, value: int | str) -> str:
         """
         Return the region name corresponding to the given region index (int/str).
 
         Returns "Unknown" if not found.
         """
-        if not isinstance(value, (int, str)):
+        if not isinstance(value, int | str):
             raise ValueError("value must be int or str")
 
         if self.atlas_type == "surface" and self.vertex_to_region is not None:
@@ -279,7 +279,7 @@ class AtlasMapper:
                 return "Unknown"
         return "Unknown"
 
-    def _lookup_region_index(self, label: str) -> Union[int, str]:
+    def _lookup_region_index(self, label: str) -> int | str:
         """
         Return the numeric region index corresponding to the given region name.
 
@@ -319,15 +319,15 @@ class AtlasMapper:
     # Region name / index
     # -------------------------------------------------------------------------
 
-    def region_name_from_index(self, region_idx: Union[int, str]) -> str:
+    def region_name_from_index(self, region_idx: int | str) -> str:
         """Return region name from numeric region index."""
         return self._lookup_region_name(region_idx)
 
-    def region_index_from_name(self, region_name: str) -> Union[int, str, np.ndarray]:
+    def region_index_from_name(self, region_name: str) -> int | str | np.ndarray:
         """Return region index from region name."""
         return self._lookup_region_index(region_name)
 
-    def list_all_regions(self) -> List[str]:
+    def list_all_regions(self) -> list[str]:
         """Return a list of all unique region names in this atlas."""
         if self.regions is not None:
             return list(self.regions.keys())
@@ -336,7 +336,7 @@ class AtlasMapper:
         regions = self.labels.values() if isinstance(self.labels, dict) else self.labels
         return list(dict.fromkeys(regions))
 
-    def infer_hemisphere(self, region: Union[int, str]) -> Optional[str]:
+    def infer_hemisphere(self, region: int | str) -> str | None:
         """
         Return the hemisphere ('L' or 'R') inferred from ``region``.
 
@@ -375,9 +375,9 @@ class AtlasMapper:
             lower = parts[-1].lower()
             return (
                 "L"
-                if lower.startswith(("lh"))
+                if lower.startswith("lh")
                 else "R"
-                if lower.startswith(("rh"))
+                if lower.startswith("rh")
                 else None
             )
 
@@ -396,7 +396,7 @@ class AtlasMapper:
 
     def convert_system(
         self,
-        coord: Union[List[float], np.ndarray],
+        coord: list[float] | np.ndarray,
         source_system: str,
         target_system: str,
     ) -> np.ndarray:
@@ -410,7 +410,7 @@ class AtlasMapper:
         except KeyError:
             raise ValueError(
                 f"Unsupported system conversion: {source_system} -> {target_system}"
-            )
+            ) from None
         return func(coord)
 
     # -------------------------------------------------------------------------
@@ -432,16 +432,14 @@ class AtlasMapper:
         self._voxel_indices = grid.astype(int)
         self._voxel_kdtree = cKDTree(mni_coords)
 
-    def mni_to_voxel(
-        self, mni_coord: Union[List[float], np.ndarray]
-    ) -> Tuple[int, int, int]:
+    def mni_to_voxel(self, mni_coord: list[float] | np.ndarray) -> tuple[int, int, int]:
         """Convert an MNI coordinate to the nearest voxel indices.
 
         The coordinate is transformed using the atlas affine. If it does not
         exactly match a voxel center, the voxel whose MNI coordinates are
         closest in Euclidean distance is returned.
         """
-        if not isinstance(mni_coord, (list, np.ndarray)):
+        if not isinstance(mni_coord, list | np.ndarray):
             raise ValueError("`mni_coord` must be a list or numpy array.")
         pos_arr = np.asarray(mni_coord)
         if pos_arr.shape != (3,):
@@ -474,9 +472,9 @@ class AtlasMapper:
 
     def mni_to_vertex(
         self,
-        mni_coord: Union[List[float], np.ndarray],
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> Union[np.ndarray, int]:
+        mni_coord: list[float] | np.ndarray,
+        hemi: list[int] | int | None = None,
+    ) -> np.ndarray | int:
         """Convert an MNI coordinate to the nearest vertex index.
 
         Parameters
@@ -499,13 +497,13 @@ class AtlasMapper:
         # Determine which hemispheres to search
         if hemi is None:
             hemis = [0, 1]
-        elif isinstance(hemi, (list, tuple, np.ndarray)):
+        elif isinstance(hemi, list | tuple | np.ndarray):
             hemis = [_get_numeric_hemi(h) for h in hemi]
         else:
             hemis = [_get_numeric_hemi(hemi)]
 
-        all_vertices: List[np.ndarray] = []
-        all_coords: List[np.ndarray] = []
+        all_vertices: list[np.ndarray] = []
+        all_coords: list[np.ndarray] = []
         for h in hemis:
             verts = np.asarray(self.vol[h])
             if verts.size == 0:
@@ -531,8 +529,8 @@ class AtlasMapper:
 
     def convert_to_source(
         self,
-        target: Union[List[float], np.ndarray],
-        hemi: Optional[Union[List[int], int]] = None,
+        target: list[float] | np.ndarray,
+        hemi: list[int] | int | None = None,
         source_system: str = "mni",
     ) -> np.ndarray:
         """Convert a coordinate to the atlas source space.
@@ -565,13 +563,13 @@ class AtlasMapper:
                 return np.array([self.indexes[i] for i in inds])
             return inds
 
-    def voxel_to_mni(self, voxel_ijk: Union[List[int], np.ndarray]) -> np.ndarray:
+    def voxel_to_mni(self, voxel_ijk: list[int] | np.ndarray) -> np.ndarray:
         """
         Convert voxel indices (i, j, k) to MNI/world coordinates.
 
         Returns an array of shape (3,).
         """
-        if not isinstance(voxel_ijk, (list, np.ndarray)):
+        if not isinstance(voxel_ijk, list | np.ndarray):
             raise ValueError("`voxel_ijk` must be list or numpy array.")
         src_arr = np.atleast_2d(voxel_ijk)
         ones = np.ones((src_arr.shape[0], 1))
@@ -583,7 +581,7 @@ class AtlasMapper:
         return coords
 
     def vertex_to_mni(
-        self, vertices: Union[List[int], np.ndarray], hemi: Union[List[int], int]
+        self, vertices: list[int] | np.ndarray, hemi: list[int] | int
     ) -> np.ndarray:
         """
         Convert vertices to MNI coordinates.
@@ -616,8 +614,8 @@ class AtlasMapper:
 
     def convert_to_mni(
         self,
-        source: Union[List[int], np.ndarray],
-        hemi: Optional[Union[List[int], int]] = None,
+        source: list[int] | np.ndarray,
+        hemi: list[int] | int | None = None,
     ) -> np.ndarray:
         """Convert source space coordinates to MNI."""
         if self.atlas_type == "volume":
@@ -635,11 +633,11 @@ class AtlasMapper:
 
     def mni_to_region_index(
         self,
-        mni_coord: Union[List[float], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
+        mni_coord: list[float] | np.ndarray,
+        max_distance: float | None = None,
+        hemi: list[int] | int | None = None,
         return_distance: bool = False,
-    ) -> Union[int, str, Tuple[Union[int, str], float]]:
+    ) -> int | str | tuple[int | str, float]:
         """Return the region index for a given MNI coordinate.
 
         Parameters
@@ -657,7 +655,7 @@ class AtlasMapper:
         """
         coord = np.asarray(mni_coord, dtype=float)
 
-        result: Union[int, str, np.ndarray]
+        result: int | str | np.ndarray
         dist = 0.0
 
         if self.atlas_type == "volume":
@@ -673,13 +671,13 @@ class AtlasMapper:
                 verts = np.atleast_1d(self.convert_to_source(coord, hemi))
                 hemis = (
                     [_get_numeric_hemi(h) for h in hemi]
-                    if isinstance(hemi, (list, tuple, np.ndarray))
+                    if isinstance(hemi, list | tuple | np.ndarray)
                     else [_get_numeric_hemi(hemi)]
                 )
             else:
                 verts = np.atleast_1d(self.convert_to_source(coord))
                 hemis = [0, 1]
-            exact_matches: List[int] = []
+            exact_matches: list[int] = []
             for v in verts:
                 v_int = int(v)
                 hemi_v = next(
@@ -717,11 +715,11 @@ class AtlasMapper:
 
     def mni_to_region_name(
         self,
-        mni_coord: Union[List[float], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
+        mni_coord: list[float] | np.ndarray,
+        max_distance: float | None = None,
+        hemi: list[int] | int | None = None,
         return_distance: bool = False,
-    ) -> Union[str, Tuple[str, float]]:
+    ) -> str | tuple[str, float]:
         """Return the region name for a given MNI coordinate."""
         idx, dist = self.mni_to_region_index(
             mni_coord,
@@ -760,9 +758,9 @@ class AtlasMapper:
 
     def _nearest_region_index(
         self,
-        mni_coord: Union[List[float], np.ndarray],
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> Tuple[Union[int, str], float]:
+        mni_coord: list[float] | np.ndarray,
+        hemi: list[int] | int | None = None,
+    ) -> tuple[int | str, float]:
         """Return (nearest region index, distance) to ``mni_coord``."""
         coord = np.asarray(mni_coord, dtype=float)
 
@@ -779,13 +777,13 @@ class AtlasMapper:
         if self.atlas_type == "surface":
             if hemi is None:
                 hemis = [0, 1]
-            elif isinstance(hemi, (list, tuple, np.ndarray)):
+            elif isinstance(hemi, list | tuple | np.ndarray):
                 hemis = [_get_numeric_hemi(h) for h in hemi]
             else:
                 hemis = [_get_numeric_hemi(hemi)]
 
-            all_vertices: List[np.ndarray] = []
-            all_coords: List[np.ndarray] = []
+            all_vertices: list[np.ndarray] = []
+            all_coords: list[np.ndarray] = []
             for h in hemis:
                 verts = np.asarray(self.vol[h])
                 if verts.size == 0:
@@ -816,8 +814,8 @@ class AtlasMapper:
 
     def region_index_to_mni(
         self,
-        region_idx: Union[int, str, List[int], np.ndarray],
-        hemi: Optional[int] = None,
+        region_idx: int | str | list[int] | np.ndarray,
+        hemi: int | None = None,
     ) -> np.ndarray:
         """
         Return MNI coordinates for voxels or vertices in ``region_idx``.
@@ -870,7 +868,7 @@ class AtlasMapper:
             region_idx, _get_numeric_hemi(self.infer_hemisphere(region_name))
         )
 
-    def region_centroid(self, region: Union[int, str]) -> np.ndarray:
+    def region_centroid(self, region: int | str) -> np.ndarray:
         """Return the centroid MNI coordinate for a region or vertex index."""
         if isinstance(region, str):
             coords = self.region_name_to_mni(region)
@@ -884,7 +882,7 @@ class AtlasMapper:
         return coords.mean(axis=0)
 
     def distance_to_region_centroid(
-        self, mni_coord: Union[List[float], np.ndarray], region: Union[int, str]
+        self, mni_coord: list[float] | np.ndarray, region: int | str
     ) -> float:
         """Return Euclidean distance from ``mni_coord`` to a region centroid."""
         centroid = self.region_centroid(region)
@@ -894,7 +892,7 @@ class AtlasMapper:
         return float(np.linalg.norm(coord - centroid))
 
     def distance_to_region_boundary(
-        self, mni_coord: Union[List[float], np.ndarray], region: Union[int, str]
+        self, mni_coord: list[float] | np.ndarray, region: int | str
     ) -> float:
         """Return distance from ``mni_coord`` to the nearest point in ``region``."""
         if isinstance(region, str):
@@ -911,9 +909,9 @@ class AtlasMapper:
 
     def membership_scores(
         self,
-        mni_coord: Union[List[float], np.ndarray],
+        mni_coord: list[float] | np.ndarray,
         method: str = "centroid",
-    ) -> Dict[Union[int, str], float]:
+    ) -> dict[int | str, float]:
         """Return normalized membership probabilities for all regions."""
         coord = np.asarray(mni_coord, dtype=float)
 
@@ -951,12 +949,12 @@ class AtlasMapper:
         # Map region identifiers to names if possible
         if isinstance(self.labels, dict):
             names = [self.labels.get(str(r), str(r)) for r in region_ids]
-        elif isinstance(self.labels, (list, np.ndarray)):
+        elif isinstance(self.labels, list | np.ndarray):
             names = list(self.labels)
         else:
             names = region_ids
 
-        return dict(zip(names, scores))
+        return dict(zip(names, scores, strict=False))
 
     # ------------------------------------------------------------------
     # Persistence
@@ -964,9 +962,9 @@ class AtlasMapper:
 
     _SERIAL_VERSION = 1
 
-    def _get_state(self) -> Dict[str, Any]:
+    def _get_state(self) -> dict[str, Any]:
         """Return minimal state necessary to recreate this mapper."""
-        state: Dict[str, Any] = {
+        state: dict[str, Any] = {
             "name": self.name,
             "vol": self.vol,
             "hdr": self.hdr,
@@ -976,9 +974,9 @@ class AtlasMapper:
             "system": self.system,
         }
         if hasattr(self, "subject"):
-            state["subject"] = getattr(self, "subject")
+            state["subject"] = self.subject
         if hasattr(self, "subjects_dir"):
-            state["subjects_dir"] = getattr(self, "subjects_dir")
+            state["subjects_dir"] = self.subjects_dir
         return state
 
     def save(self, filename: str) -> None:
@@ -1049,25 +1047,23 @@ class BatchAtlasMapper:
         self.mapper = mapper
 
     # ---- region name <-> index (batch) ---------------------------------------
-    def batch_region_name_from_index(self, values: List[Union[int, str]]) -> List[str]:
+    def batch_region_name_from_index(self, values: list[int | str]) -> list[str]:
         """Return the region name for each index in ``values``."""
         return [self.mapper.region_name_from_index(val) for val in values]
 
-    def batch_region_index_from_name(self, labels: List[str]) -> List[Union[int, str]]:
+    def batch_region_index_from_name(self, labels: list[str]) -> list[int | str]:
         """Return the region index for each name in ``labels``."""
         return [self.mapper.region_index_from_name(label) for label in labels]
 
     # ---- MNI <-> voxel (batch) -----------------------------------------------
     def batch_mni_to_voxel(
-        self, positions: Union[List[List[float]], np.ndarray]
-    ) -> List[tuple]:
+        self, positions: list[list[float]] | np.ndarray
+    ) -> list[tuple]:
         """Convert MNI coordinates to voxel indices (i, j, k)."""
         positions_arr = np.atleast_2d(positions)
         return [self.mapper.mni_to_voxel(pos) for pos in positions_arr]
 
-    def batch_voxel_to_mni(
-        self, sources: Union[List[List[int]], np.ndarray]
-    ) -> np.ndarray:
+    def batch_voxel_to_mni(self, sources: list[list[int]] | np.ndarray) -> np.ndarray:
         """
         Convert a batch of voxel indices (i, j, k) to MNI coordinates.
 
@@ -1079,10 +1075,10 @@ class BatchAtlasMapper:
     # ---- MNI -> region (batch) -----------------------------------------------
     def batch_mni_to_region_index(
         self,
-        positions: Union[List[List[float]], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> List[Union[int, str]]:
+        positions: list[list[float]] | np.ndarray,
+        max_distance: float | None = None,
+        hemi: list[int] | int | None = None,
+    ) -> list[int | str]:
         """Return region index for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
         return [
@@ -1092,10 +1088,10 @@ class BatchAtlasMapper:
 
     def batch_mni_to_region_name(
         self,
-        positions: Union[List[List[float]], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> List[str]:
+        positions: list[list[float]] | np.ndarray,
+        max_distance: float | None = None,
+        hemi: list[int] | int | None = None,
+    ) -> list[str]:
         """Return region name for each coordinate, using nearest lookup if needed."""
         positions_arr = np.atleast_2d(positions)
         return [
@@ -1104,13 +1100,11 @@ class BatchAtlasMapper:
         ]
 
     # ---- region index/name -> MNI coords (batch) -----------------------------
-    def batch_region_index_to_mni(
-        self, indices: List[Union[int, str]]
-    ) -> List[np.ndarray]:
+    def batch_region_index_to_mni(self, indices: list[int | str]) -> list[np.ndarray]:
         """Return MNI coordinates (Nx3) for each region index."""
         return [self.mapper.region_index_to_mni(idx) for idx in indices]
 
-    def batch_region_name_to_mni(self, regions: List[str]) -> List[np.ndarray]:
+    def batch_region_name_to_mni(self, regions: list[str]) -> list[np.ndarray]:
         """Return MNI coordinates (Nx3) for each region name."""
         return [self.mapper.region_name_to_mni(r) for r in regions]
 
@@ -1132,7 +1126,7 @@ class MultiAtlasMapper:
         Mapping of atlas names to :class:`BatchAtlasMapper` instances.
     """
 
-    def __init__(self, data_dir: str, atlases: Dict[str, Dict[str, Any]]) -> None:
+    def __init__(self, data_dir: str, atlases: dict[str, dict[str, Any]]) -> None:
         self.mappers = {}
 
         atlas_fetcher = AtlasFetcher(data_dir=data_dir)
@@ -1182,10 +1176,10 @@ class MultiAtlasMapper:
 
     def batch_mni_to_region_names(
         self,
-        coords: Union[List[List[float]], np.ndarray],
-        max_distance: Optional[float] = None,
-        hemi: Optional[Union[List[int], int]] = None,
-    ) -> Dict[str, List[str]]:
+        coords: list[list[float]] | np.ndarray,
+        max_distance: float | None = None,
+        hemi: list[int] | int | None = None,
+    ) -> dict[str, list[str]]:
         """
         Convert a batch of MNI coordinates to region names for all atlases.
 
@@ -1199,8 +1193,8 @@ class MultiAtlasMapper:
         return results
 
     def batch_region_name_to_mni(
-        self, region_names: List[str]
-    ) -> Dict[str, List[np.ndarray]]:
+        self, region_names: list[str]
+    ) -> dict[str, list[np.ndarray]]:
         """
         Convert a list of region names to MNI coordinates for all atlases.
 

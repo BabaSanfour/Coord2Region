@@ -9,11 +9,11 @@ filesystem.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from io import BytesIO
-from typing import Sequence, Tuple
 
-import numpy as np
 import nibabel as nib
+import numpy as np
 from nilearn.datasets import load_mni152_template
 from nilearn.plotting import plot_stat_map
 from PIL import Image, ImageDraw, ImageFont
@@ -134,7 +134,7 @@ def build_side_by_side_panel(
     *,
     left_title: str = "AI-generated approximation",
     right_title: str = "Nilearn reference",
-    background_color: Tuple[int, int, int] = (20, 20, 24),
+    background_color: tuple[int, int, int] = (20, 20, 24),
     padding: int = 36,
 ) -> bytes:
     """Return a labelled side-by-side comparison panel.

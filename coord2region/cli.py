@@ -10,21 +10,20 @@ operations.
 
 import argparse
 import json
+import numbers
 import os
 import shlex
 import sys
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict
-from typing import Iterable, List, Sequence, Dict, Optional
-import numbers
-
 from importlib import metadata as importlib_metadata
 
 import pandas as pd
 import yaml
 
-from .pipeline import run_pipeline
 from .config import Coord2RegionConfig, ValidationError
 from .fetching import AtlasFetcher
+from .pipeline import run_pipeline
 
 
 def _package_version() -> str:
@@ -42,7 +41,7 @@ def _print_available_atlases() -> None:
         print(name)
 
 
-def _parse_coord(text: str) -> List[float]:
+def _parse_coord(text: str) -> list[float]:
     """Parse a coordinate string of the form 'x,y,z' or 'x y z'."""
     parts = text.replace(",", " ").split()
     if len(parts) != 3:
@@ -53,7 +52,7 @@ def _parse_coord(text: str) -> List[float]:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
-def _parse_coords_tokens(tokens: List[str]) -> List[List[float]]:
+def _parse_coords_tokens(tokens: list[str]) -> list[list[float]]:
     """Parse a list of CLI tokens into a list of coordinate triples.
 
     Supports both styles:
@@ -75,7 +74,7 @@ def _parse_coords_tokens(tokens: List[str]) -> List[List[float]]:
     return [_parse_coord(tok) for tok in tokens]
 
 
-def _load_coords_file(path: str) -> List[List[float]]:
+def _load_coords_file(path: str) -> list[list[float]]:
     """Load coordinates from a CSV or Excel file.
 
     The file is expected to contain at least three columns representing ``x``,
@@ -101,7 +100,7 @@ def _batch(seq: Sequence, size: int) -> Iterable[Sequence]:
             yield seq[i : i + size]
 
 
-def _atlas_source_from_value(value: str) -> Optional[Dict[str, str]]:
+def _atlas_source_from_value(value: str) -> dict[str, str] | None:
     text = str(value).strip()
     if not text:
         return None
@@ -144,7 +143,7 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
     if getattr(args, "email_for_abstracts", None):
         kwargs["email_for_abstracts"] = args.email_for_abstracts
     # Dataset/study sources (canonical name: sources)
-    sources_tokens: List[str] = []
+    sources_tokens: list[str] = []
     values = getattr(args, "sources", None) or []
     for item in values:
         # Allow comma-separated items per token
@@ -163,8 +162,8 @@ def _collect_kwargs(args: argparse.Namespace) -> dict:
     # Atlas selection
     atlas_names = getattr(args, "atlas_names", None)
     if atlas_names:
-        names: List[str] = []
-        atlas_configs: Dict[str, Dict[str, str]] = {}
+        names: list[str] = []
+        atlas_configs: dict[str, dict[str, str]] = {}
         for item in atlas_names:
             parts = [p.strip() for p in str(item).split(",")]
             for part in parts:
@@ -362,9 +361,9 @@ def _common_config_flags(
     include_sources: bool,
     include_atlas: bool,
     include_image_model: bool,
-) -> List[str]:
+) -> list[str]:
     """Translate shared configuration values to CLI flags."""
-    flags: List[str] = []
+    flags: list[str] = []
     working_dir = cfg.get("working_directory")
     if working_dir:
         flags.extend(["--working-directory", str(working_dir)])
@@ -420,7 +419,7 @@ def _common_config_flags(
     return flags
 
 
-def _inputs_to_tokens(input_type: str, inputs: Sequence) -> List[str]:
+def _inputs_to_tokens(input_type: str, inputs: Sequence) -> list[str]:
     def _format_value(value) -> str:
         if isinstance(value, numbers.Integral):
             return str(int(value))
@@ -432,9 +431,9 @@ def _inputs_to_tokens(input_type: str, inputs: Sequence) -> List[str]:
         return str(value)
 
     if input_type == "coords":
-        tokens: List[str] = []
+        tokens: list[str] = []
         for item in inputs:
-            if isinstance(item, (list, tuple)):
+            if isinstance(item, list | tuple):
                 tokens.extend(_format_value(v) for v in item)
             else:
                 tokens.append(_format_value(item))
@@ -446,7 +445,7 @@ def _inputs_to_tokens(input_type: str, inputs: Sequence) -> List[str]:
     raise ValueError(f"Dry-run not supported for input_type '{input_type}'")
 
 
-def _commands_from_config(cfg: dict) -> List[str]:
+def _commands_from_config(cfg: dict) -> list[str]:
     input_type = str(cfg.get("input_type", "coords")).lower()
     inputs = cfg.get("inputs", [])
     outputs = cfg.get("outputs", []) or []
@@ -455,7 +454,7 @@ def _commands_from_config(cfg: dict) -> List[str]:
 
     config_section = cfg.get("config") or {}
 
-    commands: List[str] = []
+    commands: list[str] = []
     base_tokens = ["coord2region"]
 
     coord_command_map = {
@@ -624,7 +623,7 @@ def _commands_from_config(cfg: dict) -> List[str]:
 
 def run_from_config(path: str, *, dry_run: bool = False) -> None:
     """Execute the pipeline using a YAML configuration file."""
-    with open(path, "r", encoding="utf8") as f:
+    with open(path, encoding="utf8") as f:
         raw_cfg = yaml.safe_load(f) or {}
 
     try:
@@ -797,8 +796,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     kwargs = _collect_kwargs(args)
 
-    def _resolve_coords() -> List[List[float]]:
-        coords: List[List[float]] = []
+    def _resolve_coords() -> list[list[float]]:
+        coords: list[list[float]] = []
         coords_file = getattr(args, "coords_file", None)
         if coords_file:
             coords.extend(_load_coords_file(coords_file))
@@ -807,7 +806,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             parser.error("No coordinates provided")
         return coords
 
-    def _resolve_regions() -> List[str]:
+    def _resolve_regions() -> list[str]:
         names = list(getattr(args, "regions", []) or [])
         if not names:
             parser.error("No region names provided")

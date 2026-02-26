@@ -19,26 +19,26 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import pickle
-import logging
-from pathlib import Path
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
+from pathlib import Path
+from typing import Any, cast
 
-from .utils.file_handler import save_as_csv, save_as_pdf, save_batch_folder
-
-from .coord2study import get_studies_for_coordinate, prepare_datasets
+from .ai_model_interface import AIModelInterface
 from .coord2region import MultiAtlasMapper
+from .coord2study import get_studies_for_coordinate, prepare_datasets
+from .fetching import AtlasFetcher  # noqa: F401 - used by tests via patching
 from .llm import (
     generate_mni152_image,
     generate_region_image,
     generate_summary,
     generate_summary_async,
 )
-from .ai_model_interface import AIModelInterface
 from .utils import resolve_working_directory
-from .fetching import AtlasFetcher  # noqa: F401 - used by tests via patching
+from .utils.file_handler import save_as_csv, save_as_pdf, save_batch_folder
 
 
 @dataclass
@@ -69,18 +69,18 @@ class PipelineResult:
         Non-fatal issues encountered while processing the input item.
     """
 
-    coordinate: Optional[List[float]] = None
-    mni_coordinates: Optional[List[float]] = None
-    region_labels: Dict[str, str] = field(default_factory=dict)
-    summaries: Dict[str, str] = field(default_factory=dict)
-    summary: Optional[str] = None
-    studies: List[Dict[str, Any]] = field(default_factory=list)
-    image: Optional[str] = None
-    images: Dict[str, str] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    coordinate: list[float] | None = None
+    mni_coordinates: list[float] | None = None
+    region_labels: dict[str, str] = field(default_factory=dict)
+    summaries: dict[str, str] = field(default_factory=dict)
+    summary: str | None = None
+    studies: list[dict[str, Any]] = field(default_factory=list)
+    image: str | None = None
+    images: dict[str, str] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
-def _normalize_model_list(value: Any) -> List[str]:
+def _normalize_model_list(value: Any) -> list[str]:
     """Coerce a config value into a list of unique model identifiers."""
     if value is None:
         return []
@@ -91,7 +91,7 @@ def _normalize_model_list(value: Any) -> List[str]:
     else:
         candidates = [value]
 
-    normalized: List[str] = []
+    normalized: list[str] = []
     for item in candidates:
         if item is None:
             continue
@@ -101,7 +101,7 @@ def _normalize_model_list(value: Any) -> List[str]:
     return normalized
 
 
-def _get_summary_models(config: Dict[str, Any], default_model: str) -> List[str]:
+def _get_summary_models(config: dict[str, Any], default_model: str) -> list[str]:
     """Return the ordered list of summary models honoring config defaults."""
     raw = config.get("summary_models")
     models = _normalize_model_list(raw)
@@ -110,7 +110,7 @@ def _get_summary_models(config: Dict[str, Any], default_model: str) -> List[str]
     return models
 
 
-def _export_results(results: List[PipelineResult], fmt: str, path: str) -> None:
+def _export_results(results: list[PipelineResult], fmt: str, path: str) -> None:
     """Export pipeline results to the requested format."""
     dict_results = [asdict(r) for r in results]
 
@@ -146,14 +146,14 @@ def run_pipeline(
     inputs: Sequence[Any],
     input_type: str,
     outputs: Sequence[str],
-    output_format: Optional[str] = None,
-    output_name: Optional[str] = None,
+    output_format: str | None = None,
+    output_name: str | None = None,
     image_backend: str = "ai",
     *,
-    config: Optional[Dict[str, Any]] = None,
+    config: dict[str, Any] | None = None,
     async_mode: bool = False,
-    progress_callback: Optional[Callable[[int, int, PipelineResult], None]] = None,
-) -> List[PipelineResult]:
+    progress_callback: Callable[[int, int, PipelineResult], None] | None = None,
+) -> list[PipelineResult]:
     """Run the Coord2Region analysis pipeline.
 
     Parameters
@@ -251,7 +251,7 @@ def run_pipeline(
     for p in (cache_dir, image_dir, results_dir):
         p.mkdir(parents=True, exist_ok=True)
 
-    export_path: Optional[Path] = None
+    export_path: Path | None = None
     if output_format:
         output_label = cast(str, output_name)
         name_path = Path(output_label)
@@ -316,7 +316,7 @@ def run_pipeline(
     except Exception as exc:  # pragma: no cover - defensive guard
         raise RuntimeError("Failed to initialize atlas mappers") from exc
 
-    def _from_region_name(name: str) -> Optional[List[float]]:
+    def _from_region_name(name: str) -> list[float] | None:
         coords_dict = multi_atlas.batch_region_name_to_mni([name])
         for atlas_coords in coords_dict.values():
             if atlas_coords:
@@ -328,10 +328,10 @@ def run_pipeline(
                         return list(coord)  # type: ignore[arg-type]
         return None
 
-    results: List[PipelineResult] = []
+    results: list[PipelineResult] = []
 
     for item in inputs:
-        region_name_input: Optional[str] = None
+        region_name_input: str | None = None
         if input_type == "coords":
             coord = list(item) if item is not None else None
         elif input_type == "region_names":
@@ -350,9 +350,9 @@ def run_pipeline(
         if coord is None:
             if region_name_input is not None:
                 message = (
-                    "Region '{name}' could not be resolved to coordinates "
-                    "with the configured atlases."
-                ).format(name=region_name_input)
+                    f"Region '{region_name_input}' could not be resolved to "
+                    "coordinates with the configured atlases."
+                )
                 logging.warning(message)
                 res.warnings.append(message)
             results.append(res)
@@ -469,13 +469,13 @@ async def _run_pipeline_async(
     inputs: Sequence[Any],
     input_type: str,
     outputs: Sequence[str],
-    output_format: Optional[str],
-    output_name: Optional[str],
+    output_format: str | None,
+    output_name: str | None,
     image_backend: str,
     *,
-    config: Optional[Dict[str, Any]],
-    progress_callback: Optional[Callable[[int, int, PipelineResult], None]],
-) -> List[PipelineResult]:
+    config: dict[str, Any] | None,
+    progress_callback: Callable[[int, int, PipelineResult], None] | None,
+) -> list[PipelineResult]:
     """Asynchronous implementation backing :func:`run_pipeline`."""
     kwargs = config or {}
     study_search_radius = float(kwargs.get("study_search_radius", 0))
@@ -498,7 +498,7 @@ async def _run_pipeline_async(
     for p in (cache_dir, image_dir, results_dir):
         p.mkdir(parents=True, exist_ok=True)
 
-    export_path: Optional[Path] = None
+    export_path: Path | None = None
     if output_format:
         output_label = cast(str, output_name)
         name_path = Path(output_label)
@@ -563,7 +563,7 @@ async def _run_pipeline_async(
     except Exception as exc:  # pragma: no cover - defensive guard
         raise RuntimeError("Failed to initialize atlas mappers") from exc
 
-    def _from_region_name(name: str) -> Optional[List[float]]:
+    def _from_region_name(name: str) -> list[float] | None:
         coords_dict = multi_atlas.batch_region_name_to_mni([name])
         for atlas_coords in coords_dict.values():
             if atlas_coords:
@@ -576,10 +576,10 @@ async def _run_pipeline_async(
         return None
 
     total = len(inputs)
-    results: List[Optional[PipelineResult]] = [None] * total
+    results: list[PipelineResult | None] = [None] * total
 
-    async def _process(idx: int, item: Any) -> Tuple[int, PipelineResult]:
-        region_name_input: Optional[str] = None
+    async def _process(idx: int, item: Any) -> tuple[int, PipelineResult]:
+        region_name_input: str | None = None
         if input_type == "coords":
             coord = list(item) if item is not None else None
         elif input_type == "region_names":
@@ -596,9 +596,9 @@ async def _run_pipeline_async(
         if coord is None:
             if region_name_input is not None:
                 message = (
-                    "Region '{name}' could not be resolved to coordinates "
-                    "with the configured atlases."
-                ).format(name=region_name_input)
+                    f"Region '{region_name_input}' could not be resolved to "
+                    "coordinates with the configured atlases."
+                )
                 logging.warning(message)
                 res.warnings.append(message)
             return idx, res

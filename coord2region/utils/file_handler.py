@@ -5,21 +5,22 @@ mapping utilities. It provides helpers for retrieving label information and
 packing volumetric atlas outputs.
 """
 
-import os
-import logging
-import pickle
 import csv
 import json
+import logging
+import os
+import pickle
 import shutil
+from collections.abc import Sequence
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Optional, Union, List, Any, Sequence
-
-from fpdf import FPDF
+from typing import Any
 
 import mne
+from fpdf import FPDF
+
+from .paths import ensure_mne_data_directory, resolve_working_directory
 from .utils import fetch_labels, pack_vol_output
-from .paths import resolve_working_directory, ensure_mne_data_directory
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +62,7 @@ class AtlasFileHandler:
     '/home/user/coord2region'
     """
 
-    def __init__(
-        self, data_dir: Optional[str] = None, subjects_dir: Optional[str] = None
-    ):
+    def __init__(self, data_dir: str | None = None, subjects_dir: str | None = None):
         """Initialize the file handler.
 
         data_dir : str or None, optional
@@ -89,7 +88,9 @@ class AtlasFileHandler:
         try:
             os.makedirs(self.data_dir, exist_ok=True)
         except Exception as e:
-            raise ValueError(f"Could not create data directory {self.data_dir}: {e}")
+            raise ValueError(
+                f"Could not create data directory {self.data_dir}: {e}"
+            ) from e
 
         if not os.access(self.data_dir, os.W_OK):
             raise ValueError(f"Data directory {self.data_dir} is not writable")
@@ -100,7 +101,7 @@ class AtlasFileHandler:
         self.nilearn_data = os.path.join(self.data_dir, "nilearn_data")
         self.mne_data_dir = str(ensure_mne_data_directory(base_dir))
 
-        subject_path: Optional[Path]
+        subject_path: Path | None
         if subjects_dir is not None:
             subject_path = Path(subjects_dir).expanduser()
             if not subject_path.is_absolute():
@@ -229,9 +230,7 @@ class AtlasFileHandler:
         else:
             return None
 
-    def fetch_from_local(
-        self, atlas_file: str, atlas_dir: str, labels: Union[str, List]
-    ):
+    def fetch_from_local(self, atlas_file: str, atlas_dir: str, labels: str | list):
         """Load an atlas from a local file.
 
         Parameters
@@ -330,13 +329,16 @@ class AtlasFileHandler:
         """
         import warnings
 
-        warnings.warn("The file name is expected to be in the URL", UserWarning)
-        import urllib.parse
-        import requests
-        import zipfile
-        import tarfile
+        warnings.warn(
+            "The file name is expected to be in the URL", UserWarning, stacklevel=2
+        )
         import gzip
         import shutil
+        import tarfile
+        import urllib.parse
+        import zipfile
+
+        import requests
 
         parsed = urllib.parse.urlparse(atlas_url)
         file_name = os.path.basename(parsed.path)
@@ -394,9 +396,9 @@ class AtlasFileHandler:
         return decompressed_path
 
 
-def _results_to_dicts(results: Sequence[Any]) -> List[dict]:
+def _results_to_dicts(results: Sequence[Any]) -> list[dict]:
     """Convert dataclass or mapping results to plain dictionaries."""
-    dicts: List[dict] = []
+    dicts: list[dict] = []
     for res in results:
         if is_dataclass(res):
             dicts.append(asdict(res))
@@ -456,7 +458,7 @@ def save_as_csv(results: Sequence[Any], path: str) -> None:
         writer.writeheader()
         for row in dict_results:
             flat = {
-                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                k: json.dumps(v) if isinstance(v, list | dict) else v
                 for k, v in row.items()
             }
             writer.writerow({k: flat.get(k) for k in fieldnames})

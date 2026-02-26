@@ -9,11 +9,11 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 from .ai_model_interface import AIModelInterface, build_generation_summary
-
 
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a careful neuroscience assistant. You convert MNI brain coordinates "
@@ -35,13 +35,13 @@ class ReasonedReportContext:
     """Structured payload describing the coordinate, atlas, and studies."""
 
     coordinate_mni: Sequence[float]
-    hemisphere: Optional[str] = None
-    boundary_proximity_mm: Optional[float] = None
-    atlas: Dict[str, Any] = field(default_factory=dict)
-    atlas_notes: List[str] = field(default_factory=list)
-    studies: List[Dict[str, Any]] = field(default_factory=list)
-    allowed_domains: Optional[Sequence[str]] = None
-    format_instructions: List[str] = field(default_factory=list)
+    hemisphere: str | None = None
+    boundary_proximity_mm: float | None = None
+    atlas: dict[str, Any] = field(default_factory=dict)
+    atlas_notes: list[str] = field(default_factory=list)
+    studies: list[dict[str, Any]] = field(default_factory=list)
+    allowed_domains: Sequence[str] | None = None
+    format_instructions: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -49,9 +49,9 @@ class ReasonedReport:
     """Parsed result returned by :func:`run_reasoned_report`."""
 
     narrative: str
-    json_text: Optional[str] = None
-    json_data: Optional[Dict[str, Any]] = None
-    json_error: Optional[str] = None
+    json_text: str | None = None
+    json_data: dict[str, Any] | None = None
+    json_error: str | None = None
 
 
 def infer_hemisphere(coord: Sequence[float]) -> str:
@@ -80,7 +80,7 @@ def infer_hemisphere(coord: Sequence[float]) -> str:
     return "unknown"
 
 
-def _context_to_payload(context: ReasonedReportContext) -> Dict[str, Any]:
+def _context_to_payload(context: ReasonedReportContext) -> dict[str, Any]:
     """Convert :class:`ReasonedReportContext` to a JSON-serialisable payload.
 
     Parameters
@@ -95,7 +95,7 @@ def _context_to_payload(context: ReasonedReportContext) -> Dict[str, Any]:
     """
     hemisphere = context.hemisphere or infer_hemisphere(context.coordinate_mni)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "coordinate_mni": list(context.coordinate_mni),
         "hemisphere": hemisphere,
     }
@@ -119,7 +119,7 @@ def build_reasoned_report_messages(
     *,
     system_message: str = DEFAULT_SYSTEM_MESSAGE,
     max_words: int = 180,
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     """Construct chat messages for the reasoned report prompt.
 
     Parameters
@@ -164,9 +164,9 @@ def parse_reasoned_report_output(output: str) -> ReasonedReport:
         Parsed narrative along with optional JSON payload information.
     """
     narrative = output.strip()
-    json_text: Optional[str] = None
-    json_data: Optional[Dict[str, Any]] = None
-    json_error: Optional[str] = None
+    json_text: str | None = None
+    json_data: dict[str, Any] | None = None
+    json_error: str | None = None
 
     fenced_pattern = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
     fenced_match = fenced_pattern.search(output)
@@ -211,7 +211,7 @@ def run_reasoned_report(
     max_tokens: int = 512,
     retries: int = 3,
     system_message: str = DEFAULT_SYSTEM_MESSAGE,
-) -> Tuple[ReasonedReport, Dict[str, Any]]:
+) -> tuple[ReasonedReport, dict[str, Any]]:
     """Generate and parse a reasoned report, returning metadata alongside.
 
     Parameters
@@ -263,7 +263,7 @@ def build_region_image_request(
     *,
     sphere_radius_mm: float = 6,
     negative_prompt: str = DEFAULT_NEGATIVE_PROMPT,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return prompt components for :meth:`AIModelInterface.generate_image`.
 
     Parameters

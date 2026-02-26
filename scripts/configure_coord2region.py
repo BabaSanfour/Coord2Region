@@ -16,12 +16,12 @@ import argparse
 import getpass
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
 
-def _load_yaml(path: Path) -> Dict[str, Any]:
+def _load_yaml(path: Path) -> dict[str, Any]:
     """Read a YAML mapping from the provided path.
 
     Parameters
@@ -67,10 +67,10 @@ def _coerce_bool(value: Any) -> bool:
 
 def _prompt(
     name: str,
-    settings: Dict[str, Any],
+    settings: dict[str, Any],
     *,
-    current: Optional[str],
-) -> Optional[str]:
+    current: str | None,
+) -> str | None:
     """Prompt the user for a single configuration value.
 
     Parameters
@@ -122,11 +122,11 @@ def _prompt(
 
 
 def build_configuration(
-    template: Dict[str, Any],
+    template: dict[str, Any],
     *,
-    existing_values: Dict[str, Any],
+    existing_values: dict[str, Any],
     interactive: bool,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Resolve a configuration dictionary from the template and existing values.
 
     Parameters
@@ -153,7 +153,7 @@ def build_configuration(
     if not isinstance(env_template, dict):
         raise ValueError("Template 'environment' section must be a mapping.")
 
-    environment: Dict[str, str] = {}
+    environment: dict[str, str] = {}
     for key, meta in env_template.items():
         meta = meta or {}
         if not isinstance(meta, dict):
@@ -178,13 +178,13 @@ def build_configuration(
             environment[key] = value
 
     notes = template.get("notes")
-    config: Dict[str, Any] = {"environment": environment}
+    config: dict[str, Any] = {"environment": environment}
     if notes:
         config["notes"] = notes
     return config
 
 
-def write_configuration(path: Path, data: Dict[str, Any]) -> None:
+def write_configuration(path: Path, data: dict[str, Any]) -> None:
     """Write the resolved configuration to disk with header guidance.
 
     Parameters
@@ -201,7 +201,7 @@ def write_configuration(path: Path, data: Dict[str, Any]) -> None:
     path.write_text(header + yaml_text, encoding="utf-8")
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Script entry point, parsing arguments and driving the configuration flow.
 
     Parameters
@@ -245,7 +245,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         Path(args.output) if args.output else template_path.parent / output_name
     )
 
-    existing_env: Dict[str, Any] = {}
+    existing_env: dict[str, Any] = {}
     if output_path.exists():
         try:
             existing_data = (

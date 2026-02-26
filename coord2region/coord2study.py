@@ -5,17 +5,16 @@ Neurosynth, NeuroQuery, and NIDM-Pain) and assembles study metadata for
 coordinates of interest.
 """
 
-import os
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
-
+import os
 import re
+from typing import Any
+
 import requests
 from Bio import Entrez, Medline
-
-from nimare.extract import fetch_neurosynth, fetch_neuroquery, download_nidm_pain
-from nimare.io import convert_neurosynth_to_dataset
 from nimare.dataset import Dataset
+from nimare.extract import download_nidm_pain, fetch_neuroquery, fetch_neurosynth
+from nimare.io import convert_neurosynth_to_dataset
 from nimare.utils import get_resource_path
 
 from .utils import resolve_working_directory
@@ -23,7 +22,7 @@ from .utils import resolve_working_directory
 logger = logging.getLogger(__name__)
 
 
-def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
+def _fetch_crossref_metadata(pmid: str) -> dict[str, str | None]:
     """Fetch title and abstract from CrossRef using a PMID.
 
     Parameters
@@ -66,8 +65,8 @@ def _fetch_crossref_metadata(pmid: str) -> Dict[str, Optional[str]]:
 
 
 def fetch_datasets(
-    data_dir: str, sources: Optional[List[str]] = None
-) -> Dict[str, Dataset]:
+    data_dir: str, sources: list[str] | None = None
+) -> dict[str, Dataset]:
     """Fetch and convert NiMARE datasets into ``Dataset`` objects.
 
     Parameters
@@ -84,7 +83,7 @@ def fetch_datasets(
     Dict[str, Dataset]
         Dictionary of NiMARE ``Dataset`` objects indexed by dataset name.
     """
-    datasets: Dict[str, Dataset] = {}
+    datasets: dict[str, Dataset] = {}
     os.makedirs(data_dir, exist_ok=True)
 
     # Determine which sources to fetch
@@ -159,7 +158,7 @@ def fetch_datasets(
     return datasets
 
 
-def load_deduplicated_dataset(filepath: str) -> Optional[Dataset]:
+def load_deduplicated_dataset(filepath: str) -> Dataset | None:
     """Load a previously saved deduplicated dataset.
 
     Parameters
@@ -190,8 +189,8 @@ def load_deduplicated_dataset(filepath: str) -> Optional[Dataset]:
 
 
 def deduplicate_datasets(
-    datasets: Dict[str, Dataset], save_dir: Optional[str] = None
-) -> Optional[Dataset]:
+    datasets: dict[str, Dataset], save_dir: str | None = None
+) -> Dataset | None:
     """Create a deduplicated dataset across sources using PMIDs.
 
     Duplicates are identified via PubMed IDs extracted from study identifiers.
@@ -218,10 +217,10 @@ def deduplicate_datasets(
 
     dataset_list = list(datasets.values())
     tracked_pmids: set[str] = set()
-    merged_dataset: Optional[Dataset] = None
+    merged_dataset: Dataset | None = None
 
     for dset in dataset_list:
-        ids_to_include: List[str] = []
+        ids_to_include: list[str] = []
         for sid in dset.ids:
             pmid = str(sid).split("-")[0]
             if pmid not in tracked_pmids:
@@ -255,9 +254,9 @@ def deduplicate_datasets(
 
 
 def prepare_datasets(
-    data_dir: Optional[str] = None,
-    sources: Optional[List[str]] = None,
-) -> Optional[Dataset]:
+    data_dir: str | None = None,
+    sources: list[str] | None = None,
+) -> Dataset | None:
     """Load or create a deduplicated NiMARE dataset.
 
     Parameters
@@ -295,7 +294,7 @@ def prepare_datasets(
     return deduplicate_datasets(datasets, save_dir=str(cache_dir))
 
 
-def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
+def _extract_study_metadata(dset: Dataset, sid: Any) -> dict[str, Any]:
     """Extract title and abstract for a study.
 
     Parameters
@@ -312,9 +311,9 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
         ``"abstract"``. Metadata are drawn from NiMARE and supplemented with
         PubMed (via Biopython) or CrossRef when necessary.
     """
-    study_entry: Dict[str, Any] = {"id": str(sid)}
+    study_entry: dict[str, Any] = {"id": str(sid)}
 
-    title: Optional[str] = None
+    title: str | None = None
     try:
         titles = dset.get_metadata(ids=[sid], field="title")
         if titles and titles[0] not in (None, "", "NaN"):
@@ -375,7 +374,7 @@ def _extract_study_metadata(dset: Dataset, sid: Any) -> Dict[str, Any]:
     return study_entry
 
 
-def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def remove_duplicate_studies(studies: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Remove duplicate studies based on PMID.
 
     Parameters
@@ -388,7 +387,7 @@ def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, An
     List[Dict[str, Any]]
         Unique study entries keyed by PMID.
     """
-    unique: Dict[str, Dict[str, Any]] = {}
+    unique: dict[str, dict[str, Any]] = {}
     for st in studies:
         full_id = st.get("id", "")
         pmid = full_id.split("-")[0]
@@ -400,12 +399,12 @@ def remove_duplicate_studies(studies: List[Dict[str, Any]]) -> List[Dict[str, An
 
 
 def search_studies(
-    datasets: Dict[str, Dataset],
-    coord: Union[List[float], Tuple[float, float, float]],
+    datasets: dict[str, Dataset],
+    coord: list[float] | tuple[float, float, float],
     radius: float = 0,
-    sources: Optional[List[str]] = None,
-    email: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    sources: list[str] | None = None,
+    email: str | None = None,
+) -> list[dict[str, Any]]:
     """Search selected datasets for studies reporting an MNI coordinate.
 
     Parameters
@@ -429,7 +428,7 @@ def search_studies(
         Deduplicated list of study metadata dictionaries.
     """
     coord_list = [list(coord)]
-    studies_info: List[Dict[str, Any]] = []
+    studies_info: list[dict[str, Any]] = []
 
     if sources is None:
         selected = datasets.items()
@@ -462,12 +461,12 @@ def search_studies(
 
 
 def get_studies_for_coordinate(
-    datasets: Union[Dict[str, Dataset], Dataset],
-    coord: Union[List[float], Tuple[float, float, float]],
+    datasets: dict[str, Dataset] | Dataset,
+    coord: list[float] | tuple[float, float, float],
     radius: float = 0,
-    email: Optional[str] = None,
-    sources: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    email: str | None = None,
+    sources: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """Find studies reporting an MNI coordinate across all datasets.
 
     This is a thin wrapper around :func:`search_studies` that searches every
@@ -490,7 +489,7 @@ def get_studies_for_coordinate(
         Restrict the search to the specified dataset names when ``datasets`` is
         a mapping.
     """
-    dataset_map: Dict[str, Dataset]
+    dataset_map: dict[str, Dataset]
     if isinstance(datasets, dict):
         dataset_map = datasets
     else:

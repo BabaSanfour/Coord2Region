@@ -5,11 +5,11 @@ The cache currently uses a fixed size controlled by :data:`SUMMARY_CACHE_SIZE`.
 """
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from collections.abc import Iterator
+from typing import Any
 
-from .utils.image_utils import generate_mni152_image, add_watermark
 from .ai_model_interface import AIModelInterface
-
+from .utils.image_utils import add_watermark, generate_mni152_image
 
 SUMMARY_CACHE_SIZE = 128
 
@@ -19,7 +19,7 @@ SUMMARY_CACHE_SIZE = 128
 
 # Templates for the introductory portion of LLM prompts. Users can inspect and
 # customize these as needed before passing them to :func:`generate_llm_prompt`.
-LLM_PROMPT_TEMPLATES: Dict[str, str] = {
+LLM_PROMPT_TEMPLATES: dict[str, str] = {
     "summary": (
         "You are an advanced AI with expertise in neuroanatomy and cognitive "
         "neuroscience. The user is interested in understanding the significance "
@@ -64,7 +64,7 @@ LLM_PROMPT_TEMPLATES: Dict[str, str] = {
 # Templates for image prompt generation. Each template can be formatted with
 # ``coordinate``, ``first_paragraph``, ``atlas_context``,
 # and ``study_context`` variables.
-IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
+IMAGE_PROMPT_TEMPLATES: dict[str, str] = {
     "anatomical": (
         "Create a scientific brain visualization showing exactly three orthogonal MRI"
         "slices arranged horizontally: coronal (left), sagittal (middle),"
@@ -118,10 +118,10 @@ IMAGE_PROMPT_TEMPLATES: Dict[str, str] = {
 
 
 def generate_llm_prompt(
-    studies: List[Dict[str, Any]],
-    coordinate: Union[List[float], Tuple[float, float, float]],
+    studies: list[dict[str, Any]],
+    coordinate: list[float] | tuple[float, float, float],
     prompt_type: str = "summary",
-    prompt_template: Optional[str] = None,
+    prompt_template: str | None = None,
 ) -> str:
     """Generate a detailed prompt for language models based on studies.
 
@@ -143,8 +143,10 @@ def generate_llm_prompt(
     """
     # Format coordinate string safely.
     try:
-        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(
-            float(coordinate[0]), float(coordinate[1]), float(coordinate[2])
+        coord_str = (
+            f"[{float(coordinate[0]):.2f}, "
+            f"{float(coordinate[1]):.2f}, "
+            f"{float(coordinate[2]):.2f}]"
         )
     except Exception:
         coord_str = str(coordinate)
@@ -156,7 +158,7 @@ def generate_llm_prompt(
         )
 
     # Build the studies section efficiently.
-    study_lines: List[str] = []
+    study_lines: list[str] = []
     for i, study in enumerate(studies, start=1):
         study_lines.append(f"\n--- STUDY {i} ---\n")
         study_lines.append(f"ID: {study.get('id', 'Unknown ID')}\n")
@@ -194,11 +196,11 @@ def generate_llm_prompt(
 
 
 def generate_region_image_prompt(
-    coordinate: Union[List[float], Tuple[float, float, float]],
-    region_info: Dict[str, Any],
+    coordinate: list[float] | tuple[float, float, float],
+    region_info: dict[str, Any],
     image_type: str = "anatomical",
     include_atlas_labels: bool = True,
-    prompt_template: Optional[str] = None,
+    prompt_template: str | None = None,
 ) -> str:
     """Generate a prompt for creating images of brain regions.
 
@@ -229,7 +231,7 @@ def generate_region_image_prompt(
         x_val = float(coordinate[0])
         y_val = float(coordinate[1])
         z_val = float(coordinate[2])
-        coord_str = "[{:.2f}, {:.2f}, {:.2f}]".format(x_val, y_val, z_val)
+        coord_str = f"[{x_val:.2f}, {y_val:.2f}, {z_val:.2f}]"
         x_coord = f"{x_val:.0f}"
         y_coord = f"{y_val:.0f}"
         z_coord = f"{z_val:.0f}"
@@ -295,12 +297,12 @@ def generate_region_image_prompt(
 
 def generate_region_image(
     ai: "AIModelInterface",
-    coordinate: Union[List[float], Tuple[float, float, float]],
-    region_info: Dict[str, Any],
+    coordinate: list[float] | tuple[float, float, float],
+    region_info: dict[str, Any],
     image_type: str = "anatomical",
     model: str = "stabilityai/stable-diffusion-2",
     include_atlas_labels: bool = True,
-    prompt_template: Optional[str] = None,
+    prompt_template: str | None = None,
     retries: int = 3,
     watermark: bool = True,
     **kwargs: Any,
@@ -357,12 +359,12 @@ def generate_region_image(
 
 def generate_summary(
     ai: "AIModelInterface",
-    studies: List[Dict[str, Any]],
-    coordinate: Union[List[float], Tuple[float, float, float]],
+    studies: list[dict[str, Any]],
+    coordinate: list[float] | tuple[float, float, float],
     prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    atlas_labels: Optional[Dict[str, str]] = None,
-    custom_prompt: Optional[str] = None,
+    atlas_labels: dict[str, str] | None = None,
+    custom_prompt: str | None = None,
     max_tokens: int = 1000,
 ) -> str:
     """Generate a text summary for a coordinate based on studies.
@@ -415,7 +417,7 @@ def generate_summary(
 
     # Generate and return the summary using the AI interface with caching
     key = (model, prompt)
-    cache: "OrderedDict[Tuple[str, str], str]" = generate_summary._cache
+    cache: OrderedDict[tuple[str, str], str] = generate_summary._cache
     if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
@@ -435,14 +437,14 @@ def generate_summary(
 
 def generate_batch_summaries(
     ai: "AIModelInterface",
-    coord_studies_pairs: List[
-        Tuple[Union[List[float], Tuple[float, float, float]], List[Dict[str, Any]]]
+    coord_studies_pairs: list[
+        tuple[list[float] | tuple[float, float, float], list[dict[str, Any]]]
     ],
     prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    custom_prompt: Optional[str] = None,
+    custom_prompt: str | None = None,
     max_tokens: int = 1000,
-) -> List[str]:
+) -> list[str]:
     """Generate summaries for multiple coordinates.
 
     Parameters
@@ -484,7 +486,7 @@ def generate_batch_summaries(
         ]
 
     delimiter = "\n@@@\n"
-    prompts: List[str] = []
+    prompts: list[str] = []
     for coord, studies in coord_studies_pairs:
         prompts.append(
             generate_llm_prompt(
@@ -502,7 +504,7 @@ def generate_batch_summaries(
     )
 
     key = (model, combined_prompt)
-    cache: "OrderedDict[Tuple[str, str], List[str]]" = generate_batch_summaries._cache
+    cache: OrderedDict[tuple[str, str], list[str]] = generate_batch_summaries._cache
     if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
@@ -525,12 +527,12 @@ def generate_batch_summaries(
 
 async def generate_summary_async(
     ai: "AIModelInterface",
-    studies: List[Dict[str, Any]],
-    coordinate: Union[List[float], Tuple[float, float, float]],
+    studies: list[dict[str, Any]],
+    coordinate: list[float] | tuple[float, float, float],
     prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    atlas_labels: Optional[Dict[str, str]] = None,
-    custom_prompt: Optional[str] = None,
+    atlas_labels: dict[str, str] | None = None,
+    custom_prompt: str | None = None,
     max_tokens: int = 1000,
 ) -> str:
     """Asynchronously generate a text summary for a coordinate.
@@ -579,7 +581,7 @@ async def generate_summary_async(
             prompt = atlas_info + prompt
 
     key = (model, prompt)
-    cache: "OrderedDict[Tuple[str, str], str]" = generate_summary_async._cache
+    cache: OrderedDict[tuple[str, str], str] = generate_summary_async._cache
     if SUMMARY_CACHE_SIZE > 0:
         cached = cache.get(key)
         if cached is not None:
@@ -601,12 +603,12 @@ async def generate_summary_async(
 
 def stream_summary(
     ai: "AIModelInterface",
-    studies: List[Dict[str, Any]],
-    coordinate: Union[List[float], Tuple[float, float, float]],
+    studies: list[dict[str, Any]],
+    coordinate: list[float] | tuple[float, float, float],
     prompt_type: str = "summary",
     model: str = "gemini-2.0-flash",
-    atlas_labels: Optional[Dict[str, str]] = None,
-    custom_prompt: Optional[str] = None,
+    atlas_labels: dict[str, str] | None = None,
+    custom_prompt: str | None = None,
     max_tokens: int = 1000,
 ) -> Iterator[str]:
     """Stream a text summary for a coordinate in chunks.
@@ -655,7 +657,7 @@ def stream_summary(
             prompt = atlas_info + prompt
 
     key = (model, prompt)
-    cache: "OrderedDict[Tuple[str, str], List[str]]" = stream_summary._cache
+    cache: OrderedDict[tuple[str, str], list[str]] = stream_summary._cache
     if SUMMARY_CACHE_SIZE > 0:
         cached_chunks = cache.get(key)
         if cached_chunks is not None:
@@ -664,7 +666,7 @@ def stream_summary(
                 yield chunk
             return
 
-    chunks: List[str] = []
+    chunks: list[str] = []
     try:
         for chunk in ai.stream_generate_text(
             model=model, prompt=prompt, max_tokens=max_tokens

@@ -112,6 +112,7 @@ exclude = ["docs", "examples", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "D"]
+extend-select = ["B", "I", "UP"]
 ignore = ["D203", "D213"]
 
 [tool.ruff.lint.pydocstyle]
