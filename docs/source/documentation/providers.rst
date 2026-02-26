@@ -65,9 +65,9 @@ Coord2Region supports both commercial cloud providers and open-weight community 
      - `Groq Cloud <https://console.groq.com/>`_
 
 .. note::
-   
-   **Disabling Providers:** To disable a provider, simply unset its environment 
-   variable or remove it from your configuration file. Coord2Region dynamically 
+
+   **Disabling Providers:** To disable a provider, simply unset its environment
+   variable or remove it from your configuration file. Coord2Region dynamically
    adjusts available features based on active keys.
 
 OpenAI (Text + Image)
@@ -105,7 +105,7 @@ OpenAI is the default backend for many tutorials.
    :caption: Example: Generating a summary with OpenAI
 
    from coord2region.llm import generate_summary
-   
+
    # Uses o4-mini for reasoning-heavy tasks
    summary = generate_summary(ai, studies, coord, model="o4-mini")
 
@@ -153,7 +153,7 @@ You can point Coord2Region to your own inference server (vLLM, Ollama, TGI) by o
 - ``AI_BASE_URL``: Override the endpoint (e.g., ``http://localhost:8000/v1``).
 - ``AI_API_KEY``: (Optional) A pass-through token if your gateway requires auth.
 - ``AI_MODELS``: Register your local models so Coord2Region knows they exist.
-  
+
   *Format:* ``alias:model_id`` pairs.
 
 **Example: Connecting to Ollama**

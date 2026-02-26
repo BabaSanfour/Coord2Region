@@ -58,7 +58,7 @@ def fetch_labels(labels):
                 raise ValueError("No labels found in the XML file.")
             return label_list
         except Exception as e:
-            raise ValueError(f"Error processing XML file {labels}: {e}")
+            raise ValueError(f"Error processing XML file {labels}: {e}") from e
     elif isinstance(labels, list):
         return labels
     else:

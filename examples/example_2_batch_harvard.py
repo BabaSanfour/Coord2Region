@@ -61,7 +61,7 @@ mni_coords = [
 ]
 
 # As you can see below! some of the coordinates are in the background
-# and do not belong to any region in the atlas. 
+# and do not belong to any region in the atlas.
 region_names = batch_mapper.batch_mni_to_region_name(mni_coords)
 for i, (coord, region) in enumerate(zip(mni_coords, region_names)):
     print(f"Coordinate {i+1} {coord} is in region: {region}")

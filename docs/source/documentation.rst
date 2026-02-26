@@ -4,19 +4,19 @@ Documentation
 .. note::
 
    **New to Coord2Region?** Start with the :doc:`install` guide.
-   
+
    If you are new to Python, check out the `Python tutorial
    <https://docs.python.org/3/tutorial/>`_ or the `Real Python getting started
    track <https://realpython.com/start-here/>`_ first.
 
-**Coord2Region** bridges the gap between 3D brain coordinates and scientific 
-insight. It unifies **anatomical mapping**, **meta-analytic literature search**, 
+**Coord2Region** bridges the gap between 3D brain coordinates and scientific
+insight. It unifies **anatomical mapping**, **meta-analytic literature search**,
 and **generative AI** into a streamlined workflow.
 
 .. admonition:: Looking for technical details?
 
    This page focuses on usage concepts and tutorials.
-   
+
    * **API Reference**: Visit the **API Reference** menu for precise class and function specifications.
    * **Development**: See the **Development** menu for contribution guidelines.
    * **Support**: Check **Get Help** if you are running into issues.
@@ -31,11 +31,11 @@ The documentation is organized into three sections to guide your usage:
   breakdowns of supported :doc:`documentation/atlases` and :doc:`documentation/providers`.
 
 - **Operational Interfaces** – Instructions for the specific tools you use to interact
-  with the package. Covers the :doc:`documentation/cli_tools` and 
+  with the package. Covers the :doc:`documentation/cli_tools` and
   :doc:`documentation/web_interface`, plus the core :doc:`documentation/workflow` logic.
 
 - **Project Metadata** – Contextual information about the software itself.
-  Read about our :doc:`documentation/design_philosophy`, how to provide :doc:`documentation/citation` 
+  Read about our :doc:`documentation/design_philosophy`, how to provide :doc:`documentation/citation`
   in your papers, the project :doc:`changelog`, and the people involved in :doc:`documentation/contributors`.
 
 .. toctree::

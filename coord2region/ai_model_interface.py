@@ -25,8 +25,9 @@ import json
 import os
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
+from typing import Any
 
 from openai import AsyncOpenAI, OpenAI
 
@@ -39,8 +40,8 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     anthropic = None
 import requests
-from huggingface_hub import InferenceClient
 import yaml
+from huggingface_hub import InferenceClient
 
 try:
     from transformers import pipeline as hf_local_pipeline
@@ -57,12 +58,12 @@ except ImportError:  # pragma: no cover - optional dependency
     StableDiffusionPipeline = None
 
 
-PromptType = Union[str, List[Dict[str, str]]]
+PromptType = str | list[dict[str, str]]
 
 
-def _parse_model_mapping(env_value: Optional[str]) -> Dict[str, str]:
+def _parse_model_mapping(env_value: str | None) -> dict[str, str]:
     """Parse ``alias:model_id`` pairs from an environment variable."""
-    mapping: Dict[str, str] = {}
+    mapping: dict[str, str] = {}
     if not env_value:
         return mapping
     for raw_item in env_value.split(","):
@@ -75,7 +76,7 @@ def _parse_model_mapping(env_value: Optional[str]) -> Dict[str, str]:
     return mapping
 
 
-def _load_yaml_environment(path: Union[str, Path]) -> None:
+def _load_yaml_environment(path: str | Path) -> None:
     """Load environment variables from a YAML configuration file if available."""
     config_path = Path(path)
     if not config_path.exists():
@@ -101,7 +102,7 @@ def _load_yaml_environment(path: Union[str, Path]) -> None:
         os.environ[key_str] = str(value).strip()
 
 
-def load_env_file(path: Union[str, Path] = Path(".env")) -> None:
+def load_env_file(path: str | Path = Path(".env")) -> None:
     """Load configuration-managed credentials before falling back to ``.env``.
 
     Parameters
@@ -137,8 +138,8 @@ def huggingface_credentials_present() -> bool:
 
 
 def pick_first_supported_model(
-    ai: "AIModelInterface", candidates: Iterable[str]
-) -> Optional[str]:
+    ai: AIModelInterface, candidates: Iterable[str]
+) -> str | None:
     """Return the first supported model from a list of candidates.
 
     Parameters
@@ -249,7 +250,7 @@ class ModelProvider(ABC):
     #: backend exposes such functionality.
     supports_batching: bool = False
 
-    def __init__(self, models: Dict[str, str]):
+    def __init__(self, models: dict[str, str]):
         self.models = models
 
     def supports(self, model: str) -> bool:
@@ -589,8 +590,8 @@ class LocalOpenAIProvider(ModelProvider):
         self,
         *,
         base_url: str,
-        api_key: Optional[str] = None,
-        models: Optional[Dict[str, str]] = None,
+        api_key: str | None = None,
+        models: dict[str, str] | None = None,
         default_model: str = "local-reasoning",
     ):  # pragma: no cover - optional local deployment wrapper
         if models is None or not models:
@@ -653,7 +654,7 @@ class OpenAIProvider(ModelProvider):
     """Provider for OpenAI's GPT models."""
 
     def __init__(
-        self, api_key: str, project: Optional[str] = None
+        self, api_key: str, project: str | None = None
     ):  # pragma: no cover - network client setup
         models = {
             "gpt-4o": "gpt-4o",
@@ -665,7 +666,7 @@ class OpenAIProvider(ModelProvider):
         }
         super().__init__(models)
         self._image_models = {"gpt-image-1", "dall-e-3", "dall-e-2"}
-        client_kwargs: Dict[str, Any] = {"api_key": api_key}
+        client_kwargs: dict[str, Any] = {"api_key": api_key}
         if project:
             client_kwargs["project"] = project
         self.client = OpenAI(**client_kwargs)
@@ -759,7 +760,7 @@ class OpenAIProvider(ModelProvider):
                     " in your OpenAI SDK version. "
                     "Please update to the latest OpenAI SDK or use"
                     " dall-e-2/dall-e-3 instead."
-                )
+                ) from None
 
         # DALL-E models use the Images API
         elif self.models[model] in ["dall-e-3", "dall-e-2"]:
@@ -853,7 +854,7 @@ class HuggingFaceProvider(ModelProvider):
         self,
         api_key: str,
         *,
-        model_providers: Optional[Dict[str, str]] = None,
+        model_providers: dict[str, str] | None = None,
         timeout: float = 60.0,
     ):  # pragma: no cover - network client setup
         models = {
@@ -877,7 +878,7 @@ class HuggingFaceProvider(ModelProvider):
         self.api_key = api_key
         self.model_providers = model_providers or {}
         self._timeout = timeout
-        self._provider_clients: Dict[Optional[str], InferenceClient] = {
+        self._provider_clients: dict[str | None, InferenceClient] = {
             None: InferenceClient(token=api_key, timeout=timeout)
         }
         self._router_client = OpenAI(
@@ -896,7 +897,7 @@ class HuggingFaceProvider(ModelProvider):
         }
 
     @staticmethod
-    def _normalize_messages(prompt: PromptType) -> List[Dict[str, str]]:
+    def _normalize_messages(prompt: PromptType) -> list[dict[str, str]]:
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
         return prompt
@@ -915,7 +916,7 @@ class HuggingFaceProvider(ModelProvider):
         if content is None and isinstance(message, dict):
             content = message.get("content")
         if isinstance(content, list):
-            parts: List[str] = []
+            parts: list[str] = []
             for item in content:
                 if isinstance(item, dict):
                     parts.append(item.get("text", ""))
@@ -926,7 +927,7 @@ class HuggingFaceProvider(ModelProvider):
             return str(content)
         return ""
 
-    def _get_client(self, provider: Optional[str]) -> InferenceClient:
+    def _get_client(self, provider: str | None) -> InferenceClient:
         if provider not in self._provider_clients:
             self._provider_clients[provider] = InferenceClient(
                 token=self.api_key, timeout=self._timeout, provider=provider
@@ -943,12 +944,12 @@ class HuggingFaceProvider(ModelProvider):
         if isinstance(prompt, list):
             user_chunks = [p["content"] for p in prompt if p.get("role") == "user"]
             system_chunks = [p["content"] for p in prompt if p.get("role") == "system"]
-            combined_parts: List[str] = []
+            combined_parts: list[str] = []
             if system_chunks:
                 combined_parts.append("\n".join(system_chunks))
             if user_chunks:
                 combined_parts.append("\n".join(user_chunks))
-            prompt_input: Union[str, PromptType] = "\n\n".join(combined_parts)
+            prompt_input: str | PromptType = "\n\n".join(combined_parts)
         else:
             prompt_input = prompt
         data = {
@@ -1062,10 +1063,10 @@ class HuggingFaceLocalProvider(ModelProvider):
     def __init__(
         self,
         *,
-        text_model: Optional[str] = None,
-        image_model: Optional[str] = None,
+        text_model: str | None = None,
+        image_model: str | None = None,
     ):  # pragma: no cover - heavy local dependency
-        models: Dict[str, str] = {}
+        models: dict[str, str] = {}
         if text_model:
             models[text_model] = text_model
         if image_model:
@@ -1141,19 +1142,19 @@ class AIModelInterface:
 
     def __init__(
         self,
-        gemini_api_key: Optional[str] = None,
-        openrouter_api_key: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
-        openai_project: Optional[str] = None,
-        anthropic_api_key: Optional[str] = None,
-        huggingface_api_key: Optional[str] = None,
-        groq_api_key: Optional[str] = None,
-        deepseek_api_key: Optional[str] = None,
-        together_api_key: Optional[str] = None,
-        local_openai_base_url: Optional[str] = None,
-        local_openai_api_key: Optional[str] = None,
-        local_openai_models: Optional[Dict[str, str]] = None,
-        enabled_providers: Optional[List[str]] = None,
+        gemini_api_key: str | None = None,
+        openrouter_api_key: str | None = None,
+        openai_api_key: str | None = None,
+        openai_project: str | None = None,
+        anthropic_api_key: str | None = None,
+        huggingface_api_key: str | None = None,
+        groq_api_key: str | None = None,
+        deepseek_api_key: str | None = None,
+        together_api_key: str | None = None,
+        local_openai_base_url: str | None = None,
+        local_openai_api_key: str | None = None,
+        local_openai_models: dict[str, str] | None = None,
+        enabled_providers: list[str] | None = None,
     ):
         """Initialise the interface and register available providers.
 
@@ -1206,9 +1207,9 @@ class AIModelInterface:
                 p.strip() for p in env_providers.split(",") if p.strip()
             ]
 
-        self._providers: Dict[str, ModelProvider] = {}
+        self._providers: dict[str, ModelProvider] = {}
 
-        provider_configs: Dict[str, Dict[str, Any]] = {}
+        provider_configs: dict[str, dict[str, Any]] = {}
 
         gemini_key = gemini_api_key or os.environ.get("GEMINI_API_KEY")
         if gemini_key:
@@ -1228,7 +1229,7 @@ class AIModelInterface:
                     "Set the project ID via the openai_project argument or the "
                     "OPENAI_PROJECT environment variable."
                 )
-            openai_cfg: Dict[str, Any] = {"api_key": openai_key}
+            openai_cfg: dict[str, Any] = {"api_key": openai_key}
             if openai_project_value:
                 openai_cfg["project"] = openai_project_value
             provider_configs["openai"] = openai_cfg
@@ -1246,7 +1247,7 @@ class AIModelInterface:
             hf_provider_map = _parse_model_mapping(
                 os.environ.get("HUGGINGFACE_MODEL_PROVIDERS")
             )
-            hf_config: Dict[str, Any] = {"api_key": huggingface_key}
+            hf_config: dict[str, Any] = {"api_key": huggingface_key}
             if hf_provider_map:
                 hf_config["model_providers"] = hf_provider_map
             provider_configs["huggingface"] = hf_config
@@ -1265,7 +1266,7 @@ class AIModelInterface:
 
         local_base_url = local_openai_base_url or os.environ.get("AI_BASE_URL")
         if local_base_url:
-            local_config: Dict[str, Any] = {"base_url": local_base_url}
+            local_config: dict[str, Any] = {"base_url": local_base_url}
             local_key = local_openai_api_key or os.environ.get("AI_API_KEY")
             if local_key:
                 local_config["api_key"] = local_key
@@ -1289,7 +1290,7 @@ class AIModelInterface:
 
     def register_provider(
         self,
-        provider: Union[ModelProvider, str],
+        provider: ModelProvider | str,
         *,
         enabled: bool = True,
         **config: Any,
@@ -1444,13 +1445,13 @@ class AIModelInterface:
             )
         try:
             return _retry_sync(
-                lambda: getattr(provider, "generate_image")(model, prompt, **kwargs),
+                lambda: provider.generate_image(model, prompt, **kwargs),
                 retries=retries,
             )
         except Exception as e:  # pragma: no cover - simple re-raise
             raise RuntimeError(f"Error generating image with {model}: {e}") from e
 
-    def list_available_models(self) -> List[str]:
+    def list_available_models(self) -> list[str]:
         """Return the list of registered model names."""
         return list(self._providers.keys())
 

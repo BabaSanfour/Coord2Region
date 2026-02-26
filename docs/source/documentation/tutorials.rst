@@ -6,7 +6,7 @@ Tutorials
 .. note::
 
     **Hands-on learning:** These tutorials are generated from Python scripts.
-    You can download the source code or Jupyter notebooks at the bottom of 
+    You can download the source code or Jupyter notebooks at the bottom of
     each tutorial page.
 
 The following sections cover end-to-end workflows using **Coord2Region**.
@@ -85,11 +85,11 @@ Electrophysiology (MEG & iEEG)
 
 .. topic:: Data management note
 
-    To keep the documentation build lightweight, these tutorials are configured 
-    to skip large dataset downloads if the files are not present locally. 
-    
-    When running these scripts on your own machine, Coord2Region will 
-    automatically fetch the necessary templates (e.g., MNI152) and atlases via 
+    To keep the documentation build lightweight, these tutorials are configured
+    to skip large dataset downloads if the files are not present locally.
+
+    When running these scripts on your own machine, Coord2Region will
+    automatically fetch the necessary templates (e.g., MNI152) and atlases via
     ``nilearn`` or ``mne`` if they are missing.
 
 .. toctree::

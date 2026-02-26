@@ -73,13 +73,13 @@ def test_fetch_nilearn_atlases(atlas_name):
     for key in ["vol", "hdr", "labels"]:
         assert key in atlas, f"Key '{key}' missing in atlas '{atlas_name}' output."
         assert atlas[key] is not None, f"Key '{key}' is None in atlas '{atlas_name}' output."
-    
+
     # 'vol' should be a non-empty numpy array.
     assert isinstance(atlas["vol"], np.ndarray), (
         f"'vol' should be a numpy array for atlas '{atlas_name}'."
     )
     assert atlas["vol"].size > 0, f"'vol' is empty for atlas '{atlas_name}'."
-    
+
     # If header is provided, check its type and shape.
     if atlas["hdr"] is not None:
         assert isinstance(atlas["hdr"], np.ndarray), (
@@ -90,7 +90,7 @@ def test_fetch_nilearn_atlases(atlas_name):
         )
     else:
         warnings.warn(f"'hdr' is None for atlas '{atlas_name}'.")
-    
+
     # 'labels' must be a non-empty list.
     assert isinstance(atlas["labels"], list) and len(atlas["labels"]) > 0, (
         f"Labels should be a non-empty list for atlas '{atlas_name}'."
@@ -105,11 +105,11 @@ def test_fetch_nilearn_coords(atlas_name):
     """Test fetching of Nilearn coordinate atlases using AtlasFetcher."""
     af = AtlasFetcher()
     atlas = af.fetch_atlas(atlas_name)
-    
+
     for key in ["vol", "labels"]:
         assert key in atlas, f"Key '{key}' missing in atlas '{atlas_name}' output."
         assert atlas[key] is not None, f"Key '{key}' is None in atlas '{atlas_name}' output."
-    
+
     # Expect vol to be a pandas DataFrame with columns x, y, z.
     assert isinstance(atlas["vol"], pd.DataFrame), (
         f"'vol' should be a pandas DataFrame for atlas '{atlas_name}'."
@@ -119,7 +119,7 @@ def test_fetch_nilearn_coords(atlas_name):
             f"DataFrame missing '{col}' column for atlas '{atlas_name}'."
         )
     assert atlas["vol"].shape[0] > 0, f"'vol' DataFrame is empty for atlas '{atlas_name}'."
-    
+
     # Check labels is non-empty (list or numpy array).
     assert ((isinstance(atlas["labels"], list) or isinstance(atlas["labels"], np.ndarray))
             and len(atlas["labels"]) > 0), f"Labels are empty for atlas '{atlas_name}'."
@@ -144,7 +144,7 @@ def test_fetch_mne_atlases(atlas_name):
     for key in ["vol", "labels", "indexes"]:
         assert key in atlas, f"Key '{key}' missing in MNE atlas output for atlas '{atlas_name}'."
         assert atlas[key] is not None, f"Key '{key}' is None in MNE atlas output for atlas '{atlas_name}'."
-    
+
     # For surface-based atlases, vol should be a list (left/right hemisphere)
     assert isinstance(atlas["vol"], list), (
         f"'vol' should be a list for MNE-based atlas '{atlas_name}'."
@@ -153,7 +153,7 @@ def test_fetch_mne_atlases(atlas_name):
     assert isinstance(atlas["indexes"], np.ndarray), (
         f"'indexes' should be a numpy array for MNE-based atlas '{atlas_name}'."
     )
-    
+
     # Ensure labels is non-empty.
     labels = atlas["labels"] if isinstance(atlas["labels"], list) else atlas["labels"].tolist()
     assert len(labels) > 0, f"Labels are empty for MNE-based atlas '{atlas_name}'."
@@ -252,13 +252,13 @@ def test_pack_surf_output(monkeypatch):
 
     monkeypatch.setattr("mne.read_labels_from_annot", dummy_read_labels_from_annot)
     monkeypatch.setattr("mne.setup_source_space", dummy_setup_source_space)
-    
+
     # Call pack_surf_output with dummy parameters.
     output = pack_surf_output("dummy_atlas", fetcher=None, subject="dummy", subjects_dir="dummy_dir")
-    
+
     for key in ["vol", "hdr", "labels", "indexes", "regions"]:
         assert key in output, f"Key '{key}' missing in output of pack_surf_output."
-    
+
     # For surface outputs, hdr is expected to be None.
     assert output["hdr"] is None, "Expected hdr to be None in pack_surf_output output."
     assert len(output["labels"]) > 0, "Labels list is empty in pack_surf_output output."
@@ -402,27 +402,27 @@ def create_dummy_xml(file_path, labels_list):
         name_elem.text = lab
     tree = ET.ElementTree(root)
     tree.write(file_path)
-    
+
 @pytest.fixture
 def dummy_atlas_dir(tmp_path):
     # Create a temporary directory with a dummy atlas file and a dummy labels file.
     atlas_file_name = "dummy_atlas.npz"
     labels_file_name = "dummy_labels.xml"
-    
+
     atlas_path = tmp_path / atlas_file_name
     vol, hdr = create_dummy_npz(atlas_path)
-    
+
     labels_path = tmp_path / labels_file_name
     label_list = ["Region1", "Region2", "Region3"]
     create_dummy_xml(labels_path, label_list)
-    
+
     return str(tmp_path), atlas_file_name, labels_file_name, vol, hdr, label_list
 
 def test_fetch_from_local_with_xml_labels(dummy_atlas_dir):
     atlas_dir, atlas_file, labels_file, vol, hdr, expected_labels = dummy_atlas_dir
     handler = AtlasFileHandler(data_dir=atlas_dir)
     output = handler.fetch_from_local(atlas_file, atlas_dir, labels_file)
-    
+
     # Check that the volume and header match the dummy npz.
     np.testing.assert_allclose(output["vol"], vol)
     np.testing.assert_allclose(output["hdr"], hdr)
@@ -434,7 +434,7 @@ def test_fetch_from_local_with_list_labels(dummy_atlas_dir):
     handler = AtlasFileHandler(data_dir=atlas_dir)
     label_list = ["DirectLabel1", "DirectLabel2"]
     output = handler.fetch_from_local(atlas_file, atlas_dir, label_list)
-    
+
     np.testing.assert_allclose(output["vol"], vol)
     np.testing.assert_allclose(output["hdr"], hdr)
     assert output["labels"] == label_list
@@ -470,7 +470,7 @@ def test_fetch_atlas_local_relative_to_data_dir(tmp_path):
     atlas_file = data_dir / "rel_atlas.npz"
     vol, hdr = create_dummy_npz(atlas_file)
     af = AtlasFetcher(data_dir=str(data_dir))
-    atlas = af.fetch_atlas("local", atlas_file="rel_atlas.npz", labels=["X"]) 
+    atlas = af.fetch_atlas("local", atlas_file="rel_atlas.npz", labels=["X"])
     np.testing.assert_allclose(atlas["vol"], vol)
     np.testing.assert_allclose(atlas["hdr"], hdr)
     assert atlas["labels"] == ["X"]
@@ -555,21 +555,21 @@ def dummy_requests_get(*args, **kwargs):
 
 def test_fetch_from_url(tmp_path, monkeypatch):
     handler = AtlasFileHandler(data_dir=str(tmp_path))
-    
+
     # Monkeypatch requests.get in the file_handler module.
     monkeypatch.setattr("requests.get", dummy_requests_get)
-    
+
     # Use a dummy URL with a file extension that does not trigger decompression.
     atlas_url = "http://example.com/dummy_atlas.npz"
     decompressed_path = handler.fetch_from_url(atlas_url)
-    
+
     # Check that the returned path exists.
     assert os.path.exists(decompressed_path)
     # Check that the file content matches the dummy content.
     with open(decompressed_path, "rb") as f:
         file_content = f.read()
     assert file_content == b"dummy atlas file content"
-    
+
     # Calling fetch_from_url again should skip the download.
     decompressed_path2 = handler.fetch_from_url(atlas_url)
     assert decompressed_path == decompressed_path2
@@ -580,13 +580,13 @@ def test_fetch_from_url_with_zip(tmp_path, monkeypatch):
     This simulates a compressed file download.
     """
     handler = AtlasFileHandler(data_dir=str(tmp_path))
-    
+
     # Create a dummy zip file in a temporary directory.
     dummy_zip_name = "dummy.zip"
     dummy_zip_path = tmp_path / dummy_zip_name
     dummy_file_name = "extracted.txt"
     dummy_content = b"extracted content"
-    
+
     with zipfile.ZipFile(dummy_zip_path, "w") as zipf:
         temp_file = tmp_path / dummy_file_name
         temp_file.write_bytes(dummy_content)
@@ -594,16 +594,16 @@ def test_fetch_from_url_with_zip(tmp_path, monkeypatch):
     # Read the dummy zip file content.
     with open(dummy_zip_path, "rb") as f:
         zip_bytes = f.read()
-    
+
     # Dummy requests.get will return the zip bytes.
     def dummy_get_zip(*args, **kwargs):
         return DummyResponse(zip_bytes)
-    
+
     monkeypatch.setattr("requests.get", dummy_get_zip)
-    
+
     atlas_url = f"http://example.com/{dummy_zip_name}"
     decompressed_path = handler.fetch_from_url(atlas_url)
-    
+
     # The function should return a directory after extraction.
     assert os.path.isdir(decompressed_path)
     # Check that the extracted file exists and has the expected content.

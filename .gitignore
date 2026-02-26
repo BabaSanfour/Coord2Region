@@ -52,6 +52,6 @@ web-interface/test-results/
 web-interface/.vite/
 web-interface/test-preview/
 config/coord2region-config.yaml
-    
+
 .vscode/
 *.DS_Store

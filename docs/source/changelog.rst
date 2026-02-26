@@ -17,6 +17,10 @@ Added
 ~~~~~
 - Initial implementation of a release-based **Changelog** system (:pr:`#N/A`).
 
+Changed
+~~~~~~~
+- Modernized repository configuration to satisfy sp-repo-review standards, including PEP 723/735, comprehensive Ruff linting, and Pytest enhancements (:pr:`34`).
+
 Fixed
 ~~~~~
 - Resolved **Arbitrary File Write and XML injection** in ``fonttools`` (CVE-2024-52233).

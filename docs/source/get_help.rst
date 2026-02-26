@@ -1,7 +1,7 @@
 Get Help
 ========
 
-Whether you have encountered a bug, have a question about a specific feature, 
+Whether you have encountered a bug, have a question about a specific feature,
 or need to report a safety concern, you are in the right place.
 
 .. _help_troubleshooting:
@@ -13,7 +13,7 @@ If Coord2Region isn't behaving as expected, please follow these steps before ope
 
 1. **Check the Documentation**
    Most questions are answered in the guides:
-   
+
    * :doc:`tutorials` – Step-by-step recipes for standard workflows.
    * :doc:`documentation/cli_tools` – Syntax reference for command-line arguments.
    * :doc:`api_reference` – Details on Python classes and parameters.
@@ -23,7 +23,7 @@ If Coord2Region isn't behaving as expected, please follow these steps before ope
 
 3. **Report a Bug**
    If you found a new issue, please open a bug report. To help us fix it quickly, include:
-   
+
    * The command or script you ran.
    * The full traceback/error message.
    * Your OS (Mac/Linux/Windows) and Python version.

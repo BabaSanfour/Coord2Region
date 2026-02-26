@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, Sequence, TYPE_CHECKING
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 # Avoid importing heavy/optional dependencies at module import time.
 # Import within functions to keep examples importable without provider SDKs.
@@ -60,7 +61,7 @@ IMAGE_MODEL_CANDIDATES: Sequence[str] = (
 )
 
 
-def load_environment(env_path: Optional[str] = None) -> None:
+def load_environment(env_path: str | None = None) -> None:
     """Load environment variables from configuration files.
 
     Parameters
@@ -74,8 +75,8 @@ def load_environment(env_path: Optional[str] = None) -> None:
 
 
 def build_interface(
-    *, enabled_providers: Optional[Sequence[str]] = None
-) -> "AIModelInterface":
+    *, enabled_providers: Sequence[str] | None = None
+) -> AIModelInterface:
     """Initialise :class:`AIModelInterface` with available providers.
 
     Parameters
@@ -103,12 +104,12 @@ def build_interface(
 
 
 def select_model(
-    ai: "AIModelInterface",
+    ai: AIModelInterface,
     candidates: Sequence[str],
     *,
-    explicit: Optional[str] = None,
+    explicit: str | None = None,
     kind: str = "text",
-) -> Optional[str]:
+) -> str | None:
     """Return the first supported model, honouring an explicit override.
 
     Parameters
@@ -149,7 +150,7 @@ def select_model(
     return model
 
 
-def getenv_str(name: str) -> Optional[str]:
+def getenv_str(name: str) -> str | None:
     """Return the trimmed value of an environment variable.
 
     Parameters

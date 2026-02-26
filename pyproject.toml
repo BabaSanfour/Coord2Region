@@ -69,6 +69,29 @@ docs = [
     "sphinxcontrib-mermaid",
 ]
 
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "pytest-cov",
+    "ruff",
+    "torch>=2.0.0",
+]
+docs = [
+    "insegel",
+    "myst-parser",
+    "pydata-sphinx-theme",
+    "packaging",
+    "sphinx>=4.0.0",
+    "sphinx-autoapi",
+    "sphinx-copybutton",
+    "sphinx-gallery",
+    "sphinxcontrib-mermaid",
+]
+tests = [
+    "pytest-cov",
+    "torch>=2.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/BabaSanfour/Coord2Region"
 Issues = "https://github.com/BabaSanfour/Coord2Region/issues"
@@ -85,12 +108,42 @@ exclude = ["paper*", "docs*", "examples*", "tests*"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
 exclude = ["docs", "examples", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "D"]
+extend-select = ["B", "I", "UP"]
 ignore = ["D203", "D213"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    # MNE sometimes raises warnings we can't control
+    "ignore::DeprecationWarning:mne.*:",
+    "ignore::PendingDeprecationWarning:mne.*:",
+    "ignore::FutureWarning:mne.*:",
+    # Ignore numpy warnings from other dependencies
+    "ignore::DeprecationWarning:numpy.*:",
+    "ignore::FutureWarning:numpy.*:",
+]
+log_level = "INFO"
+testpaths = [
+    "tests",
+]
+markers = [
+    "unit: mark a test as a unit test",
+    "integration: mark a test as an integration test",
+    "requires_network: mark test as requiring network access",
+]
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_unreachable = true
+strict = false
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]

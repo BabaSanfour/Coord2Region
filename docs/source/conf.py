@@ -278,14 +278,14 @@ def setup(app):
 
 if autoapi_available:
     extensions.append("autoapi.extension")
-    
+
     # 1. Where to look for code (relative to conf.py)
     autoapi_dirs = ["../../coord2region"]
-    
+
     # 2. How to generate files
     autoapi_type = "python"
     autoapi_root = "autoapi"  # The folder where rst files will be generated
-    
+
     # 3. What to include
     autoapi_options = [
         "members",
@@ -294,13 +294,13 @@ if autoapi_available:
         "show-module-summary",
         "imported-members",   # Show members imported from other libraries (optional)
     ]
-    
+
     # 4. Clean up the sidebar
     # We set this to False so we can manually place it in your api.rst
     autoapi_add_toctree_entry = False
-    
+
     # 5. Ignore specific files (optional)
     autoapi_ignore = ["*tests*", "*migrations*"]
-    
+
 else:
     print("WARNING: sphinx-autoapi not installed. Run `pip install sphinx-autoapi`.")

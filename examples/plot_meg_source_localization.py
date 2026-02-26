@@ -18,6 +18,7 @@ session:
 .. code-block:: python
 
     import mne
+
     # Downloads the dataset to the default MNE data folder
     mne.datasets.sample.data_path()
 
@@ -137,4 +138,3 @@ if isinstance(nearest_vtx, np.ndarray):
 print(
     f"Nearest vertex from coord: {nearest_vtx}; matches peak: {nearest_vtx == peak_vertno}"
 )
-

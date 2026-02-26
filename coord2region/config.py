@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence
 import numbers
+import os
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -18,7 +19,7 @@ from pydantic import (
     model_validator,
 )
 
-CoordinateTriple = List[float | int]
+CoordinateTriple = list[float | int]
 
 
 class Coord2RegionConfig(BaseModel):
@@ -27,15 +28,15 @@ class Coord2RegionConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     input_type: Literal["coords", "region_names"] = "coords"
-    inputs: Optional[List[Any]] = None
-    coordinates: Optional[List[CoordinateTriple]] = Field(
+    inputs: list[Any] | None = None
+    coordinates: list[CoordinateTriple] | None = Field(
         default=None,
         description=(
             "Input coordinates provided inline as triples "
             "(List[Tuple[float, float, float]]) or compatible sequences."
         ),
     )
-    coordinates_file: Optional[str] = Field(
+    coordinates_file: str | None = Field(
         default=None,
         alias="coords_file",
         description=(
@@ -43,43 +44,43 @@ class Coord2RegionConfig(BaseModel):
             "Remote URLs are not supported."
         ),
     )
-    region_names: Optional[List[str]] = None
+    region_names: list[str] | None = None
     # direct study inputs are not supported
-    legacy_config: Optional[Dict[str, Any]] = Field(default=None, alias="config")
+    legacy_config: dict[str, Any] | None = Field(default=None, alias="config")
 
-    outputs: List[
+    outputs: list[
         Literal[
             "region_labels", "summaries", "images", "raw_studies", "mni_coordinates"
         ]
     ] = Field(default_factory=list)
-    output_format: Optional[Literal["json", "pickle", "csv", "pdf", "directory"]] = None
-    output_name: Optional[str] = None
+    output_format: Literal["json", "pickle", "csv", "pdf", "directory"] | None = None
+    output_name: str | None = None
     image_backend: Literal["ai", "nilearn", "both"] = "ai"
     batch_size: conint(ge=0) = 0
 
-    working_directory: Optional[str] = None
-    email_for_abstracts: Optional[str] = None
+    working_directory: str | None = None
+    email_for_abstracts: str | None = None
     use_cached_dataset: bool = True
     # unified sources control for dataset preparation and study search
-    sources: Optional[List[str]] = None
+    sources: list[str] | None = None
     study_search_radius: confloat(ge=0) = 0.0
-    region_search_radius: Optional[confloat(ge=0)] = None
+    region_search_radius: confloat(ge=0) | None = None
 
-    atlas_names: Optional[List[str]] = None
-    atlas_configs: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    max_atlases: Optional[conint(gt=0)] = None
+    atlas_names: list[str] | None = None
+    atlas_configs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    max_atlases: conint(gt=0) | None = None
 
-    image_model: Optional[str] = None
+    image_model: str | None = None
 
     # Image generation prompt customization
-    image_prompt_type: Optional[str] = Field(
+    image_prompt_type: str | None = Field(
         default=None,
         description=(
             "Template to use for AI image generation prompts. One of: "
             "'anatomical', 'functional', 'schematic', 'artistic', or 'custom'."
         ),
     )
-    image_custom_prompt: Optional[str] = Field(
+    image_custom_prompt: str | None = Field(
         default=None,
         description=(
             "Custom image prompt template used when image_prompt_type is 'custom'. "
@@ -88,28 +89,28 @@ class Coord2RegionConfig(BaseModel):
         ),
     )
 
-    gemini_api_key: Optional[str] = None
-    openrouter_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
-    anthropic_api_key: Optional[str] = None
-    huggingface_api_key: Optional[str] = None
-    providers: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    gemini_api_key: str | None = None
+    openrouter_api_key: str | None = None
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    huggingface_api_key: str | None = None
+    providers: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
-    summary_models: Optional[List[str]] = None
-    prompt_type: Optional[str] = None
-    custom_prompt: Optional[str] = None
-    summary_max_tokens: Optional[conint(gt=0)] = None
+    summary_models: list[str] | None = None
+    prompt_type: str | None = None
+    custom_prompt: str | None = None
+    summary_max_tokens: conint(gt=0) | None = None
 
     @field_validator("outputs", mode="before")
     @classmethod
-    def _normalize_outputs(cls, value: Any) -> List[str]:
+    def _normalize_outputs(cls, value: Any) -> list[str]:
         if value is None:
             return []
         if isinstance(value, str):
             value = [value]
         if not isinstance(value, list):
             raise TypeError("outputs must be provided as a list of strings")
-        normalized: List[str] = []
+        normalized: list[str] = []
         for item in value:
             if item is None:
                 continue
@@ -118,7 +119,7 @@ class Coord2RegionConfig(BaseModel):
 
     @field_validator("coordinates", mode="before")
     @classmethod
-    def _normalize_coordinates(cls, value: Any) -> Optional[List[CoordinateTriple]]:
+    def _normalize_coordinates(cls, value: Any) -> list[CoordinateTriple] | None:
         if value is None:
             return None
         if isinstance(value, list):
@@ -127,7 +128,7 @@ class Coord2RegionConfig(BaseModel):
 
     @field_validator("atlas_names", "sources", "region_names", mode="before")
     @classmethod
-    def _normalize_string_list(cls, value: Any) -> Optional[List[str]]:
+    def _normalize_string_list(cls, value: Any) -> list[str] | None:
         if value is None:
             return None
         if isinstance(value, str):
@@ -141,12 +142,12 @@ class Coord2RegionConfig(BaseModel):
 
     @field_validator("providers", mode="before")
     @classmethod
-    def _normalize_providers(cls, value: Any) -> Dict[str, Dict[str, Any]]:
+    def _normalize_providers(cls, value: Any) -> dict[str, dict[str, Any]]:
         if value is None:
             return {}
         if not isinstance(value, dict):
             raise TypeError("providers must be a mapping of provider names to config")
-        normalized: Dict[str, Dict[str, Any]] = {}
+        normalized: dict[str, dict[str, Any]] = {}
         for key, cfg in value.items():
             if not isinstance(cfg, dict):
                 raise TypeError("each provider configuration must be a dictionary")
@@ -155,17 +156,17 @@ class Coord2RegionConfig(BaseModel):
 
     @field_validator("summary_models", mode="before")
     @classmethod
-    def _normalize_summary_models(cls, value: Any) -> Optional[List[str]]:
+    def _normalize_summary_models(cls, value: Any) -> list[str] | None:
         if value is None:
             return None
         if isinstance(value, str):
             candidates = [value]
-        elif isinstance(value, (list, tuple, set)):
+        elif isinstance(value, list | tuple | set):
             candidates = list(value)
         else:
             raise TypeError("summary_models must be provided as a string or list")
 
-        normalized: List[str] = []
+        normalized: list[str] = []
         seen = set()
         for item in candidates:
             if item is None:
@@ -178,25 +179,25 @@ class Coord2RegionConfig(BaseModel):
 
     @field_validator("atlas_configs", mode="before")
     @classmethod
-    def _normalize_atlas_configs(cls, value: Any) -> Dict[str, Dict[str, Any]]:
+    def _normalize_atlas_configs(cls, value: Any) -> dict[str, dict[str, Any]]:
         if value is None:
             return {}
         if not isinstance(value, dict):
             raise TypeError("atlas_configs must be a mapping of atlas names to options")
-        normalized: Dict[str, Dict[str, Any]] = {}
+        normalized: dict[str, dict[str, Any]] = {}
         for key, cfg in value.items():
             if not isinstance(cfg, dict):
                 raise TypeError("Each atlas configuration must be a dictionary")
             normalized[str(key)] = dict(cfg)
         return normalized
 
-    def _legacy_list(self, key: str) -> Optional[List[str]]:
+    def _legacy_list(self, key: str) -> list[str] | None:
         if not self.legacy_config or key not in self.legacy_config:
             return None
         return type(self)._normalize_string_list(self.legacy_config[key])
 
     @model_validator(mode="after")
-    def _validate_model(self) -> "Coord2RegionConfig":
+    def _validate_model(self) -> Coord2RegionConfig:
         if not self.outputs:
             raise ValueError("At least one output must be specified")
 
@@ -255,7 +256,7 @@ class Coord2RegionConfig(BaseModel):
 
             if self.region_names:
                 raise ValueError(
-                    "Field 'region_names' is not valid when " "input_type='coords'"
+                    "Field 'region_names' is not valid when input_type='coords'"
                 )
 
         elif self.input_type == "region_names":
@@ -272,7 +273,7 @@ class Coord2RegionConfig(BaseModel):
 
             if self.coordinates or self.coordinates_file:
                 raise ValueError(
-                    "Coordinate fields are not valid when " "input_type='region_names'"
+                    "Coordinate fields are not valid when input_type='region_names'"
                 )
         else:
             raise ValueError("input_type must be 'coords' or 'region_names'")
@@ -312,7 +313,7 @@ class Coord2RegionConfig(BaseModel):
         return False
 
     @staticmethod
-    def _derive_atlas_config(name: str) -> Optional[Dict[str, Any]]:
+    def _derive_atlas_config(name: str) -> dict[str, Any] | None:
         text = str(name).strip()
         if not text:
             return None
@@ -364,7 +365,7 @@ class Coord2RegionConfig(BaseModel):
 
     def collect_inputs(
         self, *, load_coords_file: Callable[[str], Sequence[Sequence[float]]]
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Resolve configured inputs into data consumable by the pipeline."""
         if self.input_type == "coords":
             if self.coordinates_file:
@@ -382,13 +383,13 @@ class Coord2RegionConfig(BaseModel):
         # no other input types supported
         raise ValueError("input_type must be 'coords' or 'region_names'")
 
-    def build_pipeline_config(self) -> Dict[str, Any]:
+    def build_pipeline_config(self) -> dict[str, Any]:
         """Construct the keyword arguments passed to ``run_pipeline``'s config."""
-        config: Dict[str, Any] = dict(self.legacy_config or {})
+        config: dict[str, Any] = dict(self.legacy_config or {})
         fields_set = self.model_fields_set
 
         def override(
-            field: str, *, key: Optional[str] = None, transform=lambda x: x
+            field: str, *, key: str | None = None, transform=lambda x: x
         ) -> None:
             if field in fields_set:
                 config[key or field] = transform(getattr(self, field))
@@ -433,9 +434,9 @@ class Coord2RegionConfig(BaseModel):
 
         return config
 
-    def to_pipeline_runtime(self, inputs: Sequence[Any]) -> Dict[str, Any]:
+    def to_pipeline_runtime(self, inputs: Sequence[Any]) -> dict[str, Any]:
         """Return arguments expected by :func:`coord2region.pipeline.run_pipeline`."""
-        runtime: Dict[str, Any] = {
+        runtime: dict[str, Any] = {
             "inputs": inputs,
             "input_type": self.input_type,
             "outputs": self.outputs,

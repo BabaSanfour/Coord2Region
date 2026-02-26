@@ -9,4 +9,3 @@
 - [ ] Tests added or updated
 - [ ] Documentation updated
 - [ ] Added to changelog
-

@@ -1,10 +1,6 @@
----
-layout: default
-hero_title: "Coord2Region"
-hero_tagline: "Turn MNI coordinates and atlas regions into actionable insights—labels, related studies, summaries, and optional images."
-title: "Home"
-description: "Overview of Coord2Region with links to the Builder, About, Cloud, and Docs."
----
+______________________________________________________________________
+
+## layout: default hero_title: "Coord2Region" hero_tagline: "Turn MNI coordinates and atlas regions into actionable insights—labels, related studies, summaries, and optional images." title: "Home" description: "Overview of Coord2Region with links to the Builder, About, Cloud, and Docs."
 
 <section class="logo-text-block" data-logo-light="{{ '/assets/img/logo.png' | relative_url }}" data-logo-dark="{{ '/assets/img/logo_darkmode.png' | relative_url }}">
   <img src="{{ '/assets/img/logo.png' | relative_url }}" alt="Coord2Region logo" class="inline-logo small theme-logo">
@@ -16,7 +12,7 @@ description: "Overview of Coord2Region with links to the Builder, About, Cloud, 
   </div>
 </section>
 
-➡️ Open the Config Builder: [{{ '/builder/' | relative_url }}]({{ '/builder/' | relative_url }})
+➡️ Open the Config Builder: \[{{ '/builder/' | relative_url }}\]({{ '/builder/' | relative_url }})
 
 ### What you can do
 
@@ -33,7 +29,7 @@ description: "Overview of Coord2Region with links to the Builder, About, Cloud, 
 
 ### Quick links
 
-[About]({{ '/about/' | relative_url }}) · [Config Builder]({{ '/builder/' | relative_url }}) · [Cloud Runner]({{ '/cloud/' | relative_url }}) · [Docs](https://coord2region.readthedocs.io/en/latest/) · [GitHub](https://github.com/BabaSanfour/Coord2Region)
+\[About\]({{ '/about/' | relative_url }}) · \[Config Builder\]({{ '/builder/' | relative_url }}) · \[Cloud Runner\]({{ '/cloud/' | relative_url }}) · [Docs](https://coord2region.readthedocs.io/en/latest/) · [GitHub](https://github.com/BabaSanfour/Coord2Region)
 
 ## How it works
 
@@ -41,7 +37,7 @@ description: "Overview of Coord2Region with links to the Builder, About, Cloud, 
 2. <span class="inline-logo-text">Choose providers and output options.</span>
 3. <span class="inline-logo-text">Copy the generated YAML or CLI, then run locally.</span>
 
-Want details? See [About]({{ '/about/' | relative_url }}) or the [Docs](https://coord2region.readthedocs.io/en/latest/).
+Want details? See \[About\]({{ '/about/' | relative_url }}) or the [Docs](https://coord2region.readthedocs.io/en/latest/).
 
 <figure class="workflow-figure">
   <img src="{{ '/assets/img/workflow.jpg' | relative_url }}" alt="Coord2Region workflow overview" class="workflow-image">

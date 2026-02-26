@@ -16,7 +16,7 @@ Why use the Python API?
 
 * **Batch Processing:** Loop through thousands of coordinates efficiently using the :mod:`~coord2region.pipeline`.
 * **Custom Workflows:** Use the :class:`~coord2region.fetching.AtlasFetcher` to download atlases for your own use, even outside of Coord2Region.
-* **AI Integration:** Import :mod:`~coord2region.llm` to add semantic summaries to your own `pandas` DataFrames or analysis results.
+* **AI Integration:** Import :mod:`~coord2region.llm` to add semantic summaries to your own ``pandas`` DataFrames or analysis results.
 
 Quick Access
 ------------
@@ -53,7 +53,7 @@ Most users will only need a few core components. Use this cheat sheet to find th
 The package is organized into logical sub-systems. You can browse the full tree in the **left navigation sidebar**, but here is a guide to what lives where:
 
 * **`coord2region.pipeline`**: The "glue" code that stitches modules together.
-* **`coord2region.fetching`**: Data input. Handles interactions with `nilearn` and `mne` datasets.
+* **``coord2region.fetching``**: Data input. Handles interactions with ``nilearn`` and ``mne`` datasets.
 * **`coord2region.ai_model_interface`**: External APIs. Contains the logic for querying Neurosynth and NeuroQuery.
 * **`coord2region.llm`**: Generative AI. Functions for prompting OpenAI, Gemini, and Hugging Face models.
 * **`coord2region.utils`**: Low-level helpers for file I/O, validation, and logging.

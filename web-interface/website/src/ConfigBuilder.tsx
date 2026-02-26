@@ -994,7 +994,7 @@ const SummaryModelMultiSelect = ({ formData, onChange, idSchema }: FieldProps) =
   const value = Array.isArray(formData) ? formData : [];
   const inputId = idSchema?.$id ?? 'summary-models';
   const [inputValue, setInputValue] = useState('');
-  
+
   // Calculate required providers based on selected models
   const requiredProviders = Array.from(new Set(
     value.map(model => modelToProvider[model]).filter(Boolean)
@@ -1022,7 +1022,7 @@ const SummaryModelMultiSelect = ({ formData, onChange, idSchema }: FieldProps) =
   return (
     <div className="form-field">
       <label className="field-label" htmlFor={inputId}>Summary Models</label>
-      
+
       {/* Selected models display */}
       {value.length > 0 && (
         <div className="selected-items">
@@ -1056,11 +1056,11 @@ const SummaryModelMultiSelect = ({ formData, onChange, idSchema }: FieldProps) =
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </datalist>
-      
+
       <p className="helper">
         Type model names and press Enter to add them. You can use any model identifier supported by your providers.
       </p>
-      
+
       {/* Show required API keys */}
       {value.length > 0 && (
         <div className="api-key-requirements">
@@ -1077,7 +1077,7 @@ const ApiKeyField = ({ formData, onChange, idSchema, uiSchema }: FieldProps) => 
   const value = typeof formData === 'string' ? formData : '';
   const inputId = idSchema?.$id ?? 'api-key';
   const placeholder = uiSchema?.['ui:placeholder'] || 'Enter API key';
-  
+
   return (
     <div className="form-field">
       <label className="field-label" htmlFor={inputId}>
@@ -1327,11 +1327,11 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
       defaults.atlas_names = ['harvard-oxford', 'juelich'];
     }
     // Image generation defaults
-    (defaults as any).image_backend = typeof (defaults as any).image_backend === 'string' && (defaults as any).image_backend 
-      ? (defaults as any).image_backend 
+    (defaults as any).image_backend = typeof (defaults as any).image_backend === 'string' && (defaults as any).image_backend
+      ? (defaults as any).image_backend
       : 'both'; // Changed default to 'both'
-    (defaults as any).image_model = typeof (defaults as any).image_model === 'string' && (defaults as any).image_model 
-      ? (defaults as any).image_model 
+    (defaults as any).image_model = typeof (defaults as any).image_model === 'string' && (defaults as any).image_model
+      ? (defaults as any).image_model
       : 'runwayml/stable-diffusion-v1-5'; // Changed default model
     defaults.sources = Array.isArray((defaults as any).sources)
       ? (defaults as any).sources
@@ -1470,7 +1470,7 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
   }, [enableStudy, enableSummary, enableImages]);
 
   // Get required API keys based on selected models
-  const selectedModels = Array.isArray(formData.summary_models) 
+  const selectedModels = Array.isArray(formData.summary_models)
     ? formData.summary_models as string[]
     : [];
   const requiredProviders = Array.from(new Set(
@@ -1950,7 +1950,7 @@ const ConfigBuilder = (props: ConfigBuilderProps = {}) => {
         payload.summary_models = payload.summary_models ? [payload.summary_models] : [];
       }
       // Filter out empty strings and null values
-      payload.summary_models = (payload.summary_models as string[]).filter((model: string) => 
+      payload.summary_models = (payload.summary_models as string[]).filter((model: string) =>
         typeof model === 'string' && model.trim().length > 0
       );
       // Set to null if no valid models

@@ -3,7 +3,7 @@
 Web Interface
 =============
 
-The **Coord2Region** project includes a React-based configuration builder and a 
+The **Coord2Region** project includes a React-based configuration builder and a
 static landing page. These live in the ``web-interface/`` directory.
 
 Development Setup

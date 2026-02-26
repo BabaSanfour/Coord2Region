@@ -1,6 +1,5 @@
 # Coord2Region
 
-
 [![Codecov](https://img.shields.io/codecov/c/github/BabaSanfour/Coord2Region)](https://codecov.io/gh/BabaSanfour/Coord2Region)
 [![Tests](https://img.shields.io/github/actions/workflow/status/BabaSanfour/Coord2Region/python-tests.yml?branch=main&label=tests)](https://github.com/BabaSanfour/Coord2Region/actions/workflows/python-tests.yml)
 [![Python versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org/)
@@ -105,17 +104,18 @@ To preview or hack on the web stack locally, follow [`web-interface/README.md`](
 - [Documentation](https://coord2region.readthedocs.io/en/latest/) – user guide, pipeline walkthrough, API reference, tutorials.
 - [Examples gallery](examples/)
 - [Web interface overview](web-interface/README.md)
-- [License][license] · [Contributing][contributing] · [Code of Conduct][code_of_conduct] · [Security Policy][security]
+- [License] · [Contributing] · [Code of Conduct][code_of_conduct] · [Security Policy][security]
 - [Preprint](https://zenodo.org/records/15048848)
 
 ## API workflow
+
 A compact overview of the Coord2Region pipeline: shows how inputs (coordinates or region names) are mapped to atlas labels, linked to study results, optionally enriched by AI summaries/images, and exported as reproducible artifacts.
 
 <div align="center">
     <img src="docs/source/_static/images/workflow.jpg" alt="Coord2Region workflow" width="800">
 </div>
 
-[license]: LICENSE
-[contributing]: CONTRIBUTING.md
 [code_of_conduct]: CODE_OF_CONDUCT.md
+[contributing]: CONTRIBUTING.md
+[license]: LICENSE
 [security]: SECURITY.md

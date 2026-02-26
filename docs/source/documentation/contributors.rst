@@ -3,7 +3,7 @@
 Contributors
 ============
 
-**Coord2Region** is an open-source project initiated at the **CoCo Lab** (University of Montreal, Mila) and maintained by a growing community of 
+**Coord2Region** is an open-source project initiated at the **CoCo Lab** (University of Montreal, Mila) and maintained by a growing community of
 researchers, clinicians, and developers.
 
 Core Development Team
@@ -21,14 +21,14 @@ The project was originally architected and is currently maintained by:
 Community Contributors
 ----------------------
 
-We welcome contributions of all kinds—from code fixes and documentation improvements 
+We welcome contributions of all kinds—from code fixes and documentation improvements
 to bug reports and feature requests.
 
 .. image:: https://contrib.rocks/image?repo=BabaSanfour/Coord2Region
    :target: https://github.com/BabaSanfour/Coord2Region/graphs/contributors
    :alt: GitHub Contributors
 
-You can view the full history of contributions on our `GitHub Contributors Graph 
+You can view the full history of contributions on our `GitHub Contributors Graph
 <https://github.com/BabaSanfour/Coord2Region/graphs/contributors>`_.
 
 How to Join
@@ -41,9 +41,9 @@ We would love to add your name to this list! Here is how you can get involved:
    Once merged, you will automatically appear in the GitHub graph above.
 
 2. **Research & Usage:**
-   If you have published a paper or presented a poster using Coord2Region, open 
+   If you have published a paper or presented a poster using Coord2Region, open
    a PR to add your citation to our :doc:`citation` page.
 
 3. **Documentation:**
-   Found a typo? Want to add a new tutorial? Documentation fixes are the fastest 
+   Found a typo? Want to add a new tutorial? Documentation fixes are the fastest
    way to become a contributor.

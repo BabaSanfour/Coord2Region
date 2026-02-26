@@ -16,6 +16,7 @@ session:
 .. code-block:: python
 
     import mne
+
     # Downloads the dataset to the default MNE data folder
     mne.datasets.epilepsy_ecog.data_path()
 

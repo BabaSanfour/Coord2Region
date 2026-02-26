@@ -193,7 +193,7 @@ test.describe('Coord2Region Config Builder', () => {
     const modelInput = summaryModelsContainer.locator('input[type="text"]');
     await modelInput.fill('gemini-2.0-flash');
     await modelInput.press('Enter');
-  
+
     // Verify model chip was added
     await expect(summaryModelsContainer.locator('.selected-item')).toContainText('gemini-2.0-flash');
 

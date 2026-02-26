@@ -54,7 +54,7 @@ print(f"Atlas Coordinate System: {atlas.atlas_type}") # The AtlasMapper can dete
 # %%
 # 4. Converting MNI Coordinates to Voxel Indices
 # We use `convert_to_source()` to convert an MNI coordinate (x, y, z) into voxel space.
-# This method works for both volumetric and surface atlases. `mni_to_voxel()` function works for volumetric atlases 
+# This method works for both volumetric and surface atlases. `mni_to_voxel()` function works for volumetric atlases
 # and  `mni_to_vertex()` works for surface atlases.
 # Since our affine matrix is the identity matrix, this is a simple rounding operation.
 
@@ -89,7 +89,7 @@ print(f"Region Index {region_idx} has {len(region_mni_coords)} coordinates in MN
 # %%
 # 8. Converting Voxel Indices Back to MNI
 # We use `convert_to_mni()` to reverse the voxel-to-MNI conversion. The method works for both volumetric and surface atlases.
-# `voxel_to_mni()` works for volumetric atlases and `vertext_to_mni()` works for surface atlases. 
+# `voxel_to_mni()` works for volumetric atlases and `vertext_to_mni()` works for surface atlases.
 
 mni_from_voxel = atlas.convert_to_mni([voxel_idx])
 print(f"Voxel {voxel_idx} maps back to MNI coordinates: {mni_from_voxel}")
