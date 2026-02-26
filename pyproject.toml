@@ -146,3 +146,4 @@ markers = [
 ignore_missing_imports = true
 warn_unreachable = true
 strict = false
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
