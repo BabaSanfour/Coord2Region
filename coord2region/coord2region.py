@@ -598,7 +598,7 @@ class AtlasMapper:
         if vertices.size == 0:
             return np.empty((0, 3))
         lh_vertices, rh_vertices = self.vol
-        lh_mask = np.in1d(vertices, lh_vertices)
+        lh_mask = np.isin(vertices, lh_vertices)
         coords = []
         if lh_mask.any():
             coords.append(
