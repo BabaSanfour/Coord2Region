@@ -255,7 +255,7 @@ class Coord2RegionConfig(BaseModel):
 
             if self.region_names:
                 raise ValueError(
-                    "Field 'region_names' is not valid when " "input_type='coords'"
+                    "Field 'region_names' is not valid when input_type='coords'"
                 )
 
         elif self.input_type == "region_names":
@@ -272,7 +272,7 @@ class Coord2RegionConfig(BaseModel):
 
             if self.coordinates or self.coordinates_file:
                 raise ValueError(
-                    "Coordinate fields are not valid when " "input_type='region_names'"
+                    "Coordinate fields are not valid when input_type='region_names'"
                 )
         else:
             raise ValueError("input_type must be 'coords' or 'region_names'")

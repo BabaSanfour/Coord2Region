@@ -54,7 +54,7 @@ class AtlasFetcher:
         "talairach": "https://www.talairach.org/talairach.nii",
         "aal": {
             "atlas_url": (
-                "http://www.gin.cnrs.fr/wp-content/uploads/" "AAL3v2_for_SPM12.tar.gz"
+                "http://www.gin.cnrs.fr/wp-content/uploads/AAL3v2_for_SPM12.tar.gz"
             ),
             "atlas_file": "AAL3v1.nii.gz",
             "labels": "AAL3v1.xml",
