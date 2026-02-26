@@ -31,7 +31,7 @@ pre-commit run --all-files
 ## Testing and coverage
 
 Run the unit test suite with coverage. The project aims for at least 80%
-coverage, which is enforced by Codecov. 
+coverage, which is enforced by Codecov.
 
 We use [Nox](https://nox.thea.codes/) to automate testing across multiple Python versions in isolated environments:
 
@@ -58,7 +58,7 @@ The generated file (`docs/static/schema.json`) is covered by regression tests, a
 
 ## Documentation
 
-Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style. 
+Write docstrings in [numpydoc](https://numpydoc.readthedocs.io) style.
 
 We use Nox to automate building the documentation in an isolated environment:
 
@@ -125,13 +125,13 @@ We maintain a release-based **Changelog** in `docs/source/changelog.rst`. Every 
 ### How to contribute to the Changelog:
 
 1. Locate the `Current (Unreleased)` section in `docs/source/changelog.rst`.
-2. Add a concise bullet point describing your change under the appropriate category (`Added`, `Changed`, `Fixed`, `Removed`). 
+2. Add a concise bullet point describing your change under the appropriate category (`Added`, `Changed`, `Fixed`, `Removed`).
 3. Mention the PR number if available (e.g., `(:pr:`#123`)`).
 4. Add your name to the **Authors** list for the version if it's your first contribution to that release.
 
 ### Format requirements:
 - Use past tense for entries (e.g., "Added...", "Fixed...").
-- Keep descriptions clear and high-level. 
+- Keep descriptions clear and high-level.
 - Ensure security remediations are highlighted in the `Fixed` or `Security` sections.
 
 ## Code of Conduct and security

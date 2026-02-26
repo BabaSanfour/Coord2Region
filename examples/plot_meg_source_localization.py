@@ -137,4 +137,3 @@ if isinstance(nearest_vtx, np.ndarray):
 print(
     f"Nearest vertex from coord: {nearest_vtx}; matches peak: {nearest_vtx == peak_vertno}"
 )
-

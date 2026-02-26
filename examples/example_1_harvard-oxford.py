@@ -66,7 +66,7 @@ print(f"Region '{region_query}' corresponds to index: {region_index}")
 # We use `mni_to_voxel()` to find the **voxel location** of an MNI coordinate.
 # You could also use `mni_to_vertices()` for surface atlases or `convert_to_mni()` that supports both.
 mni_coord = [-20, 30, 40]  # Example MNI coordinate
-voxel_index = atlas_mapper.mni_to_voxel(mni_coord) 
+voxel_index = atlas_mapper.mni_to_voxel(mni_coord)
 
 print(f"MNI coordinate {mni_coord} maps to voxel index {voxel_index}")
 
@@ -80,13 +80,13 @@ print(f"MNI coordinate {mni_coord} is in region: {region_from_mni}")
 # %%
 # 9. Infer Hemisphere from Region Name (1.0)
 # Finally, we can infer the **hemisphere** of a region if its name follows a standard format.
-region_name = "Frontal Pole" 
+region_name = "Frontal Pole"
 hemisphere = atlas_mapper.infer_hemisphere(region_name)
 
 print(f"Region '{region_name}' belongs to hemisphere: {hemisphere}")
 
 # %% 10. Infer Hemisphere from Region Name (1.0)
-# As you have seen the **Frontal Pole** does not belong to any **hemisphere**. This is because 
+# As you have seen the **Frontal Pole** does not belong to any **hemisphere**. This is because
 # some atlases do not provide hemisphere information for regions.
 # Let's try another region that has hemisphere information.
 region_name = "Lat_Fis-post-rh"  # This label belongs to the Destrieux atlas

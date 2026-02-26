@@ -69,4 +69,3 @@ for region, coords in zip(region_queries, region_mni_sets):
 # - Fetched the surface-based aparc atlas
 # - Batch-mapped MNI coordinates to region names
 # - Converted region names to the full set of vertex MNI coordinates
-

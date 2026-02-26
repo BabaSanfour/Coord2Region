@@ -3,7 +3,7 @@
 Python Core
 ===========
 
-This guide covers the development workflow for the ``coord2region`` Python package, 
+This guide covers the development workflow for the ``coord2region`` Python package,
 including environment setup, testing, and release engineering.
 
 Environment Setup
@@ -17,7 +17,7 @@ Environment Setup
       cd Coord2Region
 
 2. **Install in editable mode:**
-   We recommend using a virtual environment. Install the package with its 
+   We recommend using a virtual environment. Install the package with its
    ``dev`` and ``docs`` extras:
 
    .. code-block:: bash
@@ -56,7 +56,7 @@ For live-reloading previews, install ``sphinx-autobuild`` (included in the
 Quality Assurance
 -----------------
 
-This project uses **Ruff** for linting/formatting and **Pre-commit** to enforce 
+This project uses **Ruff** for linting/formatting and **Pre-commit** to enforce
 standards automatically.
 
 * **Install Hook:** ``pre-commit install`` (run once)
@@ -74,7 +74,7 @@ We use ``pytest`` for unit testing. The project aims for at least **80% code cov
 Configuration Schema
 --------------------
 
-The CLI parameters are defined via the :class:`~coord2region.config.Coord2RegionConfig` 
+The CLI parameters are defined via the :class:`~coord2region.config.Coord2RegionConfig`
 Pydantic model. If you modify ``config.py``, you must regenerate the JSON schema:
 
 .. code-block:: bash

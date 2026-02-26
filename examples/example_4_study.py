@@ -27,7 +27,7 @@ print(f"Loaded dataset with {len(dataset.ids)} studies")
 
 # %%
 # 3. Query Studies for an MNI Coordinate
-# 
+#
 # We specify an **MNI coordinate** to find studies reporting activation at that location.
 
 mni_coord = [48,-38, -24]  # Example coordinate in MNI space
@@ -44,7 +44,7 @@ for study in study_results[:5]:  # Show only first 5 studies for brevity
 
 # %%
 # 4. Extract and Display Study Metadata
-# 
+#
 # If available, we can retrieve additional metadata **such as abstracts** using **PubMed**.
 
 for study in study_results[:3]:  # Limit to first 3 studies

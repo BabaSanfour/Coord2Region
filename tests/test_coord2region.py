@@ -160,10 +160,10 @@ def test_batch_region_index_from_name(vectorized_mapper):
 # Test: MultiAtlasMapper API
 def test_multiatlas_api():
     """Test the high-level MultiAtlasMapper class."""
-    # also skipping yeo ! 
+    # also skipping yeo !
     c2r = MultiAtlasMapper(data_dir="coord2region_data", atlases={x: {} for x in PROPERTIES.keys() if x != "yeo"})
     coords = TEST_MNIS
-    
+
     result_dict = c2r.batch_mni_to_region_names(coords)
     for atlas_name in PROPERTIES.keys():
         if atlas_name == "yeo":
@@ -441,4 +441,3 @@ def test_atlasmapper_invalid_hdr_shape():
     bad_hdr = np.eye(3)
     with pytest.raises(ValueError):
         AtlasMapper("bad", vol, bad_hdr)
-

@@ -3,8 +3,8 @@
 Concepts & Workflow
 ===================
 
-Every Coord2Region run follows the same lifecycle, whether you are running a 
-single coordinate in the CLI or a batch of thousands in Python. 
+Every Coord2Region run follows the same lifecycle, whether you are running a
+single coordinate in the CLI or a batch of thousands in Python.
 
 
 
@@ -14,7 +14,7 @@ single coordinate in the CLI or a batch of thousands in Python.
 The pipeline accepts two primary input types:
 
 * **Coordinates**: MNI or Talairach coordinates (x, y, z).
-* **Region Names**: Anatomical labels (e.g., "Left Amygdala") which are first 
+* **Region Names**: Anatomical labels (e.g., "Left Amygdala") which are first
   mapped to centroids using a reference atlas.
 
 2. Configure Providers

@@ -129,7 +129,7 @@ For reproducible research, define your pipeline in a YAML file instead of long C
       coord2region run --config my_pipeline.yaml
 
    **Dry Run:** To see what commands would be executed without running them:
-   
+
    .. code-block:: bash
 
       coord2region run --config my_pipeline.yaml --dry-run

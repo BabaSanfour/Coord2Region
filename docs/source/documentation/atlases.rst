@@ -49,15 +49,15 @@ Anatomical & Cytoarchitectonic
      - Description & Defaults
    * - ``harvard-oxford``
      - **Standard Probabilistic Atlas.** Maps cortical and subcortical areas.
-       
+
        *Defaults:* ``atlas_name='cort-maxprob-thr25-2mm'``.
    * - ``aal``
      - **Automated Anatomical Labeling.** Standard macroscopic atlas (AAL3v2).
-       
+
        *Defaults:* ``version='3v2'``.
    * - ``juelich``
      - **Cytoarchitectonic Atlas.** Microscopic cell distribution maps.
-       
+
        *Defaults:* ``atlas_name='maxprob-thr0-1mm'``.
    * - ``brodmann``
      - **Brodmann Areas.** Classic cytoarchitectonic labels (BA1-BA52) via Talairach transform.
@@ -79,11 +79,11 @@ Derived from functional clustering (fMRI) for defining homogeneous regions.
      - Description & Defaults
    * - ``schaefer``
      - **Schaefer 2018.** Gradient-weighted Markov Random Fields.
-       
+
        *Defaults:* ``n_rois=400``, ``yeo_networks=7``, ``resolution_mm=1``.
    * - ``yeo``
      - **Yeo 2011 (Volumetric).** Functional network parcellation.
-       
+
        *Defaults:* ``n_networks=7`` (Liberal mask).
    * - ``basc``
      - **BASC Multiscale.** Bootstrap Analysis of Stable Clusters (2015).
@@ -144,12 +144,12 @@ Connectome Project (HCP)
      - Description & Requirements
    * - ``human-connectum project``
      - **HCP-MMP 1.0.** Glasser 2016 multi-modal parcellation.
-       
+
        .. important::
           **License Required:** You must accept data usage terms.
-          
+
           Run: ``mne.datasets.fetch_hcp_mmp_parcellation(accept=True)``
-          
+
           Or set env var: ``COORD2REGION_ACCEPT_HCPMMP=1``
 
 Coordinate Sets (ROIs)
