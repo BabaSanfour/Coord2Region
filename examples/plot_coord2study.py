@@ -16,6 +16,7 @@ datasets beforehand into the same cache location used below, run:
 .. code-block:: python
 
     from coord2region.coord2study import fetch_datasets
+
     # Choose a cache directory and the sources you want
     data_dir = "~/.coord2region_examples"
     fetch_datasets(data_dir=data_dir, sources=["neurosynth"])  # or ["neuroquery"], etc.

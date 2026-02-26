@@ -53,9 +53,9 @@ Citing AI & Providers
 When using Generative AI features (summaries or images), it is best practice to
 cite the specific model version and the retrieval service.
 
-* **Literature Search:** If you used `coords-to-study`, cite **Neurosynth** (Yarkoni et al., 2011) or **NeuroQuery** (Dockès et al., 2020) depending on
+* **Literature Search:** If you used ``coords-to-study``, cite **Neurosynth** (Yarkoni et al., 2011) or **NeuroQuery** (Dockès et al., 2020) depending on
   your configured source.
-* **AI Models:** Specify the model ID (e.g., `gpt-4o`, `gemini-1.5-pro`) and
+* **AI Models:** Specify the model ID (e.g., ``gpt-4o``, ``gemini-1.5-pro``) and
   the date of access, as these models evolve over time.
 
 Talks & Demos

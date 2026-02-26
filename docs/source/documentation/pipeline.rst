@@ -46,10 +46,7 @@ dataframes or lists of coordinates within your existing Python scripts.
         outputs=["region_labels", "summaries", "images"],
         output_format="pdf",
         output_name="amygdala_analysis",
-        config={
-            "use_cached_dataset": True,
-            "image_backend": "nilearn"
-        },
+        config={"use_cached_dataset": True, "image_backend": "nilearn"},
     )
 
     # Access results programmatically
@@ -69,9 +66,9 @@ The pipeline is optimized for lists. You can pass hundreds of coordinates at onc
     results = run_pipeline(
         inputs=coords,
         input_type="coords",
-        outputs=["region_labels"], # fast lookup only
-        output_format="csv",       # export table
-        output_name="batch_results"
+        outputs=["region_labels"],  # fast lookup only
+        output_format="csv",  # export table
+        output_name="batch_results",
     )
 
 Error Handling
@@ -87,7 +84,7 @@ entire batch.
 Configuration Schema
 --------------------
 
-The ``config`` dictionary passed to `run_pipeline` accepts the same keys as the
+The ``config`` dictionary passed to ``run_pipeline`` accepts the same keys as the
 YAML configuration file.
 
 .. list-table::
@@ -108,5 +105,5 @@ YAML configuration file.
 Command Line Interface
 ----------------------
 
-While `run_pipeline` is the internal engine, most users interact with it via
+While ``run_pipeline`` is the internal engine, most users interact with it via
 the CLI. See :doc:`cli_tools` for the complete command reference.

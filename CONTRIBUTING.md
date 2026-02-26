@@ -130,6 +130,7 @@ We maintain a release-based **Changelog** in `docs/source/changelog.rst`. Every 
 4. Add your name to the **Authors** list for the version if it's your first contribution to that release.
 
 ### Format requirements:
+
 - Use past tense for entries (e.g., "Added...", "Fixed...").
 - Keep descriptions clear and high-level.
 - Ensure security remediations are highlighted in the `Fixed` or `Security` sections.

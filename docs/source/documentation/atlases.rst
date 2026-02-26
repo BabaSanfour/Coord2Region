@@ -21,6 +21,7 @@ the command line or Python:
    :caption: Python
 
    from coord2region.fetching import AtlasFetcher
+
    print(AtlasFetcher().list_available_atlases())
 
 Usage Guide

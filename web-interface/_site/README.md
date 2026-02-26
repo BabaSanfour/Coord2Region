@@ -80,8 +80,7 @@ Jekyll renderer running from `web-interface/`:
    `npm run build` after each change if you skip watch mode).
 2. In one terminal, start the React builder dev server with `npm run dev`
    (served at http://localhost:5173).
-3. In another terminal, serve the landing page with `bundle exec jekyll serve
-   --livereload` and open http://127.0.0.1:4000 to view the combined site.
+3. In another terminal, serve the landing page with `bundle exec jekyll serve --livereload` and open http://127.0.0.1:4000 to view the combined site.
 
 Jekyll consumes the files in `web-interface/assets`, so be sure to rerun the
 build step whenever you change the builder if watch mode is not running.

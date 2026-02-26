@@ -31,7 +31,7 @@ Python API check
 
 Start a Python session in the same environment:
 
-.. code-block:: python
+.. code-block:: console
 
    >>> from coord2region.fetching import AtlasFetcher
    >>> af = AtlasFetcher()

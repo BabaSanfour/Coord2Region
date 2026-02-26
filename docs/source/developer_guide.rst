@@ -14,7 +14,7 @@ future of the project, start here.
    * - 🐍 Python Core
      - ⚛️ Web Interface
      - 🗺️ Roadmap
-   * - Setup the python environment, run `pytest`, and manage releases.
+   * - Setup the python environment, run ``pytest``, and manage releases.
 
        :doc:`Read Guide <dev/dev_python>`
      - Work on the React-based configuration builder and documentation site.

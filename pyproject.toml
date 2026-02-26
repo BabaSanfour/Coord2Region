@@ -141,3 +141,8 @@ markers = [
     "integration: mark a test as an integration test",
     "requires_network: mark test as requiring network access",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_unreachable = true
+strict = false

@@ -72,6 +72,7 @@ Data Management
     .. code-block:: python
 
         import mne
+
         # Downloads to ~/mne_data by default
         mne.datasets.sample.data_path()
         mne.datasets.epilepsy_ecog.data_path()

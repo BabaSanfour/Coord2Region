@@ -46,7 +46,7 @@ Features
   atlases, and configure AI provider keys securely.
 - **Privacy First**: The builder is a static site. Your API keys and data remain
   in your browser until you choose to export them.
-- **Import/Export**: Drag and drop an existing `coord2region.yaml` file to
+- **Import/Export**: Drag and drop an existing ``coord2region.yaml`` file to
   edit it visually, keeping your experimental code and visual designs in sync.
 
 **Web Runner (Hugging Face)**

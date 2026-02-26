@@ -27,7 +27,7 @@
 
    .. code-block:: python
 
-      {{ obj.value|indent(width=6,blank=true) }}
+      {{obj.value | indent(width=6, blank=true)}}
 
    .. raw:: html
 
