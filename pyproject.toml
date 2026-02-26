@@ -119,5 +119,25 @@ ignore = ["D203", "D213"]
 convention = "numpy"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v"
+minversion = "6.0"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    # MNE sometimes raises warnings we can't control
+    "ignore::DeprecationWarning:mne.*:",
+    "ignore::PendingDeprecationWarning:mne.*:",
+    "ignore::FutureWarning:mne.*:",
+    # Ignore numpy warnings from other dependencies
+    "ignore::DeprecationWarning:numpy.*:",
+    "ignore::FutureWarning:numpy.*:",
+]
+log_level = "INFO"
+testpaths = [
+    "tests",
+]
+markers = [
+    "unit: mark a test as a unit test",
+    "integration: mark a test as an integration test",
+    "requires_network: mark test as requiring network access",
+]
