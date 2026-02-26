@@ -69,6 +69,29 @@ docs = [
     "sphinxcontrib-mermaid",
 ]
 
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "pytest-cov",
+    "ruff",
+    "torch>=2.0.0",
+]
+docs = [
+    "insegel",
+    "myst-parser",
+    "pydata-sphinx-theme",
+    "packaging",
+    "sphinx>=4.0.0",
+    "sphinx-autoapi",
+    "sphinx-copybutton",
+    "sphinx-gallery",
+    "sphinxcontrib-mermaid",
+]
+tests = [
+    "pytest-cov",
+    "torch>=2.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/BabaSanfour/Coord2Region"
 Issues = "https://github.com/BabaSanfour/Coord2Region/issues"
