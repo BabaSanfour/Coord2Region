@@ -184,18 +184,100 @@ INFO:root:Processed 2/2 inputs
   {
     "coordinate": [20.0, -12.0, 10.0],
     "region_labels": {"harvard-oxford": "Central Opercular Cortex"},
-    "studies": [{"id": "19874897-1", "title": "Shared neural resources between left and right interlimb coordination skills: the neural substrate of abstract motor representations."}],
+    "studies": [{"id": "19874897-1", "title": "Shared neural resources between left and right interlimb\n"
+                 "coordination skills: the neural substrate of abstract motor\n"
+                 "representations."}],
     "images": {"ai": "figures/example_coord1_ai.png",
                "nilearn": "figures/example_coord1_nilearn.png"},
-    "summary": "The MNI coordinate [20.00, -12.00, 10.00] is situated within the Central Opercular Cortex, an area that plays a crucial role in integrating sensory, motor, and cognitive functions. This region is particularly significant for its involvement in various aspects of sensorimotor processing and coordination, as evidenced by its activation during tasks requiring interlimb coordination skills.\n\nResearch indicates that activation in the Central Opercular Cortex is frequently linked to the execution and planning of complex motor tasks, highlighting its role in formulating abstract motor representations. This function is particularly pertinent in studies exploring the neural underpinnings of interlimb coordination, wherein participants must integrate feedback from different body parts to perform synchronized movements. The central opercular cortex's positioning allows it to act as a hub that facilitates communication between sensory input and motor output, underscoring its importance in tasks that require fluid and coordinated response to dynamic stimuli.\n\nIn experimental contexts, this region has been implicated in various conditions, such as those involving rhythmic motor tasks or lateralized movement paradigms. The activation observed at this coordinate typically emerges during tasks that necessitate a high degree of motor precision and coordination, suggesting that it might serve a broader role in motor control beyond the interlimb coordination specifically. \n\nDespite a growing consensus on the significance of the Central Opercular Cortex in motor functions, debates persist regarding the extent of its involvement in cognitive versus purely motor tasks. Some studies propose that this area may also contribute to higher-order processes, such as decision-making during movement, highlighting an interface between cognitive processes and motor execution. This notion invites further examination of the cognitive dimensions of movement, suggesting that regions traditionally regarded as motor may also support complex cognitive operations.\n\nOverall, the findings associated with the MNI coordinate [20.00, -12.00, 10.00] highlight the Central Opercular Cortex as a vital region for both motor coordination and the cognitive processes that underpin it, supporting a multifaceted understanding of how our brains facilitate skilled movement."
-},
+    "summary": "The MNI coordinate [20.00, -12.00, 10.00] is situated within the Central\n"
+               "Opercular Cortex, an area that plays a crucial role in integrating sensory,\n"
+               "motor, and cognitive functions. This region is particularly significant for\n"
+               "its involvement in various aspects of sensorimotor processing and\n"
+               "coordination, as evidenced by its activation during tasks requiring\n"
+               "interlimb coordination skills.\n\n"
+               "Research indicates that activation in the Central Opercular Cortex is\n"
+               "frequently linked to the execution and planning of complex motor tasks,\n"
+               "highlighting its role in formulating abstract motor representations. This\n"
+               "function is particularly pertinent in studies exploring the neural\n"
+               "underpinnings of interlimb coordination, wherein participants must\n"
+               "integrate feedback from different body parts to perform synchronized\n"
+               "movements. The central opercular cortex's positioning allows it to act as a\n"
+               "hub that facilitates communication between sensory input and motor output,\n"
+               "underscoring its importance in tasks that require fluid and coordinated\n"
+               "response to dynamic stimuli.\n\n"
+               "In experimental contexts, this region has been implicated in various\n"
+               "conditions, such as those involving rhythmic motor tasks or lateralized\n"
+               "movement paradigms. The activation observed at this coordinate typically\n"
+               "emerges during tasks that necessitate a high degree of motor precision and\n"
+               "coordination, suggesting that it might serve a broader role in motor\n"
+               "control beyond the interlimb coordination specifically.\n\n"
+               "Despite a growing consensus on the significance of the Central Opercular\n"
+               "Cortex in motor functions, debates persist regarding the extent of its\n"
+               "involvement in cognitive versus purely motor tasks. Some studies propose\n"
+               "that this area may also contribute to higher-order processes, such as\n"
+               "decision-making during movement, highlighting an interface between\n"
+               "cognitive processes and motor execution. This notion invites further\n"
+               "examination of the cognitive dimensions of movement, suggesting that\n"
+               "regions traditionally regarded as motor may also support complex cognitive\n"
+               "operations.\n\n"
+               "Overall, the findings associated with the MNI coordinate [20.00, -12.00,\n"
+               "10.00] highlight the Central Opercular Cortex as a vital region for both\n"
+               "motor coordination and the cognitive processes that underpin it, supporting\n"
+               "a multifaceted understanding of how our brains facilitate skilled movement."
+  },
   {
     "coordinate": [38.0, -48.0, 49.0],
     "region_labels": {"harvard-oxford": "Superior Parietal Lobule"},
-    "studies": [{"id": "9065511-1", "title": "Environmental knowledge is subserved by separable dorsal/ventral neural areas."}],
+    "studies": [{"id": "9065511-1", "title": "Environmental knowledge is subserved by separable dorsal/ventral\n"
+                 "neural areas."}],
     "images": {"ai": "figures/example_coord2_ai.png",
                "nilearn": "figures/example_coord2_nilearn.png"},
-    "summary": "The MNI coordinate [38.00, -48.00, 49.00] is located within the superior parietal lobule, an anatomically and functionally significant region of the brain. This area is nestled within the parietal lobe, situated superiorly and posteriorly to the intraparietal sulcus, and is involved in a variety of complex cognitive processes.\n\n### Anatomical Significance\nThe superior parietal lobule is known for its role in integrating sensory information and is associated with both visual and spatial processing. It acts as a crossroads for information from multiple sensory modalities, contributing to our understanding of spatial awareness and the manipulation of objects in our environment.\n\n### Functional Roles\nActivation in this region has been linked to several cognitive functions, prominently including spatial awareness, attention, and the processing of environmental knowledge. Its involvement in dorsal and ventral processing streams suggests a specialization in higher-order cognitive strategies relevant for navigating and understanding the surrounding world. Specifically, environmental knowledge\u2014how we learn about and relate to the spaces and items in our environment\u2014can be traced to activity within this parietal region. The studies suggest that this area may facilitate both the practical and conceptual aspects of spatial awareness, connecting perceptual stimuli with stored knowledge and actions.\n\n### Experimental Contexts\nActivation at this coordinate has been reported in studies examining various tasks involving spatial cognition and environmental interactions. Although the specific tasks employed in pertinent studies may vary, they generally encompass scenarios where spatial manipulation, visual attention, or knowledge application is required. For instance, the study linking environmental knowledge to the dorsal and ventral neural areas suggests that such cognitive demands evoke activation in the superior parietal lobule, emphasizing the region's involvement in tasks that require participants to integrate sensory inputs for effective navigation and task performance.\n\n### Patterns and Debates\nWhile the findings demonstrate consistent activation of the superior parietal lobule with respect to spatial and environmental cognition, debates may arise concerning the specific contributions of neighboring structures to this activation. Questions persist about whether the observed effects are solely attributable to the superior parietal lobule or if contributions from adjacent cortical areas, like the intraparietal sulcus or the precuneus, play a role. Thus, while the superior parietal lobule is undoubtedly a critical player in the cognitive processes tied to the coordinate in question, the intricate interplay with surrounding regions remains an area of ongoing research and debate.\n\nThis synthesis highlights the importance of the superior parietal lobule in spatial and environmental cognition, revealing a complex landscape where anatomical structure and function intersect to facilitate our interaction with the world around us."
+    "summary": "The MNI coordinate [38.00, -48.00, 49.00] is located within the superior\n"
+               "parietal lobule, an anatomically and functionally significant region of the\n"
+               "brain. This area is nestled within the parietal lobe, situated superiorly\n"
+               "and posteriorly to the intraparietal sulcus, and is involved in a variety\n"
+               "of complex cognitive processes.\n\n"
+               "### Anatomical Significance\nThe superior parietal lobule is known for its\n"
+               "role in integrating sensory information and is associated with both visual\n"
+               "and spatial processing. It acts as a crossroads for information from\n"
+               "multiple sensory modalities, contributing to our understanding of spatial\n"
+               "awareness and the manipulation of objects in our environment.\n\n"
+               "### Functional Roles\nActivation in this region has been linked to several\n"
+               "cognitive functions, prominently including spatial awareness, attention,\n"
+               "and the processing of environmental knowledge. Its involvement in dorsal\n"
+               "and ventral processing streams suggests a specialization in higher-order\n"
+               "cognitive strategies relevant for navigating and understanding the\n"
+               "surrounding world. Specifically, environmental knowledge\u2014how we learn\n"
+               "about and relate to the spaces and items in our environment\u2014can be\n"
+               "traced to activity within this parietal region. The studies suggest that\n"
+               "this area may facilitate both the practical and conceptual aspects of\n"
+               "spatial awareness, connecting perceptual stimuli with stored knowledge and\n"
+               "actions.\n\n"
+               "### Experimental Contexts\nActivation at this coordinate has been reported\n"
+               "in studies examining various tasks involving spatial cognition and\n"
+               "environmental interactions. Although the specific tasks employed in\n"
+               "pertinent studies may vary, they generally encompass scenarios where\n"
+               "spatial manipulation, visual attention, or knowledge application is\n"
+               "required. For instance, the study linking environmental knowledge to the\n"
+               "dorsal and ventral neural areas suggests that such cognitive demands evoke\n"
+               "activation in the superior parietal lobule, emphasizing the region's\n"
+               "involvement in tasks that require participants to integrate sensory inputs\n"
+               "for effective navigation and task performance.\n\n"
+               "### Patterns and Debates\nWhile the findings demonstrate consistent\n"
+               "activation of the superior parietal lobule with respect to spatial and\n"
+               "environmental cognition, debates may arise concerning the specific\n"
+               "contributions of neighboring structures to this activation. Questions\n"
+               "persist about whether the observed effects are solely attributable to the\n"
+               "superior parietal lobule or if contributions from adjacent cortical areas,\n"
+               "like the intraparietal sulcus or the precuneus, play a role. Thus, while\n"
+               "the superior parietal lobule is undoubtedly a critical player in the\n"
+               "cognitive processes tied to the coordinate in question, the intricate\n"
+               "interplay with surrounding regions remains an area of ongoing research and\n"
+               "debate.\n\n"
+               "This synthesis highlights the importance of the superior parietal lobule in\n"
+               "spatial and environmental cognition, revealing a complex landscape where\n"
+               "anatomical structure and function intersect to facilitate our interaction\n"
+               "with the world around us."
   }
 ]
 ```
@@ -211,12 +293,7 @@ The Config Builder guides users through the following steps:
 3. Choose desired outputs such as anatomical labels, linked studies, summaries, or images.
 4. Configure model and output options (e.g., number of studies retrieved, whether to generate summaries, output formats).
 
-![Nilearn overlay (Central Opercular Cortex).](example_coord1_nilearn.png)
-![Nilearn overlay (Superior Parietal Lobule).](example_coord2_nilearn.png)
-![AI illustration (Central Opercular Cortex).](example_coord1_ai.png)
-![AI illustration (Superior Parietal Lobule).](example_coord2_ai.png)
-
-Example outputs from `coord2region coords-to-insights` for two input coordinates. For each coordinate, Coord2Region generates (i) an atlas overlay (Nilearn) and (ii) an optional AI illustration, alongside mapped labels, retrieved studies, and a text summary.
+![Example outputs from `coord2region coords-to-insights` for two input coordinates. For each coordinate, Coord2Region generates (i) an atlas overlay (Nilearn) and (ii) an optional AI illustration, alongside mapped labels, retrieved studies, and a text summary.](combined_viz.png)
 
 As users complete the form, live validation ensures that only configurations consistent with the underlying schema are allowed. The interface also displays a live YAML preview and a corresponding CLI command snippet, enabling users to download the YAML, copy the command, or directly invoke CLI execution based on their selections.
 
