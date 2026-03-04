@@ -9,25 +9,26 @@ tags:
 - large language models
   authors:
 - name: Hamza Abdelhedi
-  orcid: 0000-0000-0000-0000
+  orcid: 0000-0002-4638-640X
   equal-contrib: true
   affiliation: "1, 2"
 - name: Yorguin-Jose Mantilla-Ramos
-  orcid: 0000-0000-0000-0000
+  orcid: 0000-0003-4473-0876
   equal-contrib: true
   affiliation: "1, 2"
 - name: Sina Esmaeili
-  orcid: 0000-0000-0000-0000
+  orcid: 0000-0002-4740-1915
   equal-contrib: true
   affiliation: 1
 - name: Annalisa Pascarella
-  orcid: 0000-0002-8610-3889
+  orcid: 0000-0001-8795-0815
   affiliation: 3
 - name: Vanessa Hadid
+  orcid: 0000-0001-6597-3805
   affiliation: 4
 - name: Karim Jerbi
   affiliation: "1, 2, 5"
-  affiliations:
+  orcid: 0000-0002-3790-9651
 - name: Cognitive and Computational Neuroscience Laboratory (CoCo Lab), Psychology Department, University of Montreal, Montreal, QC, Canada
   index: 1
 - name: Mila – Quebec Artificial Intelligence Institute, Montreal, QC, Canada
