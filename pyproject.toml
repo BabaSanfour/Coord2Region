@@ -131,6 +131,10 @@ filterwarnings = [
     # Ignore numpy warnings from other dependencies
     "ignore::DeprecationWarning:numpy.*:",
     "ignore::FutureWarning:numpy.*:",
+    # Ignore expected Coord2Region warnings during tests
+    "ignore:Region .* is not part of the .* atlas.:UserWarning",
+    "ignore:Atlas .* is not available in the current version.*:UserWarning",
+    "ignore:The file name is expected to be in the URL:UserWarning",
 ]
 log_level = "INFO"
 testpaths = [

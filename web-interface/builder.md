@@ -1,6 +1,11 @@
-______________________________________________________________________
-
-## layout: default hero_title: "Coord2Region: Coordinates \<em class="into">into</em> Insights" hero_tagline: "Build a YAML config to run coord2region with minimal effort — map coordinates to region names, studies, summaries, and images." title: "Config Builder" description: "Interactive configuration builder for Coord2Region." body_class: builder-page
+---
+layout: default
+hero_title: "Coord2Region: Coordinates <em class=\"into\">into</em> Insights"
+hero_tagline: "Build a YAML config to run coord2region with minimal effort — map coordinates to region names, studies, summaries, and images."
+title: "Config Builder"
+description: "Interactive configuration builder for Coord2Region."
+body_class: builder-page
+---
 
 <!-- markdownlint-disable MD033 -->
 
