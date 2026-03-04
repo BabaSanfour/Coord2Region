@@ -106,13 +106,13 @@ This component forms the core of Coord2Region.
 
 All three support single points or large batches; convert bidirectionally between coordinates, voxel indices, and region labels; and automatically infer hemisphere from region labels. *Example: 500 lesion coordinates can be batch-processed across AAL and Destrieux in one query, with outputs labeled consistently.*
 
-Edge cases are resolved via nearest-neighbor interpolation so coordinates that do not overlap labeled voxels map to the nearest anatomical region. For volume atlases, we precompute the set of labeled voxels $V \\subset \\mathbb{Z}^3$ and build a KD-tree over their MNI coordinates. Given an input location $x$, if $x$ is unlabeled we return the label at
+Edge cases are resolved via nearest-neighbor interpolation so coordinates that do not overlap labeled voxels map to the nearest anatomical region. For volume atlases, we precompute the set of labeled voxels $V \subset \mathbb{Z}^3$ and build a KD-tree over their MNI coordinates. Given an input location $x$, if $x$ is unlabeled we return the label at
 $$
-v^\\ast = \\arg\\min\_{v \\in V} \\bigl| x - \\operatorname{mni}(v) \\bigr|\_2
+v^\ast = \arg\min_{v \in V} \bigl| x - \operatorname{mni}(v) \bigr|_2
 $$
 and report the distance
 $$
-d = \\bigl| x - \\operatorname{mni}(v^\\ast) \\bigr|\_2.
+d = \bigl| x - \operatorname{mni}(v^\ast) \bigr|_2.
 $$
 For surface atlases, we index labeled vertices and build a KD-tree over their 3D positions; for vertex-to-triangle ambiguities, we prefer the smallest geodesic distance when available, otherwise the Euclidean distance. KD-trees, centroids, and label maps are cached in a user-configurable directory and serialized for reuse (batch API/CLI), enabling large-scale, cross-atlas mapping on standard hardware.
 
