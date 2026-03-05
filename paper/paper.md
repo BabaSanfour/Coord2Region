@@ -24,12 +24,12 @@ authors:
     affiliation: "3"
   - name: Vanessa Hadid
     orcid: "0000-0001-6597-3805"
-    affiliation: "4"
+    affiliation: "4, 5"
   - name: Karim Jerbi
     orcid: "0000-0002-3790-9651"
-    affiliation: "1, 2, 5"
+    affiliation: "1, 2, 5, 6"
 affiliations:
-  - name: Cognitive and Computational Neuroscience Laboratory (CoCo Lab), Psychology Department, University of Montreal, Montreal, QC, Canada
+  - name: Cognitive and Computational Neuroscience Laboratory (CoCo Lab), University of Montreal, Montreal, QC, Canada
     index: 1
   - name: Mila – Quebec Artificial Intelligence Institute, Montreal, QC, Canada
     index: 2
@@ -37,8 +37,10 @@ affiliations:
     index: 3
   - name: McGill University Health Centre (MUHC), Montreal, Quebec, Canada
     index: 4
-  - name: UNIQUE Center (Quebec Neuro-AI Research Center), Montreal, QC, Canada
+  - name: Psychology Department, University of Montreal, Montreal, QC, Canada
     index: 5
+  - name: UNIQUE Center (Quebec Neuro-AI Research Center), Montreal, QC, Canada
+    index: 6
 date: 4 March 2026
 bibliography: paper.bib
 ---
