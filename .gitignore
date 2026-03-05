@@ -55,3 +55,5 @@ config/coord2region-config.yaml
 
 .vscode/
 *.DS_Store
+paper/jats/
+paper/paper.pdf
