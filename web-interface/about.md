@@ -1,6 +1,10 @@
-______________________________________________________________________
-
-## layout: default hero_title: "Coord2Region: Coordinates \<em class="into">into</em> Insights" hero_tagline: "Transform coordinates or region names into related studies, AI summaries, and AI‑generated images" title: "About Coord2Region" description: "About the Coord2Region project and Phase 2 goals."
+---
+layout: default
+hero_title: "Coord2Region: Coordinates <em class=\"into\">into</em> Insights"
+hero_tagline: "Transform coordinates or region names into related studies, AI summaries, and AI‑generated images"
+title: "About Coord2Region"
+description: "About the Coord2Region project and Phase 2 goals."
+---
 
 <section class="logo-text-block" data-logo-light="{{ '/assets/img/logo.png' | relative_url }}" data-logo-dark="{{ '/assets/img/logo_darkmode.png' | relative_url }}">
   <img src="{{ '/assets/img/logo.png' | relative_url }}" alt="Coord2Region logo" class="inline-logo small theme-logo">

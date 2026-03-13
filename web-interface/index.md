@@ -1,6 +1,10 @@
-______________________________________________________________________
-
-## layout: default hero_title: "Coord2Region" hero_tagline: "Turn MNI coordinates and atlas regions into actionable insights—labels, related studies, summaries, and optional images." title: "Home" description: "Overview of Coord2Region with links to the Builder, About, Cloud, and Docs."
+---
+layout: default
+hero_title: "Coord2Region"
+hero_tagline: "Turn MNI coordinates and atlas regions into actionable insights—labels, related studies, summaries, and optional images."
+title: "Home"
+description: "Overview of Coord2Region with links to the Builder, About, Cloud, and Docs."
+---
 
 <section class="logo-text-block" data-logo-light="{{ '/assets/img/logo.png' | relative_url }}" data-logo-dark="{{ '/assets/img/logo_darkmode.png' | relative_url }}">
   <img src="{{ '/assets/img/logo.png' | relative_url }}" alt="Coord2Region logo" class="inline-logo small theme-logo">

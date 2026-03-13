@@ -2,9 +2,9 @@ name: python-tests
 
 on:
   push:
-    branches: [ main , 'debug/*' ]
+    branches: [ main , 'debug/*', 'fix/*', 'feat/*' ]
   pull_request:
-    branches: [ main , 'debug/*' ]
+    branches: [ main , 'debug/*', 'fix/*', 'feat/*' ]
 
 # OIDC needs this
 permissions:

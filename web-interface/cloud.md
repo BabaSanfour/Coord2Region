@@ -1,6 +1,11 @@
-______________________________________________________________________
-
-## layout: default hero_title: "Coord2Region: Coordinates \<em class="into">into</em> Insights" hero_tagline: "Cloud Runner — Run Coord2Region in your browser" title: "Cloud Runner" description: "Cloud execution portal for Coord2Region on Hugging Face Spaces, powered by Streamlit." body_class: cloud-page
+---
+layout: default
+hero_title: "Coord2Region: Coordinates <em class=\"into\">into</em> Insights"
+hero_tagline: "Cloud Runner — Run Coord2Region in your browser"
+title: "Cloud Runner"
+description: "Cloud execution portal for Coord2Region on Hugging Face Spaces, powered by Streamlit."
+body_class: cloud-page
+---
 
 ## Cloud Runner
 

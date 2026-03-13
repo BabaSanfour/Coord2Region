@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  base: "/Coord2Region/",
   root: path.resolve(__dirname, 'website'),
   plugins: [react()],
   resolve: {
