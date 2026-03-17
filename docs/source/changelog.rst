@@ -26,13 +26,16 @@ Fixed
 - Resolved **Arbitrary File Write and XML injection** in ``fonttools`` (CVE-2024-52233).
 - Resolved **TOCTOU Symlink Vulnerability** in ``filelock`` (CVE-2024-56334).
 - Resolved **Prototype Pollution** in ``js-yaml`` and ``lodash`` (NPM dependencies).
-- Resolved security vulnerability in ``pyasn1``.
+- Resolved **Denial of Service (DoS)** vulnerability in ``pyasn1`` (CVE-2024-53900) by updating to version 0.6.3.
 - Resolved **Out-of-bounds write** in ``Pillow``.
 - Resolved **Decompression-bomb safeguards bypass** in ``urllib3``.
+- Improved and relaxed version reporting tests for better robustness.
 
 Security
 ~~~~~~~~
 - Added dependency version pins in ``pyproject.toml`` to ensure secure environments.
+- Updated GitHub Actions workflows to include necessary permissions, addressing code scanning alerts.
+- Bumped GitHub Actions dependencies to the latest versions.
 
 Authors
 ~~~~~~~

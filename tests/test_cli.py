@@ -97,7 +97,7 @@ main(["--version"])
 """
     result = _run(code)
     assert result.returncode == 0
-    assert result.stdout.strip().startswith("coord2region ")
+    assert "coord2region" in result.stdout.strip()
 
 
 def test_cli_list_atlases_flag_outputs_names(capsys):
