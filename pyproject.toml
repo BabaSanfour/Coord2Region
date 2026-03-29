@@ -37,7 +37,7 @@ dependencies = [
     "pandas",
     "pydantic>=2.6.0",
     "scipy",
-    "requests",
+    "requests>=2.33.0",
     "pyyaml",
     "openpyxl",
     "Pillow",
