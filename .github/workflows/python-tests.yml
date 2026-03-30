@@ -59,7 +59,7 @@ jobs:
       # Upload to Codecov (skip forked PRs so we don't crash on missing OIDC/secrets)
       - name: Upload coverage to Codecov
         if: success() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           use_oidc: true                  # OIDC auth
           token: ${{ secrets.CODECOV_TOKEN }}  # optional; ignored when OIDC is used
